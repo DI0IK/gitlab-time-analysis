@@ -63,7 +63,7 @@ export default function GroupPage() {
     >
       <div
         style={{
-          width: "max(80svw, 500px)",
+          width: "min(max(80svw, 500px), 100svw)",
           margin: "0 auto",
           padding: "20px",
           gap: "40px",

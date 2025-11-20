@@ -139,7 +139,7 @@ export default function SprintOverview() {
   return (
     <Card>
       <CardHeader title="Sprint overview" />
-      <CardContent>
+      <CardContent sx={{ overflowX: "auto" }}>
         <Box sx={{ display: "flex", gap: 2, alignItems: "center", mb: 2 }}>
           <FormControl sx={{ minWidth: 220 }} size="small">
             <InputLabel id="sprint-select-label">Sprint</InputLabel>
