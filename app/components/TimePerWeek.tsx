@@ -62,7 +62,23 @@ export default function TimePerWeek() {
     <Card>
       <CardHeader title="Total hours per sprint" />
       <CardContent>
-        <BarChart series={series} height={300} />
+        <BarChart
+          series={series}
+          height={300}
+          xAxis={[
+            {
+              data: sprintTotals.map((t) => t.sprintNumber),
+              label: "Sprint Number",
+              tickLabelStyle: {
+                fontSize: 10,
+                angle: 90,
+                textAnchor: "start",
+              },
+            },
+          ]}
+          grid={{ horizontal: true }}
+          yAxis={[{ label: "Hours" }]}
+        />
       </CardContent>
     </Card>
   );

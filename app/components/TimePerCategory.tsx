@@ -67,12 +67,18 @@ export default function TimePerCategory() {
           <BarChart
             height={300}
             series={[
-              { data: data.map((d) => d.usedHours), label: "Used Hours" },
+              {
+                data: data.map((d) => d.usedHours),
+                label: "Used Hours",
+                barLabel: "value",
+              },
               {
                 data: data.map((d) => d.estimatedHours),
                 label: "Estimated Hours",
+                barLabel: "value",
               },
             ]}
+            grid={{ horizontal: true }}
             xAxis={[{ data: labels[selectedCategory].map((lbl) => lbl.title) }]}
           />
         );
