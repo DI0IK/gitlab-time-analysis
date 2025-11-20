@@ -1,10 +1,11 @@
 import SprintOverview from "@/app/components/SprintOverviewImage";
 import satori from "satori";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { getTimelogs } from "../timelogs/route";
 import { generateSprints } from "../sprints/route";
 import { getMembers } from "../members/route";
 import { getLabels } from "../labels/route";
+import { NextResponse } from "next/server";
 
 export async function GET(
   request: NextRequest,
@@ -78,6 +79,11 @@ export async function GET(
   return new NextResponse(svg, {
     headers: {
       "Content-Type": "image/svg+xml",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
+      "Content-Security-Policy": "frame-ancestors *",
+      "X-Frame-Options": "ALLOWALL",
     },
   });
 }

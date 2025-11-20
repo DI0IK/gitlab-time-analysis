@@ -5,7 +5,7 @@ import { BarChart } from "@mui/x-charts";
 import SelectorCard from "./PersonSelectorWrapper";
 
 export default function TimePerCategory() {
-  const { sprints, timelogs, members, labels } = React.useContext(GroupContext);
+  const { timelogs, labels } = React.useContext(GroupContext);
 
   if (!labels || Object.keys(labels).length === 0) {
     return <div>No labels data available.</div>;
