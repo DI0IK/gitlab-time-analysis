@@ -4,16 +4,18 @@ import Card from "@mui/material/Card";
 import CardHeader from "@mui/material/CardHeader";
 import CardContent from "@mui/material/CardContent";
 
-export default function SelectorCard({
+export default function SelectorCard<T>({
   children,
   title,
   defaultSelected = "all",
   options,
+  data,
 }: {
-  children: (selected: string) => React.ReactNode;
+  children: (selected: string, data: T) => React.ReactNode;
   title: string;
   defaultSelected: string;
   options: { value: string; label: string }[];
+  data: T;
 }) {
   const [option, setOption] = React.useState<string>(defaultSelected);
 
@@ -44,7 +46,7 @@ export default function SelectorCard({
           </div>
         }
       />
-      <CardContent>{children(option)}</CardContent>
+      <CardContent>{children(option || defaultSelected, data)}</CardContent>
     </Card>
   );
 }

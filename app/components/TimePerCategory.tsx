@@ -7,19 +7,20 @@ import SelectorCard from "./PersonSelectorWrapper";
 export default function TimePerCategory() {
   const { timelogs, labels } = React.useContext(GroupContext);
 
-  if (!labels || Object.keys(labels).length === 0) {
-    return <div>No labels data available.</div>;
-  }
-
-  const categoryGroups = Object.keys(labels);
-
   return (
     <SelectorCard
       title="Time Per Category"
-      options={categoryGroups.map((c) => ({ label: c, value: c }))}
-      defaultSelected={categoryGroups[0] || ""}
+      options={Object.keys(labels).map((c) => ({ label: c, value: c }))}
+      defaultSelected={Object.keys(labels)[0] || ""}
+      data={{
+        timelogs,
+        labels,
+      }}
     >
-      {(selectedCategory) => {
+      {(selectedCategory, { timelogs, labels }) => {
+        if (!labels[selectedCategory]) {
+          return <BarChart height={300} series={[]} xAxis={[{ data: [] }]} />;
+        }
         const issuesTime: Record<
           string,
           { used: number; estimated: number; category: string }
@@ -79,7 +80,11 @@ export default function TimePerCategory() {
               },
             ]}
             grid={{ horizontal: true }}
-            xAxis={[{ data: labels[selectedCategory].map((lbl) => lbl.title) }]}
+            xAxis={[
+              {
+                data: labels[selectedCategory].map((lbl) => lbl.title),
+              },
+            ]}
           />
         );
       }}

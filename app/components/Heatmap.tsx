@@ -13,8 +13,9 @@ export default function Heatmap() {
         { value: "all", label: "All Members" },
       ]}
       defaultSelected="all"
+      data={{ sprints, timelogs }}
     >
-      {(selected) => {
+      {(selected, { sprints, timelogs }) => {
         const filteredTimelogs =
           selected === "all"
             ? timelogs
