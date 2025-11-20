@@ -2,8 +2,6 @@
 import React from "react";
 import { GroupContext } from "../GroupContext";
 import { BarChart } from "@mui/x-charts";
-import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
 import { Card, CardContent, CardHeader } from "@mui/material";
 
 export default function TimePerWeek() {

@@ -10,27 +10,55 @@ export default function HeaderCards() {
     0
   );
 
+  const now = new Date().getTime();
+
+  const totalSprints = sprints.filter(
+    (sprint) => new Date(sprint.endDate).getTime() <= now
+  ).length;
+
   return (
     <Card>
       <CardHeader title="Summary" />
       <CardContent
         sx={{
           display: "grid",
-          gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr 1fr" },
+          gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
           gap: 2,
         }}
       >
-        <Card variant="outlined" sx={{ mb: 1, p: 1 }}>
+        <Card variant="outlined" sx={{ p: 1, m: 0 }}>
           <CardHeader title="Total Members" />
-          <CardContent>{members.length}</CardContent>
+          <CardContent
+            sx={{ textAlign: "right", fontWeight: "bold", fontSize: 18 }}
+          >
+            {members.length}
+          </CardContent>
         </Card>
-        <Card variant="outlined" sx={{ mb: 1, p: 1 }}>
+        <Card variant="outlined" sx={{ p: 1, m: 0 }}>
           <CardHeader title="Total Sprints" />
-          <CardContent>{sprints.length}</CardContent>
+          <CardContent
+            sx={{ textAlign: "right", fontWeight: "bold", fontSize: 18 }}
+          >
+            {totalSprints}
+          </CardContent>
         </Card>
-        <Card variant="outlined" sx={{ mb: 1, p: 1 }}>
+        <Card variant="outlined" sx={{ p: 1, m: 0 }}>
           <CardHeader title="Total Time Spent" />
-          <CardContent>{(totalTimeSpent / 3600).toFixed(2)} hours</CardContent>
+          <CardContent
+            sx={{ textAlign: "right", fontWeight: "bold", fontSize: 18 }}
+          >
+            {(totalTimeSpent / 3600).toFixed(2)} hours
+          </CardContent>
+        </Card>
+        <Card variant="outlined" sx={{ p: 1, m: 0 }}>
+          <CardHeader title="Time Spent per Sprint" />
+          <CardContent
+            sx={{ textAlign: "right", fontWeight: "bold", fontSize: 18 }}
+          >
+            {totalSprints > 0
+              ? (totalTimeSpent / 3600 / totalSprints).toFixed(2) + " hours"
+              : "N/A"}
+          </CardContent>
         </Card>
       </CardContent>
     </Card>

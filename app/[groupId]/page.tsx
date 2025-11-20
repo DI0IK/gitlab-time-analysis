@@ -12,6 +12,7 @@ import { GroupSprintsResponse } from "../api/group/[id]/sprints/route";
 
 import Typography from "@mui/material/Typography";
 import HeaderCards from "../components/HeaderCards";
+import TimePerCategory from "../components/TimePerCategory";
 
 export default function GroupPage() {
   const { groupId } = useParams();
@@ -76,6 +77,7 @@ export default function GroupPage() {
         <HeaderCards />
         <Heatmap />
         <TimePerWeek />
+        <TimePerCategory />
         <SprintOverview />
       </div>
     </GroupContext.Provider>

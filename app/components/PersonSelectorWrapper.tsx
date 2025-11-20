@@ -3,17 +3,19 @@ import Select from "@mui/material/Select";
 import Card from "@mui/material/Card";
 import CardHeader from "@mui/material/CardHeader";
 import CardContent from "@mui/material/CardContent";
-import { GroupContext } from "../GroupContext";
 
-export default function PersonSelectorWrapper({
+export default function SelectorCard({
   children,
   title,
+  defaultSelected = "all",
+  options,
 }: {
-  children: (member: string | "all") => React.ReactNode;
+  children: (selected: string) => React.ReactNode;
   title: string;
+  defaultSelected: string;
+  options: { value: string; label: string }[];
 }) {
-  const [person, setPerson] = React.useState<string>("all");
-  const { members } = React.useContext(GroupContext);
+  const [option, setOption] = React.useState<string>(defaultSelected);
 
   return (
     <Card>
@@ -30,20 +32,19 @@ export default function PersonSelectorWrapper({
             <span>{title}</span>{" "}
             <Select
               native
-              value={person}
-              onChange={(e) => setPerson(e.target.value as string)}
+              value={option}
+              onChange={(e) => setOption(e.target.value as string)}
             >
-              <option value="all">All Members</option>
-              {members.map((member) => (
-                <option key={member.id} value={member.id}>
-                  {member.name}
+              {options.map((member) => (
+                <option key={member.value} value={member.value}>
+                  {member.label}
                 </option>
               ))}
             </Select>
           </div>
         }
       />
-      <CardContent>{children(person)}</CardContent>
+      <CardContent>{children(option)}</CardContent>
     </Card>
   );
 }

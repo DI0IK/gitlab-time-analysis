@@ -1,17 +1,24 @@
 import React from "react";
 import { GroupContext } from "../GroupContext";
-import PersonSelectorWrapper from "./PersonSelectorWrapper";
+import SelectorCard from "./PersonSelectorWrapper";
 
 export default function Heatmap() {
   const { members, sprints, timelogs } = React.useContext(GroupContext);
 
   return (
-    <PersonSelectorWrapper title="Heatmap">
-      {(member) => {
+    <SelectorCard
+      title="Heatmap"
+      options={[
+        ...members.map((m) => ({ label: m.name, value: m.id })),
+        { value: "all", label: "All Members" },
+      ]}
+      defaultSelected="all"
+    >
+      {(selected) => {
         const filteredTimelogs =
-          member === "all"
+          selected === "all"
             ? timelogs
-            : timelogs.filter((log) => log.username.toString() === member);
+            : timelogs.filter((log) => log.username.toString() === selected);
 
         const heatmapData: {
           [sprint: string]: {
@@ -187,6 +194,6 @@ export default function Heatmap() {
           </div>
         );
       }}
-    </PersonSelectorWrapper>
+    </SelectorCard>
   );
 }
