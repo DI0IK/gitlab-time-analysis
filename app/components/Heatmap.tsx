@@ -93,13 +93,25 @@ export default function Heatmap() {
         );
         if (overallMax === 0) overallMax = 1;
 
-        const getCellStyle = (value: number) => {
+        const getCellStyle = (value: number, date: Date) => {
           const ratio = Math.min(1, value / overallMax);
           const opacity = value === 0 ? 0.06 : 0.2 + 0.8 * ratio;
           return {
             width: 28,
             height: 28,
             borderRadius: 4,
+            border: (() => {
+              const today = new Date();
+              const cellDate = date;
+              if (
+                today.getFullYear() === cellDate.getFullYear() &&
+                today.getMonth() === cellDate.getMonth() &&
+                today.getDate() === cellDate.getDate()
+              ) {
+                return "2px solid #3b82f6";
+              }
+              return "none";
+            })(),
             background: `rgba(33,110,57,${opacity})`,
             display: "flex",
             alignItems: "center",
@@ -179,12 +191,15 @@ export default function Heatmap() {
                       title={`${days[weekday].date}: ${days[weekday].timeSpent} hrs`}
                     >
                       <div
-                        style={getCellStyle(days[weekday].timeSpent)}
+                        style={getCellStyle(
+                          days[weekday].timeSpent,
+                          new Date(days[weekday].date)
+                        )}
                         title={
-                          days[weekday].timeSpent > 0
-                            ? (days[weekday].timeSpent / 3600).toFixed(2) +
-                              " hrs"
-                            : ""
+                          new Date(days[weekday].date).toDateString() +
+                          ": " +
+                          (days[weekday].timeSpent / 3600).toFixed(2) +
+                          " hrs"
                         }
                       ></div>
                     </div>
