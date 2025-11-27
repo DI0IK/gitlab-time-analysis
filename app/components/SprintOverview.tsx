@@ -33,8 +33,8 @@ export default function SprintOverview() {
   const [selectedSprint, setSelectedSprint] = React.useState<number | null>(
     sprints.find(
       (sp) =>
-        sp.startDate <= new Date().toISOString() &&
-        new Date().toISOString() <= sp.endDate
+        sp.startDate <= new Date().toISOString().slice(0, 10) &&
+        new Date().toISOString().slice(0, 10) <= sp.endDate
     )?.sprintNumber ?? null
   );
 
@@ -58,8 +58,8 @@ export default function SprintOverview() {
       setSelectedSprint(
         sprints.find(
           (sp) =>
-            sp.startDate <= new Date().toISOString() &&
-            new Date().toISOString() <= sp.endDate
+            sp.startDate <= new Date().toISOString().slice(0, 10) &&
+            new Date().toISOString().slice(0, 10) <= sp.endDate
         )?.sprintNumber ?? null
       );
     }

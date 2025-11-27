@@ -25,10 +25,18 @@ export type GroupTimelogsResponse = {
 export async function getTimelogs(groupId: string) {
   const fullGroupPath = `${GITLAB_GROUP_PATH}/${groupId}`;
 
-  const data = await runGitlabGraphQLQuery(`
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let data: any;
+  let finished = false;
+  let cursor: string | null = null;
+
+  while (!finished) {
+    const newData = await runGitlabGraphQLQuery(`
     {
       group(fullPath: "${fullGroupPath}") {
-        timelogs(startDate: "${PROJECT_START_DATE}", endDate: "${PROJECT_END_DATE}", first: 1000) {
+        timelogs(startDate: "${PROJECT_START_DATE}", endDate: "${PROJECT_END_DATE}", first: 100${
+      cursor ? `, after: "${cursor}"` : ""
+    }) {
           nodes {
             id
             spentAt
@@ -47,10 +55,29 @@ export async function getTimelogs(groupId: string) {
               }
             }
           }
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
         }
       }
     }
   `);
+
+    if (!data) {
+      data = newData;
+    } else {
+      // Merge newData into data
+      data.data.group.timelogs.nodes.push(...newData.data.group.timelogs.nodes);
+    }
+
+    const pageInfo = newData.data.group.timelogs.pageInfo;
+    if (pageInfo.hasNextPage) {
+      cursor = pageInfo.endCursor;
+    } else {
+      finished = true;
+    }
+  }
 
   return data.data.group.timelogs.nodes.map(
     (log: {

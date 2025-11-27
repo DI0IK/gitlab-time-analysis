@@ -2,24 +2,32 @@
 import React from "react";
 import { GroupContext } from "../GroupContext";
 import { BarChart } from "@mui/x-charts";
-import Card from "@mui/material/Card";
-import CardContent from "@mui/material/CardContent";
-import CardHeader from "@mui/material/CardHeader";
+import SelectorCard from "./PersonSelectorWrapper";
 
 export default function TimePerMember() {
-  const { timelogs, members } = React.useContext(GroupContext);
+  const { timelogs, members, labels } = React.useContext(GroupContext);
 
   return (
-    <Card>
-      <CardHeader title="Total hours per member" />
-      <CardContent>
-        <BarChart
-          height={300}
-          series={[
-            {
+    <SelectorCard
+      title="Time Per Member"
+      options={Object.keys(labels).map((c) => ({ label: c, value: c }))}
+      defaultSelected={Object.keys(labels)[0] || ""}
+      data={{
+        timelogs,
+        labels,
+        members,
+      }}
+    >
+      {(selectedCategoryGroup, { timelogs, labels, members }) => {
+        return (
+          <BarChart
+            height={300}
+            series={(labels[selectedCategoryGroup] || []).map((category) => ({
               data: members.map((member) => {
                 const memberLogs = timelogs.filter(
-                  (log) => log.username === member.id
+                  (log) =>
+                    log.username === member.id &&
+                    log.issueLabels.some((label) => label === category.id)
                 );
                 const totalTime = memberLogs.reduce(
                   (sum, log) => sum + log.timeSpent,
@@ -27,17 +35,18 @@ export default function TimePerMember() {
                 );
                 return totalTime / 3600; // Convert to hours
               }),
-              label: "Hours Logged",
-            },
-          ]}
-          grid={{ horizontal: true }}
-          xAxis={[
-            {
-              data: members.map((member) => member.name),
-            },
-          ]}
-        />
-      </CardContent>
-    </Card>
+              label: category.title,
+              stack: "a",
+            }))}
+            grid={{ horizontal: true }}
+            xAxis={[
+              {
+                data: members.map((member) => member.name),
+              },
+            ]}
+          />
+        );
+      }}
+    </SelectorCard>
   );
 }
