@@ -13,6 +13,7 @@ import { GroupSprintsResponse } from "../api/group/[id]/sprints/route";
 import Typography from "@mui/material/Typography";
 import HeaderCards from "../components/HeaderCards";
 import TimePerCategory from "../components/TimePerCategory";
+import TimePerMember from "../components/TimePerMember";
 
 export default function GroupPage() {
   const { groupId } = useParams();
@@ -59,7 +60,14 @@ export default function GroupPage() {
 
   return (
     <GroupContext.Provider
-      value={{ members, labels, timelogs, sprints, loaded: true }}
+      value={{
+        members,
+        labels,
+        timelogs,
+        sprints,
+        loaded: true,
+        groupId: groupId?.toString() || "",
+      }}
     >
       <div
         style={{
@@ -78,6 +86,7 @@ export default function GroupPage() {
         <Heatmap />
         <TimePerWeek />
         <TimePerCategory />
+        <TimePerMember />
         <SprintOverview />
       </div>
     </GroupContext.Provider>

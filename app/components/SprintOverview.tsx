@@ -15,12 +15,21 @@ import {
   TableCell,
   TableHead,
   TableRow,
+  List,
+  ListItem,
+  ListItemText,
+  Divider,
+  CardActions,
+  IconButton,
 } from "@mui/material";
 import { GroupLabelsResponse } from "../api/group/[id]/labels/route";
 import { GroupTimelogsResponse } from "../api/group/[id]/timelogs/route";
+import Label from "./Label";
+import ShareIcon from "@mui/icons-material/Share";
 
 export default function SprintOverview() {
-  const { sprints, timelogs, members, labels } = React.useContext(GroupContext);
+  const { sprints, timelogs, members, labels, groupId } =
+    React.useContext(GroupContext);
 
   const [selectedSprint, setSelectedSprint] = React.useState<number | null>(
     sprints.find(
@@ -135,6 +144,30 @@ export default function SprintOverview() {
     }
   }
 
+  const sprintIssues = React.useMemo(() => {
+    if (selectedSprint === null) return {};
+    const timelogsInSprint = timelogs.filter(
+      (log) => log.sprintNumber === selectedSprint
+    ) as GroupTimelogsResponse;
+    const issuesMap: Record<
+      string,
+      { title: string; url: string; timelogs: GroupTimelogsResponse }
+    > = {};
+    timelogsInSprint.forEach((log) => {
+      if (!issuesMap[log.issueUrl]) {
+        issuesMap[log.issueUrl] = {
+          title: log.issueTitle,
+          url: log.issueUrl,
+          timelogs: [],
+        };
+      }
+      issuesMap[log.issueUrl].timelogs.push(log);
+    });
+    return issuesMap;
+  }, [timelogs, selectedSprint]);
+
+  console.log(sprintIssues);
+
   return (
     <Card>
       <CardHeader title="Sprint overview" />
@@ -174,6 +207,13 @@ export default function SprintOverview() {
               ))}
             </Select>
           </FormControl>
+          <IconButton
+            size="small"
+            href={`/api/group/${groupId}/table.svg?sprintNumber=${selectedSprint}&labelGroup=${selectedLabelGroup}`}
+            aria-label="Link to SVG"
+          >
+            <ShareIcon />
+          </IconButton>
         </Box>
 
         <Table size="small">
@@ -220,6 +260,50 @@ export default function SprintOverview() {
             </TableRow>
           </TableBody>
         </Table>
+
+        <Divider sx={{ my: 2 }} />
+
+        <List>
+          {selectedSprint !== null ? (
+            Object.values(sprintIssues).map((issue) => (
+              <ListItem
+                key={issue.url}
+                component="a"
+                href={issue.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                sx={{ flexDirection: "row", alignItems: "flex-start" }}
+              >
+                <ListItemText
+                  primary={issue.title}
+                  secondary={`Logged time: ${(
+                    issue.timelogs.reduce(
+                      (sum, log) => sum + log.timeSpent,
+                      0
+                    ) / 3600
+                  ).toFixed(2)} hrs`}
+                />
+                <Box
+                  sx={{
+                    display: "flex",
+                    gap: 1,
+                    flexWrap: "wrap",
+                    justifyContent: "center",
+                    mt: 0.5,
+                  }}
+                >
+                  {(issue.timelogs[0]?.issueLabels || []).map((label) => (
+                    <Label key={label} name={label} />
+                  ))}
+                </Box>
+              </ListItem>
+            ))
+          ) : (
+            <ListItem>
+              <ListItemText primary="No sprint selected" />
+            </ListItem>
+          )}
+        </List>
       </CardContent>
     </Card>
   );

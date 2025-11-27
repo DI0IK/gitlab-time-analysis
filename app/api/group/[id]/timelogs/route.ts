@@ -14,6 +14,7 @@ export type GroupTimelogsResponse = {
   id: string;
   issueUrl: string;
   issueLabels: string[];
+  issueTitle: string;
   issueTimeEstimate: number;
   spentAt: string;
   timeSpent: number;
@@ -38,6 +39,7 @@ export async function getTimelogs(groupId: string) {
             issue {
               webUrl
               timeEstimate
+              title
               labels {
                 nodes {
                   title
@@ -55,6 +57,7 @@ export async function getTimelogs(groupId: string) {
       id: string;
       issue: {
         webUrl: string;
+        title: string;
         labels: { nodes: { title: string }[] };
         timeEstimate: number;
       } | null;
@@ -121,6 +124,7 @@ export async function getTimelogs(groupId: string) {
           log.issue?.labels.nodes.map(
             (label: { title: string }) => label.title
           ) || [],
+        issueTitle: log.issue?.title || "",
         issueTimeEstimate: log.issue?.timeEstimate || 0,
         spentAt: log.spentAt,
         timeSpent: log.timeSpent,

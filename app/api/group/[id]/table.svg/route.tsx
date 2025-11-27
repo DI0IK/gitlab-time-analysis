@@ -63,8 +63,7 @@ export async function GET(
       sprintNumber={sprintNumber}
     />,
     {
-      width: 1200,
-      height: 800,
+      width: 800,
       fonts: [
         {
           name: "Inter",

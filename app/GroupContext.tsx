@@ -9,6 +9,7 @@ export type GroupContextType = {
   labels: GroupLabelsResponse;
   timelogs: GroupTimelogsResponse;
   sprints: GroupSprintsResponse;
+  groupId: string;
   loaded: boolean;
 };
 
@@ -17,5 +18,6 @@ export const GroupContext = React.createContext<GroupContextType>({
   labels: {},
   timelogs: [],
   sprints: [],
+  groupId: "",
   loaded: false,
 });
