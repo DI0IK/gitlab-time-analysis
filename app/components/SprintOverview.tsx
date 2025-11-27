@@ -269,10 +269,15 @@ export default function SprintOverview() {
                 (sum, log) => sum + log.timeSpent,
                 0
               );
+              const loggedTotal = timelogs.reduce(
+                (sum, log) =>
+                  log.issueUrl === issue.url ? sum + log.timeSpent : sum,
+                0
+              );
               const estimate = issue.timelogs[0]?.issueTimeEstimate || 0;
               const deviationPercent =
                 estimate > 0
-                  ? (((logged - estimate) / estimate) * 100).toFixed(2)
+                  ? (((loggedTotal - estimate) / estimate) * 100).toFixed(2)
                   : "N/A";
 
               return (
@@ -286,11 +291,19 @@ export default function SprintOverview() {
                 >
                   <ListItemText
                     primary={issue.title}
-                    secondary={`Logged time: ${(logged / 3600).toFixed(
-                      2
-                    )} hrs | Estimated time: ${(estimate / 3600).toFixed(
-                      2
-                    )} hrs | Deviation: ${deviationPercent}%`}
+                    secondary={
+                      <>
+                        {`Logged in sprint: ${(logged / 3600).toFixed(
+                          2
+                        )} hrs | Total logged: ${(loggedTotal / 3600).toFixed(
+                          2
+                        )} hrs`}
+                        <br />
+                        {`Estimate: ${(estimate / 3600).toFixed(
+                          2
+                        )} hrs | Deviation: ${deviationPercent}%`}
+                      </>
+                    }
                   />
                   <Box
                     sx={{
