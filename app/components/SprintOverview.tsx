@@ -264,47 +264,58 @@ export default function SprintOverview() {
 
         <List>
           {selectedSprint !== null ? (
-            Object.values(sprintIssues).map((issue) => (
-              <ListItem
-                key={issue.url}
-                component="a"
-                href={issue.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                sx={{ flexDirection: "row", alignItems: "flex-start" }}
-              >
-                <ListItemText
-                  primary={issue.title}
-                  secondary={`Logged time: ${(
-                    issue.timelogs.reduce(
-                      (sum, log) => sum + log.timeSpent,
-                      0
-                    ) / 3600
-                  ).toFixed(2)} hrs`}
-                />
-                <Box
-                  sx={{
-                    display: "flex",
-                    gap: 1,
-                    flexWrap: "wrap",
-                    justifyContent: "center",
-                    mt: 0.5,
-                  }}
+            Object.values(sprintIssues).map((issue) => {
+              const logged = issue.timelogs.reduce(
+                (sum, log) => sum + log.timeSpent,
+                0
+              );
+              const estimate = issue.timelogs[0]?.issueTimeEstimate || 0;
+              const deviationPercent =
+                estimate > 0
+                  ? (((logged - estimate) / estimate) * 100).toFixed(2)
+                  : "N/A";
+
+              return (
+                <ListItem
+                  key={issue.url}
+                  component="a"
+                  href={issue.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  sx={{ flexDirection: "row", alignItems: "flex-start" }}
                 >
-                  {(issue.timelogs[0]?.issueLabels || []).map((label) => (
-                    <Label
-                      key={label}
-                      name={label}
-                      color={
-                        Object.values(labels || {})
-                          .flat()
-                          .find((l) => l.id === label)?.color || "#428fdc"
-                      }
-                    />
-                  ))}
-                </Box>
-              </ListItem>
-            ))
+                  <ListItemText
+                    primary={issue.title}
+                    secondary={`Logged time: ${(logged / 3600).toFixed(
+                      2
+                    )} hrs | Estimated time: ${(estimate / 3600).toFixed(
+                      2
+                    )} hrs | Deviation: ${deviationPercent}%`}
+                  />
+                  <Box
+                    sx={{
+                      display: "flex",
+                      gap: 1,
+                      flexWrap: "wrap",
+                      justifyContent: "center",
+                      mt: 0.5,
+                    }}
+                  >
+                    {(issue.timelogs[0]?.issueLabels || []).map((label) => (
+                      <Label
+                        key={label}
+                        name={label}
+                        color={
+                          Object.values(labels || {})
+                            .flat()
+                            .find((l) => l.id === label)?.color || "#428fdc"
+                        }
+                      />
+                    ))}
+                  </Box>
+                </ListItem>
+              );
+            })
           ) : (
             <ListItem>
               <ListItemText primary="No sprint selected" />
