@@ -26,7 +26,7 @@ export default function Label({ name, color = "#428fdc" }: LabelProps) {
   const textColor = getContrastColor(color);
 
   // 1. Scoped Label (e.g. "priority::high")
-  if (name.includes("::")) {
+  if (name.includes("::") && name.split("::")[0].trim() !== "Ungrouped") {
     const [labelGroup, labelName] = name.split("::");
 
     return (
@@ -80,7 +80,7 @@ export default function Label({ name, color = "#428fdc" }: LabelProps) {
   // 2. Standard Label
   return (
     <Chip
-      label={name}
+      label={name.replace("Ungrouped::", "")}
       size="small"
       sx={{
         backgroundColor: color,

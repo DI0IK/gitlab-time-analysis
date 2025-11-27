@@ -120,10 +120,13 @@ export async function getTimelogs(groupId: string) {
       return {
         id: log.id,
         issueUrl: log.issue?.webUrl,
-        issueLabels:
+        issueLabels: (
           log.issue?.labels.nodes.map(
             (label: { title: string }) => label.title
-          ) || [],
+          ) || []
+        ).map((title: string) =>
+          title.includes("::") ? title : "Ungrouped::" + title
+        ),
         issueTitle: log.issue?.title || "",
         issueTimeEstimate: log.issue?.timeEstimate || 0,
         spentAt: log.spentAt,

@@ -35,10 +35,16 @@ export async function getLabels(groupId: string) {
       acc: GroupLabelsResponse,
       label: { title: string; description: string; color: string }
     ) => {
-      const group = label.title.split("::")[0] || "Ungrouped";
-      const title = label.title.split("::").slice(1).join("::");
+      const group =
+        label.title.split("::").length > 1
+          ? label.title.split("::")[0]
+          : "Ungrouped";
+      const title =
+        label.title.split("::").length > 1
+          ? label.title.split("::").slice(1).join("::")
+          : label.title;
       const modifiedLabel = {
-        id: label.title,
+        id: group + "::" + title,
         title: title,
         description: label.description,
         color: label.color,
