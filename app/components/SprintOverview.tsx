@@ -292,7 +292,15 @@ export default function SprintOverview() {
                   }}
                 >
                   {(issue.timelogs[0]?.issueLabels || []).map((label) => (
-                    <Label key={label} name={label} />
+                    <Label
+                      key={label}
+                      name={label}
+                      color={
+                        Object.values(labels || {})
+                          .flat()
+                          .find((l) => l.id === label)?.color || "#428fdc"
+                      }
+                    />
                   ))}
                 </Box>
               </ListItem>

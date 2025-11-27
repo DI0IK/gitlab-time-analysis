@@ -1,86 +1,93 @@
-import { Chip } from "@mui/material";
+import { Chip, Box } from "@mui/material";
 
-function groupColorGenerator(group: string) {
-  const hash = Array.from(group).reduce(
-    (acc, char) => acc + char.charCodeAt(0),
-    0
-  );
-  const colors = [
-    "#e57373", // red
-    "#64b5f6", // blue
-    "#81c784", // green
-    "#ffb74d", // orange
-    "#ba68c8", // purple
-    "#4db6ac", // teal
-    "#a1887f", // brown
-    "#f06292", // pink
-    "#7986cb", // indigo
-    "#4dd0e1", // cyan
-  ];
-  const bgColor = colors[hash % colors.length];
+// Helper: Calculate if text should be black or white based on background luminance
+function getContrastColor(hexColor: string) {
+  // Default to black if invalid hex
+  if (!hexColor || !hexColor.startsWith("#")) return "#000";
 
-  // Calculate luminance to decide foreground color
-  function getLuminance(hex: string) {
-    const rgb = hex
-      .replace(/^#/, "")
-      .match(/.{2}/g)!
-      .map((x) => parseInt(x, 16) / 255);
-    // sRGB luminance formula
-    return 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2];
-  }
+  const rgb = hexColor
+    .replace(/^#/, "")
+    .match(/.{2}/g)
+    ?.map((x) => parseInt(x, 16) / 255);
 
-  const fgColor = getLuminance(bgColor) > 0.6 ? "#000" : "#fff";
+  if (!rgb) return "#000";
 
-  return { backgroundColor: bgColor, color: fgColor };
+  // sRGB luminance formula
+  const luminance = 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2];
+  return luminance > 0.5 ? "#000" : "#fff";
 }
 
-export default function Label({
-  group,
-  name,
-}: {
-  group?: string;
+interface LabelProps {
   name: string;
-}) {
+  color?: string;
+}
+
+export default function Label({ name, color = "#428fdc" }: LabelProps) {
+  const textColor = getContrastColor(color);
+
+  // 1. Scoped Label (e.g. "priority::high")
   if (name.includes("::")) {
     const [labelGroup, labelName] = name.split("::");
-    const { backgroundColor, color } = groupColorGenerator(labelGroup);
+
     return (
-      <Chip
-        label={labelGroup + "::" + labelName}
-        size="small"
+      <Box
         sx={{
-          backgroundColor,
-          color,
+          display: "inline-flex",
+          borderRadius: "16px",
+          overflow: "hidden",
+          height: "24px",
+          fontSize: "0.75rem", // Slightly smaller for dense layouts
+          fontWeight: 600,
+          border: "1px solid",
+          borderColor: "rgba(0,0,0,0.12)",
+          verticalAlign: "middle",
+          boxSizing: "border-box",
         }}
-      />
+      >
+        {/* Left Side: The Group (User defined color) */}
+        <Box
+          component="span"
+          sx={{
+            backgroundColor: color,
+            color: textColor,
+            px: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          {labelGroup}
+        </Box>
+
+        {/* Right Side: The Name (Standard Dark Grey) */}
+        <Box
+          component="span"
+          sx={{
+            backgroundColor: "#363636", // GitLab standard dark grey
+            color: "#ffffff",
+            px: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          {labelName}
+        </Box>
+      </Box>
     );
   }
 
-  if (group) {
-    const { backgroundColor, color } = groupColorGenerator(group);
-    return (
-      <Chip
-        label={group + "::" + name}
-        size="small"
-        sx={{
-          backgroundColor,
-          color,
-          fontWeight: "bold",
-        }}
-      />
-    );
-  }
-
-  const { color, backgroundColor } = groupColorGenerator("default");
-
+  // 2. Standard Label
   return (
     <Chip
       label={name}
       size="small"
       sx={{
-        backgroundColor,
-        color,
+        backgroundColor: color,
+        color: textColor,
         fontWeight: "bold",
+        height: "24px",
+        fontSize: "0.75rem",
       }}
     />
   );
