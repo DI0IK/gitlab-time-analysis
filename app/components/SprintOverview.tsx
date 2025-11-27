@@ -301,7 +301,46 @@ export default function SprintOverview() {
                         <br />
                         {`Estimate: ${(estimate / 3600).toFixed(
                           2
-                        )} hrs | Deviation: ${deviationPercent}%`}
+                        )} hrs | Deviation: `}
+                        <span
+                          style={{
+                            color:
+                              deviationPercent === "N/A"
+                                ? "#000"
+                                : (() => {
+                                    const deviation = Number(deviationPercent);
+                                    const thresholdBad = 20;
+                                    const thresholdGood = 5;
+                                    let t = 0;
+                                    if (Math.abs(deviation) >= thresholdBad) {
+                                      t = 1;
+                                    } else if (
+                                      Math.abs(deviation) <= thresholdGood
+                                    ) {
+                                      t = 0;
+                                    } else {
+                                      t =
+                                        (Math.abs(deviation) - thresholdGood) /
+                                        (thresholdBad - thresholdGood);
+                                    }
+                                    const green = { r: 56, g: 142, b: 60 };
+                                    const red = { r: 211, g: 47, b: 47 };
+                                    const r = Math.round(
+                                      green.r + (red.r - green.r) * t
+                                    );
+                                    const g = Math.round(
+                                      green.g + (red.g - green.g) * t
+                                    );
+                                    const b = Math.round(
+                                      green.b + (red.b - green.b) * t
+                                    );
+                                    return `rgb(${r},${g},${b})`;
+                                  })(),
+                            fontWeight: "bold",
+                          }}
+                        >
+                          {deviationPercent}%
+                        </span>
                       </>
                     }
                   />
@@ -310,7 +349,8 @@ export default function SprintOverview() {
                       display: "flex",
                       gap: 1,
                       flexWrap: "wrap",
-                      justifyContent: "center",
+                      alignItems: "center",
+                      justifyContent: "flex-end",
                       mt: 0.5,
                     }}
                   >
