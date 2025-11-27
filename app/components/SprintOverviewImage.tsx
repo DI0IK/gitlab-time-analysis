@@ -134,11 +134,14 @@ export default function SprintOverview({
           <div
             key={g}
             style={{
-              flex: 1, // Equal width for data columns
-              textAlign: "right",
+              flex: 1.5, // Increased from 1 to 1.5 for wider columns
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               padding: "8px",
               borderRight: "1px solid #ccc",
               fontWeight: "bold",
+              textAlign: "center",
             }}
           >
             {g}
@@ -149,7 +152,7 @@ export default function SprintOverview({
         <div
           style={{
             flex: 1,
-            textAlign: "right",
+            textAlign: "center",
             padding: "8px",
             fontWeight: "bold",
           }}
@@ -189,7 +192,7 @@ export default function SprintOverview({
               <div
                 key={g}
                 style={{
-                  flex: 1, // Matches header flex
+                  flex: 1.5, // Matches header flex
                   textAlign: "right",
                   padding: "8px",
                   borderRight: "1px solid #ccc",
@@ -236,7 +239,7 @@ export default function SprintOverview({
           <div
             key={g}
             style={{
-              flex: 1,
+              flex: 1.5,
               textAlign: "right",
               padding: "8px",
               borderRight: "1px solid #ccc",

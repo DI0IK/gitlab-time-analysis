@@ -19,7 +19,6 @@ import {
   ListItem,
   ListItemText,
   Divider,
-  CardActions,
   IconButton,
 } from "@mui/material";
 import { GroupLabelsResponse } from "../api/group/[id]/labels/route";
