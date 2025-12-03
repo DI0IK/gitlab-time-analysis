@@ -9,7 +9,9 @@ export default function Heatmap() {
     <SelectorCard
       title="Heatmap"
       options={[
-        ...members.map((m) => ({ label: m.name, value: m.id })),
+        ...members
+          .filter((m) => !m.bot)
+          .map((m) => ({ label: m.name, value: m.id })),
         { value: "all", label: "All Members" },
       ]}
       defaultSelected="all"

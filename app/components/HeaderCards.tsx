@@ -31,7 +31,7 @@ export default function HeaderCards() {
           <CardContent
             sx={{ textAlign: "right", fontWeight: "bold", fontSize: 18 }}
           >
-            {members.length}
+            {members.filter((m) => !m.bot).length}
           </CardContent>
         </Card>
         <Card variant="outlined" sx={{ p: 1, m: 0 }}>

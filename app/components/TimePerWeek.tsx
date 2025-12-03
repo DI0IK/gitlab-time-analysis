@@ -27,36 +27,39 @@ export default function TimePerWeek() {
   });
 
   // Prepare data for BarChart
-  const series = members.map((member) => {
-    // Sum timeSpent per sprint for this member
-    const memberSprintTotals = sprints.map((sp) => ({
-      sprintNumber: sp.sprintNumber,
-      timeSpent: 0,
-    }));
+  const series = members
+    .filter((m) => !m.bot)
+    .map((member) => {
+      // Sum timeSpent per sprint for this member
+      const memberSprintTotals = sprints.map((sp) => ({
+        sprintNumber: sp.sprintNumber,
+        timeSpent: 0,
+      }));
 
-    timelogs
-      .filter((log) => log.username === member.id)
-      .forEach((log) => {
-        const logDate = new Date(log.spentAt);
-        const sprint = sprints.find(
-          (sp) =>
-            new Date(sp.startDate) <= logDate &&
-            logDate <= new Date(new Date(sp.endDate).setHours(23, 59, 59, 999))
-        );
-        if (sprint) {
-          const idx = memberSprintTotals.findIndex(
-            (t) => t.sprintNumber === sprint.sprintNumber
+      timelogs
+        .filter((log) => log.username === member.id)
+        .forEach((log) => {
+          const logDate = new Date(log.spentAt);
+          const sprint = sprints.find(
+            (sp) =>
+              new Date(sp.startDate) <= logDate &&
+              logDate <=
+                new Date(new Date(sp.endDate).setHours(23, 59, 59, 999))
           );
-          if (idx >= 0) memberSprintTotals[idx].timeSpent += log.timeSpent;
-        }
-      });
+          if (sprint) {
+            const idx = memberSprintTotals.findIndex(
+              (t) => t.sprintNumber === sprint.sprintNumber
+            );
+            if (idx >= 0) memberSprintTotals[idx].timeSpent += log.timeSpent;
+          }
+        });
 
-    return {
-      label: member.name,
-      data: memberSprintTotals.map((t) => +(t.timeSpent / 3600).toFixed(2)),
-      stack: "Total",
-    };
-  });
+      return {
+        label: member.name,
+        data: memberSprintTotals.map((t) => +(t.timeSpent / 3600).toFixed(2)),
+        stack: "Total",
+      };
+    });
 
   return (
     <Card>

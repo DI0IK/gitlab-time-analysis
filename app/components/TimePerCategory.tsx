@@ -48,67 +48,73 @@ export default function TimePerCategory() {
         > = {};
 
         timelogs.forEach((log) => {
-          if (
-            log.issueLabels.some((label) =>
-              label.startsWith(selectedCategory + "::")
-            )
-          ) {
-            if (!log.issueTimeEstimate) {
-              if (!issuesNotEstimatedTime[log.issueUrl]) {
-                issuesNotEstimatedTime[log.issueUrl] = {
-                  used: 0,
-                  category:
-                    labels[selectedCategory]?.find(
-                      (lbl) =>
-                        log.issueLabels.includes(
-                          selectedCategory + "::" + lbl.title
-                        ) || lbl.title === selectedCategory
-                    )?.title || "Uncategorized",
-                  issueTitle: log.issueTitle,
-                  issueLabels: log.issueLabels,
-                };
-              }
-              issuesNotEstimatedTime[log.issueUrl].used += log.timeSpent;
-            } else {
-              if (!issuesTime[log.issueUrl]) {
-                issuesTime[log.issueUrl] = {
-                  used: 0,
-                  estimated: log.issueTimeEstimate,
-                  category:
-                    labels[selectedCategory]?.find(
-                      (lbl) =>
-                        log.issueLabels.includes(
-                          selectedCategory + "::" + lbl.title
-                        ) || lbl.title === selectedCategory
-                    )?.title || "Uncategorized",
-                };
-              }
-              issuesTime[log.issueUrl].used += log.timeSpent;
+          if (!log.issueTimeEstimate) {
+            if (!issuesNotEstimatedTime[log.issueUrl]) {
+              issuesNotEstimatedTime[log.issueUrl] = {
+                used: 0,
+                category:
+                  labels[selectedCategory]?.find(
+                    (lbl) =>
+                      log.issueLabels.includes(
+                        selectedCategory + "::" + lbl.title
+                      ) || lbl.title === selectedCategory
+                  )?.title || "Uncategorized",
+                issueTitle: log.issueTitle,
+                issueLabels: log.issueLabels,
+              };
             }
+            issuesNotEstimatedTime[log.issueUrl].used += log.timeSpent;
+          } else {
+            if (!issuesTime[log.issueUrl]) {
+              issuesTime[log.issueUrl] = {
+                used: 0,
+                estimated: log.issueTimeEstimate,
+                category:
+                  labels[selectedCategory]?.find(
+                    (lbl) =>
+                      log.issueLabels.includes(
+                        selectedCategory + "::" + lbl.title
+                      ) || lbl.title === selectedCategory
+                  )?.title || "Uncategorized",
+              };
+            }
+            issuesTime[log.issueUrl].used += log.timeSpent;
           }
         });
 
-        const data = labels[selectedCategory].map((lbl) => {
-          const relatedIssues = Object.values(issuesTime).filter(
-            (it) => it.category === lbl.title
-          );
-          const usedHours =
-            relatedIssues.reduce((sum, it) => sum + it.used, 0) / 3600;
-          const estimatedHours =
-            relatedIssues.reduce((sum, it) => sum + it.estimated, 0) / 3600;
-          const relatedNotEstimatedIssues = Object.values(
-            issuesNotEstimatedTime
-          ).filter((it) => it.category === lbl.title);
-          const usedNotEstimatedHours =
-            relatedNotEstimatedIssues.reduce((sum, it) => sum + it.used, 0) /
-            3600;
-          return {
-            label: lbl.title,
-            usedHours: +usedHours.toFixed(2),
-            estimatedHours: +estimatedHours.toFixed(2),
-            usedNotEstimatedHours: +usedNotEstimatedHours.toFixed(2),
-          };
-        });
+        const data = [
+          ...labels[selectedCategory],
+          Object.values(issuesTime)
+            .flat()
+            .some((l) => l.category === "Uncategorized") ||
+          Object.values(issuesNotEstimatedTime)
+            .flat()
+            .some((l) => l.category === "Uncategorized")
+            ? { title: "Uncategorized" }
+            : null,
+        ]
+          .filter((v) => v !== null)
+          .map((lbl) => {
+            const relatedIssues = Object.values(issuesTime).filter(
+              (it) => it.category === lbl.title
+            );
+            const usedHours =
+              relatedIssues.reduce((sum, it) => sum + it.used, 0) / 3600;
+            const estimatedHours =
+              relatedIssues.reduce((sum, it) => sum + it.estimated, 0) / 3600;
+            const relatedNotEstimatedIssues = Object.values(
+              issuesNotEstimatedTime
+            ).filter((it) => it.category === lbl.title);
+            const usedNotEstimatedHours =
+              relatedNotEstimatedIssues.reduce((sum, it) => sum + it.used, 0) /
+              3600;
+            return {
+              label: lbl.title,
+              usedHours: +usedHours.toFixed(2),
+              estimatedHours: +estimatedHours.toFixed(2),
+              usedNotEstimatedHours: +usedNotEstimatedHours.toFixed(2),
+            };
+          });
 
         return (
           <>
@@ -137,7 +143,19 @@ export default function TimePerCategory() {
               grid={{ horizontal: true }}
               xAxis={[
                 {
-                  data: labels[selectedCategory].map((lbl) => lbl.title),
+                  data: [
+                    ...labels[selectedCategory],
+                    Object.values(issuesTime)
+                      .flat()
+                      .some((l) => l.category === "Uncategorized") ||
+                    Object.values(issuesNotEstimatedTime)
+                      .flat()
+                      .some((l) => l.category === "Uncategorized")
+                      ? { title: "Uncategorized" }
+                      : null,
+                  ]
+                    .filter((v) => v !== null)
+                    .map((lbl) => lbl.title),
                 },
               ]}
             />
@@ -170,7 +188,10 @@ export default function TimePerCategory() {
                                 alignItems: "flex-start",
                               }}
                             >
-                              <ListItemText primary={data.issueTitle} />
+                              <ListItemText
+                                primary={data.issueTitle}
+                                secondary={data.category}
+                              />
                               <Box
                                 sx={{
                                   display: "flex",

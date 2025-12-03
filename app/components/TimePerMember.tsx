@@ -23,25 +23,29 @@ export default function TimePerMember() {
           <BarChart
             height={300}
             series={(labels[selectedCategoryGroup] || []).map((category) => ({
-              data: members.map((member) => {
-                const memberLogs = timelogs.filter(
-                  (log) =>
-                    log.username === member.id &&
-                    log.issueLabels.some((label) => label === category.id)
-                );
-                const totalTime = memberLogs.reduce(
-                  (sum, log) => sum + log.timeSpent,
-                  0
-                );
-                return totalTime / 3600; // Convert to hours
-              }),
+              data: members
+                .filter((m) => !m.bot)
+                .map((member) => {
+                  const memberLogs = timelogs.filter(
+                    (log) =>
+                      log.username === member.id &&
+                      log.issueLabels.some((label) => label === category.id)
+                  );
+                  const totalTime = memberLogs.reduce(
+                    (sum, log) => sum + log.timeSpent,
+                    0
+                  );
+                  return totalTime / 3600; // Convert to hours
+                }),
               label: category.title,
               stack: "a",
             }))}
             grid={{ horizontal: true }}
             xAxis={[
               {
-                data: members.map((member) => member.name),
+                data: members
+                  .filter((m) => !m.bot)
+                  .map((member) => member.name),
               },
             ]}
           />
