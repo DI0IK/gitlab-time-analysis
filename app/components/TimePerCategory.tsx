@@ -35,7 +35,13 @@ export default function TimePerCategory() {
         }
         const issuesTime: Record<
           string,
-          { used: number; estimated: number; category: string }
+          {
+            used: number;
+            estimated: number;
+            category: string;
+            issueTitle: string;
+            issueLabels: string[];
+          }
         > = {};
         const issuesNotEstimatedTime: Record<
           string,
@@ -80,6 +86,8 @@ export default function TimePerCategory() {
                         selectedCategory + "::" + lbl.title
                       ) || lbl.title === selectedCategory
                   )?.title || "Uncategorized",
+                issueTitle: log.issueTitle,
+                issueLabels: log.issueLabels,
               };
             }
             issuesTime[log.issueUrl].used += log.timeSpent;
@@ -223,6 +231,113 @@ export default function TimePerCategory() {
                           );
                         }
                       )}
+                    </List>
+                  </AccordionDetails>
+                </Accordion>
+              </>
+            ) : null}
+            {issuesTime &&
+            Object.keys(issuesTime).filter(
+              (key) => issuesTime[key].category === "Uncategorized"
+            ).length +
+              Object.keys(issuesNotEstimatedTime).filter(
+                (key) =>
+                  issuesNotEstimatedTime[key].category === "Uncategorized"
+              ).length >
+              0 ? (
+              <>
+                <Accordion>
+                  <AccordionSummary
+                    expandIcon={<ExpandMoreIcon />}
+                    aria-controls="panel2-content"
+                    id="panel2-header"
+                  >
+                    <Typography component="span">
+                      Uncategorized Issues
+                    </Typography>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <List>
+                      {Object.entries(issuesTime)
+                        .filter(
+                          ([_, data]) => data.category === "Uncategorized"
+                        )
+                        .map(([url, data]) => {
+                          return (
+                            <ListItem
+                              key={url}
+                              component="a"
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <ListItemText primary={data.issueTitle} />
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  gap: 1,
+                                  flexWrap: "wrap",
+                                  alignItems: "center",
+                                  justifyContent: "flex-end",
+                                  mt: 0.5,
+                                }}
+                              >
+                                {(data.issueLabels || []).map((label) => (
+                                  <Label
+                                    key={label}
+                                    name={label}
+                                    color={
+                                      Object.values(labels || {})
+                                        .flat()
+                                        .find((l) => l.id === label)?.color ||
+                                      "#428fdc"
+                                    }
+                                  />
+                                ))}
+                              </Box>
+                            </ListItem>
+                          );
+                        })}
+                      {Object.entries(issuesNotEstimatedTime)
+                        .filter(
+                          ([_, data]) => data.category === "Uncategorized"
+                        )
+                        .map(([url, data]) => {
+                          return (
+                            <ListItem
+                              key={url}
+                              component="a"
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <ListItemText primary={data.issueTitle} />
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  gap: 1,
+                                  flexWrap: "wrap",
+                                  alignItems: "center",
+                                  justifyContent: "flex-end",
+                                  mt: 0.5,
+                                }}
+                              >
+                                {(data.issueLabels || []).map((label) => (
+                                  <Label
+                                    key={label}
+                                    name={label}
+                                    color={
+                                      Object.values(labels || {})
+                                        .flat()
+                                        .find((l) => l.id === label)?.color ||
+                                      "#428fdc"
+                                    }
+                                  />
+                                ))}
+                              </Box>
+                            </ListItem>
+                          );
+                        })}
                     </List>
                   </AccordionDetails>
                 </Accordion>
