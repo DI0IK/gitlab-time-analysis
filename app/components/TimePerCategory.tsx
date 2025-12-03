@@ -48,6 +48,10 @@ export default function TimePerCategory() {
         > = {};
 
         timelogs.forEach((log) => {
+          if (!log.issueUrl) {
+            console.warn("Timelog without issueUrl:", log);
+            return;
+          }
           if (!log.issueTimeEstimate) {
             if (!issuesNotEstimatedTime[log.issueUrl]) {
               issuesNotEstimatedTime[log.issueUrl] = {
