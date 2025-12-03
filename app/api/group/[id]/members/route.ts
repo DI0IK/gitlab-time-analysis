@@ -48,40 +48,40 @@ export async function getMembers(groupId: string) {
     }
   `);
 
-  const inferredMembers = dataInferred.data.group.timelogs.nodes
-    .map(
-      (log: { user: { username: string; name: string; webUrl: string; bot: boolean } }) => ({
-        id: log.user.username,
-        name: log.user.name,
-        url: log.user.webUrl,
-        bot: log.user.bot,
-      })
-    );
+  const inferredMembers = dataInferred.data.group.timelogs.nodes.map(
+    (log: {
+      user: { username: string; name: string; webUrl: string; bot: boolean };
+    }) => ({
+      id: log.user.username,
+      name: log.user.name,
+      url: log.user.webUrl,
+      bot: log.user.bot,
+    })
+  );
 
-  const explicitMembers = data.data.group.groupMembers.nodes
-    .map(
-      (member: {
-        user: { username: string; name: string; webUrl: string; bot: boolean };
-      }) => ({
-        id: member.user.username,
-        name: member.user.name,
-        url: member.user.webUrl,
-        bot: member.user.bot,
-      })
-    );
+  const explicitMembers = data.data.group.groupMembers.nodes.map(
+    (member: {
+      user: { username: string; name: string; webUrl: string; bot: boolean };
+    }) => ({
+      id: member.user.username,
+      name: member.user.name,
+      url: member.user.webUrl,
+      bot: member.user.bot,
+    })
+  );
 
   const allMembersMap: {
-    [key: string]: { id: string; name: string; url: string };
+    [key: string]: { id: string; name: string; url: string; bot: boolean };
   } = {};
 
   explicitMembers.forEach(
-    (member: { id: string; name: string; url: string }) => {
+    (member: { id: string; name: string; url: string; bot: boolean }) => {
       allMembersMap[member.id] = member;
     }
   );
 
   inferredMembers.forEach(
-    (member: { id: string; name: string; url: string }) => {
+    (member: { id: string; name: string; url: string; bot: boolean }) => {
       allMembersMap[member.id] = member;
     }
   );
