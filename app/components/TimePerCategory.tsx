@@ -25,6 +25,10 @@ export default function TimePerCategory() {
           string,
           { used: number; estimated: number; category: string }
         > = {};
+        const issuesNotEstimatedTime: Record<
+          string,
+          { used: number; category: string }
+        > = {};
 
         timelogs.forEach((log) => {
           if (
@@ -32,20 +36,36 @@ export default function TimePerCategory() {
               label.startsWith(selectedCategory + "::")
             )
           ) {
-            if (!issuesTime[log.issueUrl]) {
-              issuesTime[log.issueUrl] = {
-                used: 0,
-                estimated: log.issueTimeEstimate,
-                category:
-                  labels[selectedCategory]?.find(
-                    (lbl) =>
-                      log.issueLabels.includes(
-                        selectedCategory + "::" + lbl.title
-                      ) || lbl.title === selectedCategory
-                  )?.title || "Uncategorized",
-              };
+            if (!log.issueTimeEstimate) {
+              if (!issuesNotEstimatedTime[log.issueUrl]) {
+                issuesNotEstimatedTime[log.issueUrl] = {
+                  used: 0,
+                  category:
+                    labels[selectedCategory]?.find(
+                      (lbl) =>
+                        log.issueLabels.includes(
+                          selectedCategory + "::" + lbl.title
+                        ) || lbl.title === selectedCategory
+                    )?.title || "Uncategorized",
+                };
+              }
+              issuesNotEstimatedTime[log.issueUrl].used += log.timeSpent;
+            } else {
+              if (!issuesTime[log.issueUrl]) {
+                issuesTime[log.issueUrl] = {
+                  used: 0,
+                  estimated: log.issueTimeEstimate,
+                  category:
+                    labels[selectedCategory]?.find(
+                      (lbl) =>
+                        log.issueLabels.includes(
+                          selectedCategory + "::" + lbl.title
+                        ) || lbl.title === selectedCategory
+                    )?.title || "Uncategorized",
+                };
+              }
+              issuesTime[log.issueUrl].used += log.timeSpent;
             }
-            issuesTime[log.issueUrl].used += log.timeSpent;
           }
         });
 
@@ -57,10 +77,17 @@ export default function TimePerCategory() {
             relatedIssues.reduce((sum, it) => sum + it.used, 0) / 3600;
           const estimatedHours =
             relatedIssues.reduce((sum, it) => sum + it.estimated, 0) / 3600;
+          const relatedNotEstimatedIssues = Object.values(
+            issuesNotEstimatedTime
+          ).filter((it) => it.category === lbl.title);
+          const usedNotEstimatedHours =
+            relatedNotEstimatedIssues.reduce((sum, it) => sum + it.used, 0) /
+            3600;
           return {
             label: lbl.title,
             usedHours: +usedHours.toFixed(2),
             estimatedHours: +estimatedHours.toFixed(2),
+            usedNotEstimatedHours: +usedNotEstimatedHours.toFixed(2),
           };
         });
 
@@ -72,11 +99,19 @@ export default function TimePerCategory() {
                 data: data.map((d) => d.usedHours),
                 label: "Used Hours",
                 barLabel: "value",
+                stack: "a",
               },
               {
                 data: data.map((d) => d.estimatedHours),
                 label: "Estimated Hours",
                 barLabel: "value",
+                stack: "b",
+              },
+              {
+                data: data.map((d) => d.usedNotEstimatedHours),
+                label: "Used Hours (No Estimate)",
+                barLabel: "value",
+                stack: "a",
               },
             ]}
             grid={{ horizontal: true }}

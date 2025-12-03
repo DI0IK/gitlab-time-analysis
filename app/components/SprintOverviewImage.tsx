@@ -32,11 +32,13 @@ export default function SprintOverview({
   // Build a map: memberId -> column -> timeSpent (seconds)
   const tableData: Record<string, Record<string, number>> = {};
 
-  members.forEach((m) => {
-    tableData[m.id] = {};
-    labelColumns.forEach((c) => (tableData[m.id][c] = 0));
-    tableData[m.id]["__sum"] = 0;
-  });
+  members
+    .filter((m) => !m.bot)
+    .forEach((m) => {
+      tableData[m.id] = {};
+      labelColumns.forEach((c) => (tableData[m.id][c] = 0));
+      tableData[m.id]["__sum"] = 0;
+    });
 
   // Helper: determine if a timelog belongs to the selected sprint
   const inSelectedSprint = (log: GroupTimelogsResponse[number]) =>

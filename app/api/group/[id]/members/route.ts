@@ -8,6 +8,7 @@ export type GroupMembersResponse = {
   id: string;
   name: string;
   url: string;
+  bot: boolean;
 }[];
 
 export async function getMembers(groupId: string) {
@@ -48,24 +49,24 @@ export async function getMembers(groupId: string) {
   `);
 
   const inferredMembers = dataInferred.data.group.timelogs.nodes
-    .filter((log: { user: { bot: boolean } }) => !log.user.bot)
     .map(
-      (log: { user: { username: string; name: string; webUrl: string } }) => ({
+      (log: { user: { username: string; name: string; webUrl: string; bot: boolean } }) => ({
         id: log.user.username,
         name: log.user.name,
         url: log.user.webUrl,
+        bot: log.user.bot,
       })
     );
 
   const explicitMembers = data.data.group.groupMembers.nodes
-    .filter((member: { user: { bot: boolean } }) => !member.user.bot)
     .map(
       (member: {
-        user: { username: string; name: string; webUrl: string };
+        user: { username: string; name: string; webUrl: string; bot: boolean };
       }) => ({
         id: member.user.username,
         name: member.user.name,
         url: member.user.webUrl,
+        bot: member.user.bot,
       })
     );
 
