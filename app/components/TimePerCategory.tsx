@@ -3,8 +3,18 @@ import React from "react";
 import { GroupContext } from "../GroupContext";
 import { BarChart } from "@mui/x-charts";
 import SelectorCard from "./PersonSelectorWrapper";
-import { Box, List, ListItem, ListItemText, Typography } from "@mui/material";
+import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
+  Box,
+  List,
+  ListItem,
+  ListItemText,
+  Typography,
+} from "@mui/material";
 import Label from "./Label";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 
 export default function TimePerCategory() {
   const { timelogs, labels } = React.useContext(GroupContext);
@@ -134,48 +144,63 @@ export default function TimePerCategory() {
             {issuesNotEstimatedTime &&
             Object.keys(issuesNotEstimatedTime).length > 0 ? (
               <>
-                <Typography variant="h6" sx={{ mt: 2 }}>
-                  Issues without Time Estimate
-                </Typography>
-                <List>
-                  {Object.entries(issuesNotEstimatedTime).map(([url, data]) => {
-                    return (
-                      <ListItem
-                        key={url}
-                        component="a"
-                        href={url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        sx={{ flexDirection: "row", alignItems: "flex-start" }}
-                      >
-                        <ListItemText primary={data.issueTitle} />
-                        <Box
-                          sx={{
-                            display: "flex",
-                            gap: 1,
-                            flexWrap: "wrap",
-                            alignItems: "center",
-                            justifyContent: "flex-end",
-                            mt: 0.5,
-                          }}
-                        >
-                          {(data.issueLabels || []).map((label) => (
-                            <Label
-                              key={label}
-                              name={label}
-                              color={
-                                Object.values(labels || {})
-                                  .flat()
-                                  .find((l) => l.id === label)?.color ||
-                                "#428fdc"
-                              }
-                            />
-                          ))}
-                        </Box>
-                      </ListItem>
-                    );
-                  })}
-                </List>
+                <Accordion>
+                  <AccordionSummary
+                    expandIcon={<ExpandMoreIcon />}
+                    aria-controls="panel1-content"
+                    id="panel1-header"
+                  >
+                    <Typography component="span">
+                      Issues without Time Estimate
+                    </Typography>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <List>
+                      {Object.entries(issuesNotEstimatedTime).map(
+                        ([url, data]) => {
+                          return (
+                            <ListItem
+                              key={url}
+                              component="a"
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              sx={{
+                                flexDirection: "row",
+                                alignItems: "flex-start",
+                              }}
+                            >
+                              <ListItemText primary={data.issueTitle} />
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  gap: 1,
+                                  flexWrap: "wrap",
+                                  alignItems: "center",
+                                  justifyContent: "flex-end",
+                                  mt: 0.5,
+                                }}
+                              >
+                                {(data.issueLabels || []).map((label) => (
+                                  <Label
+                                    key={label}
+                                    name={label}
+                                    color={
+                                      Object.values(labels || {})
+                                        .flat()
+                                        .find((l) => l.id === label)?.color ||
+                                      "#428fdc"
+                                    }
+                                  />
+                                ))}
+                              </Box>
+                            </ListItem>
+                          );
+                        }
+                      )}
+                    </List>
+                  </AccordionDetails>
+                </Accordion>
               </>
             ) : null}
           </>
