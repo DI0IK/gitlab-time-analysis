@@ -4,6 +4,10 @@ import { runGitlabGraphQLQuery } from "../../../gitlab";
 
 export const revalidate = 60;
 
+const cache: {
+  [groupId: string]: { data: GroupLabelsResponse; timestamp: number };
+} = {};
+
 export type GroupLabelsResponse = {
   [labelGroup: string]: {
     id: string;
@@ -15,6 +19,15 @@ export type GroupLabelsResponse = {
 
 export async function getLabels(groupId: string) {
   const fullGroupPath = `${GITLAB_GROUP_PATH}/${groupId}`;
+
+  if (cache[fullGroupPath]) {
+    const cached = cache[fullGroupPath];
+    const now = Date.now();
+    // Cache for 5 minutes
+    if (now - cached.timestamp < 5 * 60 * 1000) {
+      return cached.data;
+    }
+  }
 
   const data = await runGitlabGraphQLQuery(`
     {
@@ -30,7 +43,7 @@ export async function getLabels(groupId: string) {
     }
   `);
 
-  return data.data.group.labels.nodes.reduce(
+  const response = data.data.group.labels.nodes.reduce(
     (
       acc: GroupLabelsResponse,
       label: { title: string; description: string; color: string }
@@ -57,6 +70,13 @@ export async function getLabels(groupId: string) {
     },
     {}
   );
+
+  cache[fullGroupPath] = {
+    data: response,
+    timestamp: Date.now(),
+  };
+
+  return response;
 }
 
 export const GET = async (

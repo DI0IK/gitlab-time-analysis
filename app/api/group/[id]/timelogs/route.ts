@@ -22,8 +22,21 @@ export type GroupTimelogsResponse = {
   sprintNumber?: number;
 }[];
 
+const cache: {
+  [groupId: string]: { data: GroupTimelogsResponse; timestamp: number };
+} = {};
+
 export async function getTimelogs(groupId: string) {
   const fullGroupPath = `${GITLAB_GROUP_PATH}/${groupId}`;
+
+  if (cache[fullGroupPath]) {
+    const cached = cache[fullGroupPath];
+    const now = Date.now();
+    // Cache for 5 minutes
+    if (now - cached.timestamp < 5 * 60 * 1000) {
+      return cached.data;
+    }
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let data: any;
@@ -79,7 +92,7 @@ export async function getTimelogs(groupId: string) {
     }
   }
 
-  return data.data.group.timelogs.nodes.map(
+  const response = data.data.group.timelogs.nodes.map(
     (log: {
       id: string;
       issue: {
@@ -163,6 +176,13 @@ export async function getTimelogs(groupId: string) {
       };
     }
   );
+
+  cache[fullGroupPath] = {
+    data: response,
+    timestamp: Date.now(),
+  };
+
+  return response;
 }
 
 export const GET = async (

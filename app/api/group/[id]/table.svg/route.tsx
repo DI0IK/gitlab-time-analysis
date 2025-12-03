@@ -7,6 +7,8 @@ import { getMembers } from "../members/route";
 import { getLabels } from "../labels/route";
 import { NextResponse } from "next/server";
 
+export const revalidate = 60;
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

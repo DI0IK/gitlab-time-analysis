@@ -4,6 +4,10 @@ import { runGitlabGraphQLQuery } from "../../../gitlab";
 
 export const revalidate = 60;
 
+const cache: {
+  [groupId: string]: { data: GroupMembersResponse; timestamp: number };
+} = {};
+
 export type GroupMembersResponse = {
   id: string;
   name: string;
@@ -13,6 +17,15 @@ export type GroupMembersResponse = {
 
 export async function getMembers(groupId: string) {
   const fullGroupPath = `${GITLAB_GROUP_PATH}/${groupId}`;
+
+  if (cache[fullGroupPath]) {
+    const cached = cache[fullGroupPath];
+    const now = Date.now();
+    // Cache for 5 minutes
+    if (now - cached.timestamp < 5 * 60 * 1000) {
+      return cached.data;
+    }
+  }
 
   const data = await runGitlabGraphQLQuery(`
     {
@@ -87,6 +100,10 @@ export async function getMembers(groupId: string) {
   );
 
   const allMembers = Object.values(allMembersMap);
+  cache[fullGroupPath] = {
+    data: allMembers,
+    timestamp: Date.now(),
+  };
   return allMembers;
 }
 
