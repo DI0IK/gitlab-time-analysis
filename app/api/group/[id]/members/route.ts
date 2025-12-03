@@ -22,6 +22,7 @@ export async function getMembers(groupId: string) {
               username
               name
               webUrl
+              bot
             }
           }
         }
@@ -38,6 +39,7 @@ export async function getMembers(groupId: string) {
               username
               name
               webUrl
+              bot
             }
           }
         }
@@ -45,21 +47,27 @@ export async function getMembers(groupId: string) {
     }
   `);
 
-  const inferredMembers = dataInferred.data.group.timelogs.nodes.map(
-    (log: { user: { username: string; name: string; webUrl: string } }) => ({
-      id: log.user.username,
-      name: log.user.name,
-      url: log.user.webUrl,
-    })
-  );
+  const inferredMembers = dataInferred.data.group.timelogs.nodes
+    .filter((log: { user: { bot: boolean } }) => !log.user.bot)
+    .map(
+      (log: { user: { username: string; name: string; webUrl: string } }) => ({
+        id: log.user.username,
+        name: log.user.name,
+        url: log.user.webUrl,
+      })
+    );
 
-  const explicitMembers = data.data.group.groupMembers.nodes.map(
-    (member: { user: { username: string; name: string; webUrl: string } }) => ({
-      id: member.user.username,
-      name: member.user.name,
-      url: member.user.webUrl,
-    })
-  );
+  const explicitMembers = data.data.group.groupMembers.nodes
+    .filter((member: { user: { bot: boolean } }) => !member.user.bot)
+    .map(
+      (member: {
+        user: { username: string; name: string; webUrl: string };
+      }) => ({
+        id: member.user.username,
+        name: member.user.name,
+        url: member.user.webUrl,
+      })
+    );
 
   const allMembersMap: {
     [key: string]: { id: string; name: string; url: string };
