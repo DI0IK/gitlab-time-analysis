@@ -22,14 +22,23 @@ export default function TimePerMember() {
         return (
           <BarChart
             height={300}
-            series={(labels[selectedCategoryGroup] || []).map((category) => ({
+            series={[
+              ...(labels[selectedCategoryGroup] || []),
+              { id: "Uncategorized", title: "Uncategorized" },
+            ].map((category) => ({
               data: members
                 .filter((m) => !m.bot)
                 .map((member) => {
                   const memberLogs = timelogs.filter(
                     (log) =>
                       log.username === member.id &&
-                      log.issueLabels.some((label) => label === category.id)
+                      (log.issueLabels.some((label) => label === category.id) ||
+                        (category.id === "Uncategorized" &&
+                          !log.issueLabels.some((label) =>
+                            labels[selectedCategoryGroup].some(
+                              (lbl) => lbl.id === label
+                            )
+                          )))
                   );
                   const totalTime = memberLogs.reduce(
                     (sum, log) => sum + log.timeSpent,
