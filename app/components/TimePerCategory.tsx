@@ -3,6 +3,8 @@ import React from "react";
 import { GroupContext } from "../GroupContext";
 import { BarChart } from "@mui/x-charts";
 import SelectorCard from "./PersonSelectorWrapper";
+import { Box, List, ListItem, ListItemText, Typography } from "@mui/material";
+import Label from "./Label";
 
 export default function TimePerCategory() {
   const { timelogs, labels } = React.useContext(GroupContext);
@@ -27,7 +29,12 @@ export default function TimePerCategory() {
         > = {};
         const issuesNotEstimatedTime: Record<
           string,
-          { used: number; category: string }
+          {
+            used: number;
+            category: string;
+            issueTitle: string;
+            issueLabels?: string[];
+          }
         > = {};
 
         timelogs.forEach((log) => {
@@ -47,6 +54,8 @@ export default function TimePerCategory() {
                           selectedCategory + "::" + lbl.title
                         ) || lbl.title === selectedCategory
                     )?.title || "Uncategorized",
+                  issueTitle: log.issueTitle,
+                  issueLabels: log.issueLabels,
                 };
               }
               issuesNotEstimatedTime[log.issueUrl].used += log.timeSpent;
@@ -92,35 +101,84 @@ export default function TimePerCategory() {
         });
 
         return (
-          <BarChart
-            height={300}
-            series={[
-              {
-                data: data.map((d) => d.usedHours),
-                label: "Used Hours",
-                barLabel: "value",
-                stack: "a",
-              },
-              {
-                data: data.map((d) => d.estimatedHours),
-                label: "Estimated Hours",
-                barLabel: "value",
-                stack: "b",
-              },
-              {
-                data: data.map((d) => d.usedNotEstimatedHours),
-                label: "Used Hours (No Estimate)",
-                barLabel: "value",
-                stack: "a",
-              },
-            ]}
-            grid={{ horizontal: true }}
-            xAxis={[
-              {
-                data: labels[selectedCategory].map((lbl) => lbl.title),
-              },
-            ]}
-          />
+          <>
+            <BarChart
+              height={300}
+              series={[
+                {
+                  data: data.map((d) => d.usedHours),
+                  label: "Used Hours",
+                  barLabel: "value",
+                  stack: "a",
+                },
+                {
+                  data: data.map((d) => d.estimatedHours),
+                  label: "Estimated Hours",
+                  barLabel: "value",
+                  stack: "b",
+                },
+                {
+                  data: data.map((d) => d.usedNotEstimatedHours),
+                  label: "Used Hours (No Estimate)",
+                  barLabel: "value",
+                  stack: "a",
+                },
+              ]}
+              grid={{ horizontal: true }}
+              xAxis={[
+                {
+                  data: labels[selectedCategory].map((lbl) => lbl.title),
+                },
+              ]}
+            />
+            {issuesNotEstimatedTime &&
+            Object.keys(issuesNotEstimatedTime).length > 0 ? (
+              <>
+                <Typography variant="h6" sx={{ mt: 2 }}>
+                  Issues without Time Estimate
+                </Typography>
+                <List>
+                  {Object.entries(issuesNotEstimatedTime).map(([url, data]) => {
+                    return (
+                      <ListItem
+                        key={url}
+                        component="a"
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        sx={{ flexDirection: "row", alignItems: "flex-start" }}
+                      >
+                        <ListItemText primary={data.issueTitle} />
+                        <Box
+                          sx={{
+                            display: "flex",
+                            gap: 1,
+                            flexWrap: "wrap",
+                            alignItems: "center",
+                            justifyContent: "flex-end",
+                            mt: 0.5,
+                          }}
+                        >
+                          {(data.issueLabels || []).map((label) => (
+                            <Label
+                              key={label}
+                              name={label}
+                              color={
+                                Object.values(labels || {})
+                                  .flat()
+                                  .find((l) => l.id === label)?.color ||
+                                "#428fdc"
+                              }
+                            />
+                          ))}
+                        </Box>
+                      </ListItem>
+                    );
+                  })}
+                </List>
+              </>
+            ) : null}
+          </>
         );
       }}
     </SelectorCard>
