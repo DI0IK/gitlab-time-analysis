@@ -42,7 +42,11 @@ export async function GET(
       { status: 400 }
     );
   }
-  if (!sprints.find((s) => s.sprintNumber === sprintNumber)) {
+  if (
+    !sprints.find((s) => s.sprintNumber === sprintNumber) &&
+    sprintNumber !== 1000 &&
+    !(sprintNumber >= 10000)
+  ) {
     return NextResponse.json(
       { error: `Sprint number ${sprintNumber} not found.` },
       { status: 400 }

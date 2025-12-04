@@ -42,7 +42,11 @@ export default function SprintOverview({
 
   // Helper: determine if a timelog belongs to the selected sprint
   const inSelectedSprint = (log: GroupTimelogsResponse[number]) =>
-    log.sprintNumber === selectedSprint;
+    log.sprintNumber === selectedSprint ||
+    selectedSprint === 1000 ||
+    (selectedSprint &&
+      selectedSprint >= 10000 &&
+      log.spentAt.startsWith((selectedSprint - 10000).toString()));
 
   timelogs.forEach((logRaw) => {
     const log = logRaw as GroupTimelogsResponse[number];

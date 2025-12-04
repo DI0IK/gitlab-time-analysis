@@ -18,7 +18,6 @@ import {
   List,
   ListItem,
   ListItemText,
-  Divider,
   IconButton,
   Accordion,
   AccordionSummary,
@@ -93,7 +92,11 @@ export default function SprintOverview() {
 
   // Helper: determine if a timelog belongs to the selected sprint
   const inSelectedSprint = (log: GroupTimelogsResponse[number]) =>
-    log.sprintNumber === selectedSprint || selectedSprint === 1000;
+    log.sprintNumber === selectedSprint ||
+    selectedSprint === 1000 ||
+    (selectedSprint &&
+      selectedSprint >= 10000 &&
+      log.spentAt.startsWith((selectedSprint - 10000).toString()));
 
   timelogs.forEach((logRaw) => {
     const log = logRaw as GroupTimelogsResponse[number];
@@ -211,6 +214,19 @@ export default function SprintOverview() {
                   ).toLocaleDateString()})`}
                 </MenuItem>
               ))}
+              {timelogs
+                .reduce((years, log) => {
+                  const year = new Date(log.spentAt).getFullYear();
+                  if (!years.includes(year)) years.push(year);
+                  return years;
+                }, [] as number[])
+                .sort((a, b) => b - a)
+                .map((year) => (
+                  <MenuItem
+                    key={10000 + year}
+                    value={10000 + year}
+                  >{`Year ${year}`}</MenuItem>
+                ))}
               <MenuItem key={1000} value={1000}>
                 All time
               </MenuItem>
