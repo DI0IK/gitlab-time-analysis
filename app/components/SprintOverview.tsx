@@ -20,11 +20,16 @@ import {
   ListItemText,
   Divider,
   IconButton,
+  Accordion,
+  AccordionSummary,
+  Typography,
+  AccordionDetails,
 } from "@mui/material";
 import { GroupLabelsResponse } from "../api/group/[id]/labels/route";
 import { GroupTimelogsResponse } from "../api/group/[id]/timelogs/route";
 import Label from "./Label";
 import ShareIcon from "@mui/icons-material/Share";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 
 export default function SprintOverview() {
   const { sprints, timelogs, members, labels, groupId } =
@@ -88,7 +93,7 @@ export default function SprintOverview() {
 
   // Helper: determine if a timelog belongs to the selected sprint
   const inSelectedSprint = (log: GroupTimelogsResponse[number]) =>
-    log.sprintNumber === selectedSprint;
+    log.sprintNumber === selectedSprint || selectedSprint === 1000;
 
   timelogs.forEach((logRaw) => {
     const log = logRaw as GroupTimelogsResponse[number];
@@ -147,6 +152,23 @@ export default function SprintOverview() {
 
   const sprintIssues = React.useMemo(() => {
     if (selectedSprint === null) return {};
+    if (selectedSprint === 1000) {
+      const issuesMap: Record<
+        string,
+        { title: string; url: string; timelogs: GroupTimelogsResponse }
+      > = {};
+      timelogs.forEach((log) => {
+        if (!issuesMap[log.issueUrl]) {
+          issuesMap[log.issueUrl] = {
+            title: log.issueTitle,
+            url: log.issueUrl,
+            timelogs: [],
+          };
+        }
+        issuesMap[log.issueUrl].timelogs.push(log);
+      });
+      return issuesMap;
+    }
     const timelogsInSprint = timelogs.filter(
       (log) => log.sprintNumber === selectedSprint
     ) as GroupTimelogsResponse;
@@ -166,8 +188,6 @@ export default function SprintOverview() {
     });
     return issuesMap;
   }, [timelogs, selectedSprint]);
-
-  console.log(sprintIssues);
 
   return (
     <Card>
@@ -191,6 +211,9 @@ export default function SprintOverview() {
                   ).toLocaleDateString()})`}
                 </MenuItem>
               ))}
+              <MenuItem key={1000} value={1000}>
+                All time
+              </MenuItem>
             </Select>
           </FormControl>
           <FormControl sx={{ minWidth: 220 }} size="small">
@@ -262,121 +285,134 @@ export default function SprintOverview() {
           </TableBody>
         </Table>
 
-        <Divider sx={{ my: 2 }} />
+        <Accordion>
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            aria-controls="panel2-content"
+            id="panel2-header"
+          >
+            <Typography component="span">Issues</Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <List>
+              {selectedSprint !== null ? (
+                Object.values(sprintIssues).map((issue) => {
+                  const logged = issue.timelogs.reduce(
+                    (sum, log) => sum + log.timeSpent,
+                    0
+                  );
+                  const loggedTotal = timelogs.reduce(
+                    (sum, log) =>
+                      log.issueUrl === issue.url ? sum + log.timeSpent : sum,
+                    0
+                  );
+                  const estimate = issue.timelogs[0]?.issueTimeEstimate || 0;
+                  const deviationPercent =
+                    estimate > 0
+                      ? (((loggedTotal - estimate) / estimate) * 100).toFixed(2)
+                      : "N/A";
 
-        <List>
-          {selectedSprint !== null ? (
-            Object.values(sprintIssues).map((issue) => {
-              const logged = issue.timelogs.reduce(
-                (sum, log) => sum + log.timeSpent,
-                0
-              );
-              const loggedTotal = timelogs.reduce(
-                (sum, log) =>
-                  log.issueUrl === issue.url ? sum + log.timeSpent : sum,
-                0
-              );
-              const estimate = issue.timelogs[0]?.issueTimeEstimate || 0;
-              const deviationPercent =
-                estimate > 0
-                  ? (((loggedTotal - estimate) / estimate) * 100).toFixed(2)
-                  : "N/A";
-
-              return (
-                <ListItem
-                  key={issue.url}
-                  component="a"
-                  href={issue.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  sx={{ flexDirection: "row", alignItems: "flex-start" }}
-                >
-                  <ListItemText
-                    primary={issue.title}
-                    secondary={
-                      <>
-                        {`Logged in sprint: ${(logged / 3600).toFixed(
-                          2
-                        )} hrs | Total logged: ${(loggedTotal / 3600).toFixed(
-                          2
-                        )} hrs`}
-                        <br />
-                        {`Estimate: ${(estimate / 3600).toFixed(
-                          2
-                        )} hrs | Deviation: `}
-                        <span
-                          style={{
-                            color:
-                              deviationPercent === "N/A"
-                                ? "#000"
-                                : (() => {
-                                    const deviation = Number(deviationPercent);
-                                    const thresholdBad = 20;
-                                    const thresholdGood = 5;
-                                    let t = 0;
-                                    if (Math.abs(deviation) >= thresholdBad) {
-                                      t = 1;
-                                    } else if (
-                                      Math.abs(deviation) <= thresholdGood
-                                    ) {
-                                      t = 0;
-                                    } else {
-                                      t =
-                                        (Math.abs(deviation) - thresholdGood) /
-                                        (thresholdBad - thresholdGood);
-                                    }
-                                    const green = { r: 56, g: 142, b: 60 };
-                                    const red = { r: 211, g: 47, b: 47 };
-                                    const r = Math.round(
-                                      green.r + (red.r - green.r) * t
-                                    );
-                                    const g = Math.round(
-                                      green.g + (red.g - green.g) * t
-                                    );
-                                    const b = Math.round(
-                                      green.b + (red.b - green.b) * t
-                                    );
-                                    return `rgb(${r},${g},${b})`;
-                                  })(),
-                            fontWeight: "bold",
-                          }}
-                        >
-                          {deviationPercent}%
-                        </span>
-                      </>
-                    }
-                  />
-                  <Box
-                    sx={{
-                      display: "flex",
-                      gap: 1,
-                      flexWrap: "wrap",
-                      alignItems: "center",
-                      justifyContent: "flex-end",
-                      mt: 0.5,
-                    }}
-                  >
-                    {(issue.timelogs[0]?.issueLabels || []).map((label) => (
-                      <Label
-                        key={label}
-                        name={label}
-                        color={
-                          Object.values(labels || {})
-                            .flat()
-                            .find((l) => l.id === label)?.color || "#428fdc"
+                  return (
+                    <ListItem
+                      key={issue.url}
+                      component="a"
+                      href={issue.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      sx={{ flexDirection: "row", alignItems: "flex-start" }}
+                    >
+                      <ListItemText
+                        primary={issue.title}
+                        secondary={
+                          <>
+                            {`Logged in sprint: ${(logged / 3600).toFixed(
+                              2
+                            )} hrs | Total logged: ${(
+                              loggedTotal / 3600
+                            ).toFixed(2)} hrs`}
+                            <br />
+                            {`Estimate: ${(estimate / 3600).toFixed(
+                              2
+                            )} hrs | Deviation: `}
+                            <span
+                              style={{
+                                color:
+                                  deviationPercent === "N/A"
+                                    ? "#000"
+                                    : (() => {
+                                        const deviation =
+                                          Number(deviationPercent);
+                                        const thresholdBad = 20;
+                                        const thresholdGood = 5;
+                                        let t = 0;
+                                        if (
+                                          Math.abs(deviation) >= thresholdBad
+                                        ) {
+                                          t = 1;
+                                        } else if (
+                                          Math.abs(deviation) <= thresholdGood
+                                        ) {
+                                          t = 0;
+                                        } else {
+                                          t =
+                                            (Math.abs(deviation) -
+                                              thresholdGood) /
+                                            (thresholdBad - thresholdGood);
+                                        }
+                                        const green = { r: 56, g: 142, b: 60 };
+                                        const red = { r: 211, g: 47, b: 47 };
+                                        const r = Math.round(
+                                          green.r + (red.r - green.r) * t
+                                        );
+                                        const g = Math.round(
+                                          green.g + (red.g - green.g) * t
+                                        );
+                                        const b = Math.round(
+                                          green.b + (red.b - green.b) * t
+                                        );
+                                        return `rgb(${r},${g},${b})`;
+                                      })(),
+                                fontWeight: "bold",
+                              }}
+                            >
+                              {deviationPercent}%
+                            </span>
+                          </>
                         }
                       />
-                    ))}
-                  </Box>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          gap: 1,
+                          flexWrap: "wrap",
+                          alignItems: "center",
+                          justifyContent: "flex-end",
+                          mt: 0.5,
+                        }}
+                      >
+                        {(issue.timelogs[0]?.issueLabels || []).map((label) => (
+                          <Label
+                            key={label}
+                            name={label}
+                            color={
+                              Object.values(labels || {})
+                                .flat()
+                                .find((l) => l.id === label)?.color || "#428fdc"
+                            }
+                          />
+                        ))}
+                      </Box>
+                    </ListItem>
+                  );
+                })
+              ) : (
+                <ListItem>
+                  <ListItemText primary="No sprint selected" />
                 </ListItem>
-              );
-            })
-          ) : (
-            <ListItem>
-              <ListItemText primary="No sprint selected" />
-            </ListItem>
-          )}
-        </List>
+              )}
+            </List>
+          </AccordionDetails>
+        </Accordion>
       </CardContent>
     </Card>
   );
