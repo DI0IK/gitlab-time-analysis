@@ -19,6 +19,10 @@ export default function SelectorCard<T>({
 }) {
   const [option, setOption] = React.useState<string>(defaultSelected);
 
+  React.useEffect(() => {
+    setOption(defaultSelected);
+  }, [defaultSelected]);
+
   return (
     <Card>
       <CardHeader

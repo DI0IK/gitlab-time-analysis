@@ -11,7 +11,11 @@ export default function TimePerMember() {
     <SelectorCard
       title="Time Per Member"
       options={Object.keys(labels).map((c) => ({ label: c, value: c }))}
-      defaultSelected={Object.keys(labels)[0] || ""}
+      defaultSelected={
+        Object.entries(labels).filter(([group, groupLabels]) =>
+          groupLabels.some((l) => l.title.match(/req/i))
+        )[0]?.[0] || ""
+      }
       data={{
         timelogs,
         labels,

@@ -51,11 +51,14 @@ export default function SprintOverview() {
     if (availableGroups.length && !selectedLabelGroup) {
       setSelectedLabelGroup(availableGroups[0]);
     }
-    // if the previously selected group was removed, pick first available
-    if (selectedLabelGroup && !availableGroups.includes(selectedLabelGroup)) {
-      setSelectedLabelGroup(availableGroups[0] ?? null);
+    const labelGroup =
+      Object.entries(labels).filter(([group, groupLabels]) =>
+        groupLabels.some((l) => l.title.match(/req/i))
+      )[0]?.[0] || "";
+    if (availableGroups.includes(labelGroup)) {
+      setSelectedLabelGroup(labelGroup);
     }
-  }, [availableGroups, selectedLabelGroup]);
+  }, [availableGroups, labels, selectedLabelGroup]);
 
   React.useEffect(() => {
     if (sprints.length && selectedSprint === null) {

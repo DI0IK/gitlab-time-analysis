@@ -3,7 +3,7 @@ import { GroupContext } from "../GroupContext";
 import { Card, CardContent, CardHeader } from "@mui/material";
 
 export default function HeaderCards() {
-  const { members, sprints, timelogs } = React.useContext(GroupContext);
+  const { members, sprints, timelogs, labels } = React.useContext(GroupContext);
 
   const totalTimeSpent = timelogs.reduce(
     (total, log) => total + log.timeSpent,
@@ -15,6 +15,59 @@ export default function HeaderCards() {
   const totalSprints = sprints.filter(
     (sprint) => new Date(sprint.endDate).getTime() <= now
   ).length;
+
+  const labelGroup = React.useMemo(
+    () =>
+      Object.entries(labels).filter(([group, groupLabels]) =>
+        groupLabels.some((l) => l.title.match(/req/i))
+      )[0]?.[0] || "",
+    [labels]
+  );
+
+  const currentFocus = React.useMemo(() => {
+    if (sprints.length === 0) return null;
+    const lastSprint = sprints
+      .filter((sprint) => new Date(sprint.endDate).getTime() <= now)
+      .sort(
+        (a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime()
+      )[0];
+    if (!lastSprint) return null;
+    const logsInLastSprint = timelogs.filter(
+      (log) =>
+        new Date(log.spentAt).getTime() >=
+          new Date(lastSprint.startDate).getTime() &&
+        new Date(log.spentAt).getTime() <=
+          new Date(lastSprint.endDate).getTime()
+    );
+    const labelTypeCount: { [key: string]: number } = {};
+    logsInLastSprint.forEach((log) => {
+      const groupLabel = log.issueLabels.find((label) =>
+        label.startsWith(labelGroup + "::")
+      );
+
+      if (groupLabel) {
+        const subType = groupLabel.split("::")[1];
+        if (!labelTypeCount[subType]) {
+          labelTypeCount[subType] = 0;
+        }
+        labelTypeCount[subType] += log.timeSpent;
+      } else {
+        if (!labelTypeCount["Ungrouped"]) {
+          labelTypeCount["Ungrouped"] = 0;
+        }
+        labelTypeCount["Ungrouped"] += log.timeSpent;
+      }
+    });
+    let topSubType = null;
+    let maxTime = 0;
+    for (const subType in labelTypeCount) {
+      if (labelTypeCount[subType] > maxTime) {
+        maxTime = labelTypeCount[subType];
+        topSubType = subType;
+      }
+    }
+    return topSubType;
+  }, [sprints, timelogs, now, labelGroup]);
 
   return (
     <Card>
@@ -58,6 +111,14 @@ export default function HeaderCards() {
             {totalSprints > 0
               ? (totalTimeSpent / 3600 / totalSprints).toFixed(2) + " hours"
               : "N/A"}
+          </CardContent>
+        </Card>
+        <Card variant="outlined" sx={{ p: 1, m: 0 }}>
+          <CardHeader title="Current Focus (Last Sprint)" />
+          <CardContent
+            sx={{ textAlign: "right", fontWeight: "bold", fontSize: 18 }}
+          >
+            {currentFocus || "N/A"}
           </CardContent>
         </Card>
       </CardContent>
