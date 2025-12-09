@@ -163,7 +163,7 @@ export default function HeaderCards() {
           </CardContent>
         </Card>
         <Card variant="outlined" sx={{ p: 1, m: 0 }}>
-          <CardHeader title="Current Focus (Last Sprint)" />
+          <CardHeader title="Focus Last Sprint" />
           <CardContent
             sx={{ textAlign: "right", fontWeight: "bold", fontSize: 18 }}
           >
@@ -171,7 +171,7 @@ export default function HeaderCards() {
           </CardContent>
         </Card>
         <Card variant="outlined" sx={{ p: 1, m: 0 }}>
-          <CardHeader title="Current Focus (This Sprint)" />
+          <CardHeader title="Focus This Sprint" />
           <CardContent
             sx={{ textAlign: "right", fontWeight: "bold", fontSize: 18 }}
           >
