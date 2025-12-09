@@ -24,7 +24,7 @@ export default function HeaderCards() {
     [labels]
   );
 
-  const currentFocus = React.useMemo(() => {
+  const focusLastSprint = React.useMemo(() => {
     if (sprints.length === 0) return null;
     const lastSprint = sprints
       .filter((sprint) => new Date(sprint.endDate).getTime() <= now)
@@ -41,6 +41,55 @@ export default function HeaderCards() {
     );
     const labelTypeCount: { [key: string]: number } = {};
     logsInLastSprint.forEach((log) => {
+      const groupLabel = log.issueLabels.find((label) =>
+        label.startsWith(labelGroup + "::")
+      );
+
+      if (groupLabel) {
+        const subType = groupLabel.split("::")[1];
+        if (!labelTypeCount[subType]) {
+          labelTypeCount[subType] = 0;
+        }
+        labelTypeCount[subType] += log.timeSpent;
+      } else {
+        if (!labelTypeCount["Ungrouped"]) {
+          labelTypeCount["Ungrouped"] = 0;
+        }
+        labelTypeCount["Ungrouped"] += log.timeSpent;
+      }
+    });
+    let topSubType = null;
+    let maxTime = 0;
+    for (const subType in labelTypeCount) {
+      if (labelTypeCount[subType] > maxTime) {
+        maxTime = labelTypeCount[subType];
+        topSubType = subType;
+      }
+    }
+    return topSubType;
+  }, [sprints, timelogs, now, labelGroup]);
+
+  const focusThisSprint = React.useMemo(() => {
+    if (sprints.length === 0) return null;
+    const currentSprint = sprints
+      .filter(
+        (sprint) =>
+          new Date(sprint.startDate).getTime() <= now &&
+          new Date(sprint.endDate).getTime() >= now
+      )
+      .sort(
+        (a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime()
+      )[0];
+    if (!currentSprint) return null;
+    const logsInCurrentSprint = timelogs.filter(
+      (log) =>
+        new Date(log.spentAt).getTime() >=
+          new Date(currentSprint.startDate).getTime() &&
+        new Date(log.spentAt).getTime() <=
+          new Date(currentSprint.endDate).getTime()
+    );
+    const labelTypeCount: { [key: string]: number } = {};
+    logsInCurrentSprint.forEach((log) => {
       const groupLabel = log.issueLabels.find((label) =>
         label.startsWith(labelGroup + "::")
       );
@@ -118,7 +167,15 @@ export default function HeaderCards() {
           <CardContent
             sx={{ textAlign: "right", fontWeight: "bold", fontSize: 18 }}
           >
-            {currentFocus || "N/A"}
+            {focusLastSprint || "N/A"}
+          </CardContent>
+        </Card>
+        <Card variant="outlined" sx={{ p: 1, m: 0 }}>
+          <CardHeader title="Current Focus (This Sprint)" />
+          <CardContent
+            sx={{ textAlign: "right", fontWeight: "bold", fontSize: 18 }}
+          >
+            {focusThisSprint || "N/A"}
           </CardContent>
         </Card>
       </CardContent>
