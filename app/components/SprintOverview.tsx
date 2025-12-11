@@ -38,8 +38,8 @@ export default function SprintOverview() {
     sprints.find(
       (sp) =>
         sp.startDate <= new Date().toISOString().slice(0, 10) &&
-        new Date().toISOString().slice(0, 10) <= sp.endDate
-    )?.sprintNumber ?? null
+        new Date().toISOString().slice(0, 10) <= sp.endDate,
+    )?.sprintNumber ?? null,
   );
 
   const availableGroups = Object.keys(labels || {});
@@ -49,14 +49,13 @@ export default function SprintOverview() {
 
   React.useEffect(() => {
     if (availableGroups.length && !selectedLabelGroup) {
-      setSelectedLabelGroup(availableGroups[0]);
-    }
-    const labelGroup =
-      Object.entries(labels).filter(([group, groupLabels]) =>
-        groupLabels.some((l) => l.title.match(/req/i))
-      )[0]?.[0] || "";
-    if (availableGroups.includes(labelGroup)) {
-      setSelectedLabelGroup(labelGroup);
+      const labelGroup =
+        Object.entries(labels).filter(([group, groupLabels]) =>
+          groupLabels.some((l) => l.title.match(/req/i)),
+        )[0]?.[0] || "";
+      if (availableGroups.includes(labelGroup)) {
+        setSelectedLabelGroup(labelGroup);
+      }
     }
   }, [availableGroups, labels, selectedLabelGroup]);
 
@@ -66,8 +65,8 @@ export default function SprintOverview() {
         sprints.find(
           (sp) =>
             sp.startDate <= new Date().toISOString().slice(0, 10) &&
-            new Date().toISOString().slice(0, 10) <= sp.endDate
-        )?.sprintNumber ?? null
+            new Date().toISOString().slice(0, 10) <= sp.endDate,
+        )?.sprintNumber ?? null,
       );
     }
   }, [sprints, selectedSprint]);
@@ -75,7 +74,7 @@ export default function SprintOverview() {
   // Determine columns: if a label group is selected, show its label titles as columns
   const labelColumns: string[] = selectedLabelGroup
     ? (labels[selectedLabelGroup] || ([] as GroupLabelsResponse[string])).map(
-        (l) => l.title
+        (l) => l.title,
       )
     : Object.keys(labels || {});
 
@@ -89,7 +88,9 @@ export default function SprintOverview() {
     .filter((m) => !m.bot)
     .forEach((m) => {
       tableData[m.id] = {};
-      labelColumns.forEach((c) => (tableData[m.id][c] = 0));
+      labelColumns.forEach((c) => {
+        tableData[m.id][c] = 0;
+      });
       tableData[m.id]["__sum"] = 0;
     });
 
@@ -108,7 +109,9 @@ export default function SprintOverview() {
     if (!tableData[memberId]) {
       // ensure unknown members are present
       tableData[memberId] = {};
-      labelColumns.forEach((c) => (tableData[memberId][c] = 0));
+      labelColumns.forEach((c) => {
+        tableData[memberId][c] = 0;
+      });
       tableData[memberId]["__sum"] = 0;
     }
 
@@ -116,7 +119,7 @@ export default function SprintOverview() {
     if (selectedLabelGroup) {
       // find the first label in the timelog that belongs to the selected group
       const match = (log.issueLabels || []).find((il: string) =>
-        il.startsWith(selectedLabelGroup + "::")
+        il.startsWith(selectedLabelGroup + "::"),
       );
       if (match) {
         assignedColumn = match.split("::").slice(1).join("::") || "Ungrouped";
@@ -134,7 +137,9 @@ export default function SprintOverview() {
 
   // Column sums
   const columnSums: Record<string, number> = {};
-  labelColumns.forEach((g) => (columnSums[g] = 0));
+  labelColumns.forEach((g) => {
+    columnSums[g] = 0;
+  });
   columnSums["__sum"] = 0;
 
   Object.values(tableData).forEach((groupMap) => {
@@ -176,7 +181,7 @@ export default function SprintOverview() {
       return issuesMap;
     }
     const timelogsInSprint = timelogs.filter(
-      (log) => log.sprintNumber === selectedSprint
+      (log) => log.sprintNumber === selectedSprint,
     ) as GroupTimelogsResponse;
     const issuesMap: Record<
       string,
@@ -211,9 +216,9 @@ export default function SprintOverview() {
               {sprints.map((sp) => (
                 <MenuItem key={sp.sprintNumber} value={sp.sprintNumber}>
                   {`Sprint ${sp.sprintNumber} (${new Date(
-                    sp.startDate
+                    sp.startDate,
                   ).toLocaleDateString()} - ${new Date(
-                    sp.endDate
+                    sp.endDate,
                   ).toLocaleDateString()})`}
                 </MenuItem>
               ))}
@@ -318,12 +323,12 @@ export default function SprintOverview() {
                 Object.values(sprintIssues).map((issue) => {
                   const logged = issue.timelogs.reduce(
                     (sum, log) => sum + log.timeSpent,
-                    0
+                    0,
                   );
                   const loggedTotal = timelogs.reduce(
                     (sum, log) =>
                       log.issueUrl === issue.url ? sum + log.timeSpent : sum,
-                    0
+                    0,
                   );
                   const estimate = issue.timelogs[0]?.issueTimeEstimate || 0;
                   const deviationPercent =
@@ -345,13 +350,13 @@ export default function SprintOverview() {
                         secondary={
                           <>
                             {`Logged in sprint: ${(logged / 3600).toFixed(
-                              2
+                              2,
                             )} hrs | Total logged: ${(
                               loggedTotal / 3600
                             ).toFixed(2)} hrs`}
                             <br />
                             {`Estimate: ${(estimate / 3600).toFixed(
-                              2
+                              2,
                             )} hrs | Deviation: `}
                             <span
                               style={{
@@ -381,13 +386,13 @@ export default function SprintOverview() {
                                         const green = { r: 56, g: 142, b: 60 };
                                         const red = { r: 211, g: 47, b: 47 };
                                         const r = Math.round(
-                                          green.r + (red.r - green.r) * t
+                                          green.r + (red.r - green.r) * t,
                                         );
                                         const g = Math.round(
-                                          green.g + (red.g - green.g) * t
+                                          green.g + (red.g - green.g) * t,
                                         );
                                         const b = Math.round(
-                                          green.b + (red.b - green.b) * t
+                                          green.b + (red.b - green.b) * t,
                                         );
                                         return `rgb(${r},${g},${b})`;
                                       })(),
