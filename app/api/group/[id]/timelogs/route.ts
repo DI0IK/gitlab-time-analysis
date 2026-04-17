@@ -182,7 +182,7 @@ export async function getTimelogs(groupId: string) {
     timestamp: Date.now(),
   };
 
-  return response.filter((i) => !i.issueUrl?.includes("deletion_scheduled"));
+  return (response as GroupTimelogsResponse).filter((i) => !i.issueUrl?.includes("deletion_scheduled"));
 }
 
 export const GET = async (
