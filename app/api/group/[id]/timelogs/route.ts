@@ -178,7 +178,10 @@ export async function getTimelogs(groupId: string) {
   );
 
   cache[fullGroupPath] = {
-    data: response,
+    data: (response as GroupTimelogsResponse).filter((i) => {
+      if (i.issueUrl?.includes("deletion_scheduled")) return false;
+      return true;
+    }),
     timestamp: Date.now(),
   };
 
