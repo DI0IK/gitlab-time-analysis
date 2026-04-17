@@ -13,7 +13,7 @@ export default function TimePerMember() {
       options={Object.keys(labels).map((c) => ({ label: c, value: c }))}
       defaultSelected={
         Object.entries(labels).filter(([group, groupLabels]) =>
-          groupLabels.some((l) => l.title.match(/req/i))
+          groupLabels.some((l) => l.title.match(/req/i)),
         )[0]?.[0] || ""
       }
       data={{
@@ -36,17 +36,19 @@ export default function TimePerMember() {
                   const memberLogs = timelogs.filter(
                     (log) =>
                       log.username === member.id &&
-                      (log.issueLabels.some((label) => label === category.id) ||
+                      ((log.issueLabels || []).some(
+                        (label) => label === category.id,
+                      ) ||
                         (category.id === "Uncategorized" &&
-                          !log.issueLabels.some((label) =>
-                            labels[selectedCategoryGroup].some(
-                              (lbl) => lbl.id === label
-                            )
-                          )))
+                          !(log.issueLabels || []).some((label) =>
+                            (labels[selectedCategoryGroup] || []).some(
+                              (lbl) => lbl.id === label,
+                            ),
+                          ))),
                   );
                   const totalTime = memberLogs.reduce(
                     (sum, log) => sum + log.timeSpent,
-                    0
+                    0,
                   );
                   return totalTime / 3600; // Convert to hours
                 }),
