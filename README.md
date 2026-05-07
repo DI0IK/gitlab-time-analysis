@@ -144,4 +144,4 @@ npm run start
 
 ## License
 
-No explicit license file is included in this repository.
+GNU General Public License v3.0
