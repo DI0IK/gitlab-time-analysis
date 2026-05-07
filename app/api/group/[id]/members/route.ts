@@ -4,10 +4,6 @@ import { runGitlabGraphQLQuery } from "../../../gitlab";
 
 export const revalidate = 60;
 
-const cache: {
-  [groupId: string]: { data: GroupMembersResponse; timestamp: number };
-} = {};
-
 export type GroupMembersResponse = {
   id: string;
   name: string;
@@ -15,18 +11,20 @@ export type GroupMembersResponse = {
   bot: boolean;
 }[];
 
-export async function getMembers(groupId: string) {
-  const fullGroupPath = `${GITLAB_GROUP_PATH}/${groupId}`;
+// Updated cache type to handle background promises and prevent duplicate fetches
+type CacheEntry = {
+  data: GroupMembersResponse | null;
+  timestamp: number;
+  fetchPromise: Promise<GroupMembersResponse> | null;
+};
 
-  if (cache[fullGroupPath]) {
-    const cached = cache[fullGroupPath];
-    const now = Date.now();
-    // Cache for 5 minutes
-    if (now - cached.timestamp < 5 * 60 * 1000) {
-      return cached.data;
-    }
-  }
+const cache: { [fullGroupPath: string]: CacheEntry } = {};
+const CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutes
 
+// Extracted fetch and processing logic
+async function fetchAndProcessMembers(
+  fullGroupPath: string,
+): Promise<GroupMembersResponse> {
   const data = await runGitlabGraphQLQuery(`
     {
       group(fullPath: "${fullGroupPath}") {
@@ -69,7 +67,7 @@ export async function getMembers(groupId: string) {
       name: log.user.name,
       url: log.user.webUrl,
       bot: log.user.bot,
-    })
+    }),
   );
 
   const explicitMembers = data.data.group.groupMembers.nodes.map(
@@ -80,7 +78,7 @@ export async function getMembers(groupId: string) {
       name: member.user.name,
       url: member.user.webUrl,
       bot: member.user.bot,
-    })
+    }),
   );
 
   const allMembersMap: {
@@ -90,26 +88,70 @@ export async function getMembers(groupId: string) {
   explicitMembers.forEach(
     (member: { id: string; name: string; url: string; bot: boolean }) => {
       allMembersMap[member.id] = member;
-    }
+    },
   );
 
   inferredMembers.forEach(
     (member: { id: string; name: string; url: string; bot: boolean }) => {
-      allMembersMap[member.id] = member;
-    }
+      if (member.id) {
+        // Safeguard against null users in timelogs
+        allMembersMap[member.id] = member;
+      }
+    },
   );
 
-  const allMembers = Object.values(allMembersMap);
-  cache[fullGroupPath] = {
-    data: allMembers,
-    timestamp: Date.now(),
-  };
-  return allMembers;
+  return Object.values(allMembersMap);
+}
+
+export async function getMembers(groupId: string) {
+  const fullGroupPath = `${GITLAB_GROUP_PATH}/${groupId}`;
+  const now = Date.now();
+
+  // Initialize cache entry if it doesn't exist
+  if (!cache[fullGroupPath]) {
+    cache[fullGroupPath] = {
+      data: null,
+      timestamp: 0,
+      fetchPromise: null,
+    };
+  }
+
+  const cached = cache[fullGroupPath];
+  const isStale = now - cached.timestamp >= CACHE_TTL_MS;
+
+  // If the data is stale (or missing) AND no background refresh is currently running
+  if (isStale && !cached.fetchPromise) {
+    // Start background refresh and store the promise to prevent duplicate fetches
+    cached.fetchPromise = fetchAndProcessMembers(fullGroupPath)
+      .then((freshData) => {
+        cache[fullGroupPath] = {
+          data: freshData,
+          timestamp: Date.now(),
+          fetchPromise: null, // Clear the promise once finished
+        };
+        return freshData;
+      })
+      .catch((error) => {
+        console.error("Failed to refresh members background cache:", error);
+        cache[fullGroupPath].fetchPromise = null; // Free up for next attempt
+        throw error;
+      });
+  }
+
+  // If we already have stale data, serve it immediately (Stale-While-Revalidate)
+  if (cached.data) {
+    // Catch potential unhandled promise rejections since we are not awaiting it here
+    cached.fetchPromise?.catch(() => {});
+    return cached.data;
+  }
+
+  // If we have NO data at all (first ever request), we MUST wait for the fetch to finish
+  return await cached.fetchPromise!;
 }
 
 export const GET = async (
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) => {
   const groupId = (await params).id;
 

@@ -22,34 +22,33 @@ export type GroupTimelogsResponse = {
   sprintNumber?: number;
 }[];
 
-const cache: {
-  [groupId: string]: { data: GroupTimelogsResponse; timestamp: number };
-} = {};
+// Updated cache type to handle background promises and prevent duplicate fetches
+type CacheEntry = {
+  data: GroupTimelogsResponse | null;
+  timestamp: number;
+  fetchPromise: Promise<GroupTimelogsResponse> | null;
+};
 
-export async function getTimelogs(groupId: string) {
-  const fullGroupPath = `${GITLAB_GROUP_PATH}/${groupId}`;
+const cache: { [fullGroupPath: string]: CacheEntry } = {};
+const CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutes
 
-  if (cache[fullGroupPath]) {
-    const cached = cache[fullGroupPath];
-    const now = Date.now();
-    // Cache for 5 minutes
-    if (now - cached.timestamp < 5 * 60 * 1000) {
-      return cached.data;
-    }
-  }
-
+// Extracted fetch and processing logic to keep it isolated from caching logic
+async function fetchAndProcessTimelogs(
+  fullGroupPath: string,
+): Promise<GroupTimelogsResponse> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let data: any;
   let finished = false;
   let cursor: string | null = null;
 
+  // Fetch all pages
   while (!finished) {
     const newData = await runGitlabGraphQLQuery(`
     {
       group(fullPath: "${fullGroupPath}") {
         timelogs(startDate: "${PROJECT_START_DATE}", endDate: "${PROJECT_END_DATE}", first: 100${
-      cursor ? `, after: "${cursor}"` : ""
-    }) {
+          cursor ? `, after: "${cursor}"` : ""
+        }) {
           nodes {
             id
             spentAt
@@ -92,7 +91,7 @@ export async function getTimelogs(groupId: string) {
     }
   }
 
-  const response = data.data.group.timelogs.nodes.map(
+  const mappedResponse = data.data.group.timelogs.nodes.map(
     (log: {
       id: string;
       issue: {
@@ -148,7 +147,7 @@ export async function getTimelogs(groupId: string) {
           Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
         const msPerDay = 1000 * 60 * 60 * 24;
         const daysDifference = Math.floor(
-          (utc(spentDate) - utc(firstSprintStart)) / msPerDay
+          (utc(spentDate) - utc(firstSprintStart)) / msPerDay,
         );
 
         const sprintDurationDays =
@@ -162,10 +161,14 @@ export async function getTimelogs(groupId: string) {
         issueUrl: log.issue?.webUrl,
         issueLabels: (
           log.issue?.labels.nodes.map(
-            (label: { title: string }) => label.title
+            (label: { title: string }) => label.title,
           ) || []
         ).map((title: string) =>
-          title.includes("::") ? title : "Ungrouped::" + title
+          title.includes("::")
+            ? title
+            : title.includes(":")
+              ? title.replace(/:/g, "::")
+              : "Ungrouped::" + title,
         ),
         issueTitle: log.issue?.title || "",
         issueTimeEstimate: log.issue?.timeEstimate || 0,
@@ -174,26 +177,64 @@ export async function getTimelogs(groupId: string) {
         username: log.user?.username,
         sprintNumber,
       };
-    }
+    },
   );
 
-  cache[fullGroupPath] = {
-    data: (response as GroupTimelogsResponse).filter((i) => {
-      if (i.issueUrl?.includes("deletion_scheduled")) return false;
-      return true;
-    }),
-    timestamp: Date.now(),
-  };
-
-  return (response as GroupTimelogsResponse).filter((i) => {
+  return (mappedResponse as GroupTimelogsResponse).filter((i) => {
     if (i.issueUrl?.includes("deletion_scheduled")) return false;
     return true;
   });
 }
 
+export async function getTimelogs(groupId: string) {
+  const fullGroupPath = `${GITLAB_GROUP_PATH}/${groupId}`;
+  const now = Date.now();
+
+  // Initialize cache entry if it doesn't exist
+  if (!cache[fullGroupPath]) {
+    cache[fullGroupPath] = {
+      data: null,
+      timestamp: 0,
+      fetchPromise: null,
+    };
+  }
+
+  const cached = cache[fullGroupPath];
+  const isStale = now - cached.timestamp >= CACHE_TTL_MS;
+
+  // If the data is stale (or missing) AND no background refresh is currently running
+  if (isStale && !cached.fetchPromise) {
+    // Start background refresh and store the promise to prevent duplicate fetches
+    cached.fetchPromise = fetchAndProcessTimelogs(fullGroupPath)
+      .then((freshData) => {
+        cache[fullGroupPath] = {
+          data: freshData,
+          timestamp: Date.now(),
+          fetchPromise: null, // Clear the promise once finished
+        };
+        return freshData;
+      })
+      .catch((error) => {
+        console.error("Failed to refresh timelogs background cache:", error);
+        cache[fullGroupPath].fetchPromise = null; // Free up for next attempt
+        throw error;
+      });
+  }
+
+  // If we already have stale data, serve it immediately (Stale-While-Revalidate)
+  if (cached.data) {
+    // Catch potential unhandled promise rejections since we are not awaiting it here
+    cached.fetchPromise?.catch(() => {});
+    return cached.data;
+  }
+
+  // If we have NO data at all (first ever request), we MUST wait for the fetch to finish
+  return await cached.fetchPromise!;
+}
+
 export const GET = async (
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) => {
   const groupId = (await params).id;
 

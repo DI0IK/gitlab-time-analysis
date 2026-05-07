@@ -9,37 +9,47 @@ import { NextResponse } from "next/server";
 
 export const revalidate = 60;
 
+const fontData = fetch(
+  new URL(
+    "https://cdn.jsdelivr.net/npm/@fontsource/inter/files/inter-latin-400-normal.woff",
+    import.meta.url,
+  ),
+).then((res) => res.arrayBuffer());
+
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
 
-  const timelogs = await getTimelogs(id);
+  const [timelogs, members, labels] = await Promise.all([
+    getTimelogs(id),
+    getMembers(id),
+    getLabels(id),
+  ]);
+
   const sprints = generateSprints();
-  const members = await getMembers(id);
-  const labels = await getLabels(id);
 
   const searchParams = request.nextUrl.searchParams;
   const labelGroup = searchParams.get("labelGroup") || "Ungrouped";
   if (!labels[labelGroup]) {
     return NextResponse.json(
       { error: `Label group '${labelGroup}' not found.` },
-      { status: 400 }
+      { status: 400 },
     );
   }
   const sprintNumberParam = searchParams.get("sprintNumber");
   if (!sprintNumberParam) {
     return NextResponse.json(
       { error: "sprintNumber query parameter is required." },
-      { status: 400 }
+      { status: 400 },
     );
   }
   const sprintNumber = parseInt(sprintNumberParam, 10);
   if (isNaN(sprintNumber)) {
     return NextResponse.json(
       { error: "sprintNumber must be a valid number." },
-      { status: 400 }
+      { status: 400 },
     );
   }
   if (
@@ -49,16 +59,9 @@ export async function GET(
   ) {
     return NextResponse.json(
       { error: `Sprint number ${sprintNumber} not found.` },
-      { status: 400 }
+      { status: 400 },
     );
   }
-
-  const fontData = await fetch(
-    new URL(
-      "https://cdn.jsdelivr.net/npm/@fontsource/inter/files/inter-latin-400-normal.woff",
-      import.meta.url
-    )
-  ).then((res) => res.arrayBuffer());
 
   const svg = await satori(
     <SprintOverview
@@ -73,12 +76,12 @@ export async function GET(
       fonts: [
         {
           name: "Inter",
-          data: fontData,
+          data: await fontData,
           weight: 400,
           style: "normal",
         },
       ],
-    }
+    },
   );
 
   return new NextResponse(svg, {
