@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { GITLAB_GROUP_PATH } from "../../../env";
+import { GITLAB_GROUP_PATH, GITLAB_DOMAIN } from "../../../env";
 import { runGitlabGraphQLQuery } from "../../../gitlab";
 
 export const revalidate = 60;
@@ -9,6 +9,7 @@ export type GroupMembersResponse = {
   name: string;
   url: string;
   bot: boolean;
+  avatarUrl: string | null;
 }[];
 
 // Updated cache type to handle background promises and prevent duplicate fetches
@@ -20,6 +21,27 @@ type CacheEntry = {
 
 const cache: { [fullGroupPath: string]: CacheEntry } = {};
 const CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutes
+
+/**
+ * Convert relative avatar URLs to absolute URLs
+ * GitLab returns avatarUrl as relative paths, we need to prepend the domain
+ */
+function normalizeAvatarUrl(avatarUrl: string | null): string | null {
+  if (!avatarUrl) return null;
+  
+  // If it's already absolute, return as-is
+  if (avatarUrl.startsWith("http://") || avatarUrl.startsWith("https://")) {
+    return avatarUrl;
+  }
+  
+  // If it's a relative URL, prepend the GitLab domain
+  if (avatarUrl.startsWith("/")) {
+    const domain = GITLAB_DOMAIN || "https://gitlab.com";
+    return `${domain}${avatarUrl}`;
+  }
+  
+  return avatarUrl;
+}
 
 // Extracted fetch and processing logic
 async function fetchAndProcessMembers(
@@ -35,6 +57,7 @@ async function fetchAndProcessMembers(
               name
               webUrl
               bot
+              avatarUrl
             }
           }
         }
@@ -52,6 +75,7 @@ async function fetchAndProcessMembers(
               name
               webUrl
               bot
+              avatarUrl
             }
           }
         }
@@ -61,38 +85,40 @@ async function fetchAndProcessMembers(
 
   const inferredMembers = dataInferred.data.group.timelogs.nodes.map(
     (log: {
-      user: { username: string; name: string; webUrl: string; bot: boolean };
+      user: { username: string; name: string; webUrl: string; bot: boolean; avatarUrl: string };
     }) => ({
       id: log.user.username,
       name: log.user.name,
       url: log.user.webUrl,
       bot: log.user.bot,
+      avatarUrl: normalizeAvatarUrl(log.user.avatarUrl || null),
     }),
   );
 
   const explicitMembers = data.data.group.groupMembers.nodes.map(
     (member: {
-      user: { username: string; name: string; webUrl: string; bot: boolean };
+      user: { username: string; name: string; webUrl: string; bot: boolean; avatarUrl: string };
     }) => ({
       id: member.user.username,
       name: member.user.name,
       url: member.user.webUrl,
       bot: member.user.bot,
+      avatarUrl: normalizeAvatarUrl(member.user.avatarUrl || null),
     }),
   );
 
   const allMembersMap: {
-    [key: string]: { id: string; name: string; url: string; bot: boolean };
+    [key: string]: { id: string; name: string; url: string; bot: boolean; avatarUrl: string | null };
   } = {};
 
   explicitMembers.forEach(
-    (member: { id: string; name: string; url: string; bot: boolean }) => {
+    (member: { id: string; name: string; url: string; bot: boolean; avatarUrl: string | null }) => {
       allMembersMap[member.id] = member;
     },
   );
 
   inferredMembers.forEach(
-    (member: { id: string; name: string; url: string; bot: boolean }) => {
+    (member: { id: string; name: string; url: string; bot: boolean; avatarUrl: string | null }) => {
       if (member.id) {
         // Safeguard against null users in timelogs
         allMembersMap[member.id] = member;

@@ -1,9 +1,14 @@
 import React from "react";
 import { GroupContext } from "../GroupContext";
 import SelectorCard from "./PersonSelectorWrapper";
+import { useMediaQuery, useTheme } from "@mui/material";
 
 export default function Heatmap() {
   const { members, sprints, timelogs } = React.useContext(GroupContext);
+  const theme = useTheme();
+  const isSmall = useMediaQuery(theme.breakpoints.down("sm"));
+  const isMedium = useMediaQuery(theme.breakpoints.down("md"));
+  const isLarge = useMediaQuery(theme.breakpoints.up("lg"));
 
   return (
     <SelectorCard
@@ -11,7 +16,7 @@ export default function Heatmap() {
       options={[
         ...members
           .filter((m) => !m.bot)
-          .map((m) => ({ label: m.name, value: m.id })),
+          .map((m) => ({ label: m.name, value: m.id, member: m })),
         { value: "all", label: "All Members" },
       ]}
       defaultSelected="all"
@@ -95,12 +100,35 @@ export default function Heatmap() {
         );
         if (overallMax === 0) overallMax = 1;
 
+        // Responsive sizing
+        let cellSize = 24;
+        let gap = 3;
+        let fontSize = 10;
+        let labelFontSize = 9;
+
+        if (isSmall) {
+          cellSize = 18;
+          gap = 2;
+          fontSize = 9;
+          labelFontSize = 8;
+        } else if (isMedium) {
+          cellSize = 22;
+          gap = 3;
+          fontSize = 10;
+          labelFontSize = 9;
+        } else if (isLarge) {
+          cellSize = 24;
+          gap = 4;
+          fontSize = 11;
+          labelFontSize = 10;
+        }
+
         const getCellStyle = (value: number, date: Date) => {
           const ratio = Math.min(1, value / overallMax);
           const opacity = value === 0 ? 0.06 : 0.2 + 0.8 * ratio;
           return {
-            width: 28,
-            height: 28,
+            width: cellSize,
+            height: cellSize,
             borderRadius: 4,
             border: (() => {
               const today = new Date();
@@ -118,7 +146,7 @@ export default function Heatmap() {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: 11,
+            fontSize: fontSize,
             color: ratio > 0.5 ? "#fff" : "#000",
           } as React.CSSProperties;
         };
@@ -133,8 +161,8 @@ export default function Heatmap() {
             style={{
               display: "grid",
               gridTemplateColumns: `auto repeat(${sprints.length}, auto)`,
-              gridTemplateRows: `auto repeat(${weekdayCount}, 28px)`,
-              gap: 4,
+              gridTemplateRows: `auto repeat(${weekdayCount}, ${cellSize}px)`,
+              gap: gap,
               overflowX: "auto",
               overflowY: "hidden",
               marginTop: 16,
@@ -148,15 +176,16 @@ export default function Heatmap() {
                 style={{
                   gridRow: idx + 2,
                   gridColumn: 1,
-                  height: 28,
+                  height: cellSize,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   fontWeight: "bold",
-                  marginBottom: 4,
+                  marginBottom: gap,
+                  fontSize: labelFontSize,
                 }}
               >
-                {weekday.slice(0, 3)}
+                {isSmall ? weekday.slice(0, 1) : weekday.slice(0, 3)}
               </div>
             ))}
 
@@ -168,19 +197,21 @@ export default function Heatmap() {
                       gridRow: 1,
                       gridColumn: sprintIdx + 2,
                       fontWeight: "bold",
-                      marginBottom: 4,
+                      marginBottom: gap,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
                       flexDirection: "column",
-                      fontSize: 10,
+                      fontSize: labelFontSize,
                     }}
                   >
-                    <div>
-                      {new Date(sprints[sprintIdx]?.startDate)
-                        .getFullYear()
-                        .toString()}
-                    </div>
+                    {!isSmall && (
+                      <div>
+                        {new Date(sprints[sprintIdx]?.startDate)
+                          .getFullYear()
+                          .toString()}
+                      </div>
+                    )}
                     <div>{sprintNumber}</div>
                   </div>
                   {Object.keys(days).map((weekday, dayIdx) => (
@@ -190,7 +221,7 @@ export default function Heatmap() {
                         gridRow: dayIdx + 2,
                         gridColumn: sprintIdx + 2,
                       }}
-                      title={`${days[weekday].date}: ${days[weekday].timeSpent} hrs`}
+                      title={`${days[weekday].date}: ${(days[weekday].timeSpent / 3600).toFixed(2)} hrs`}
                     >
                       <div
                         style={getCellStyle(

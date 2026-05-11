@@ -23,6 +23,7 @@ export default function TimePerMember() {
       }}
     >
       {(selectedCategoryGroup, { timelogs, labels, members }) => {
+        const nonBotMembers = members.filter((m) => !m.bot);
         return (
           <BarChart
             height={300}
@@ -30,37 +31,34 @@ export default function TimePerMember() {
               ...(labels[selectedCategoryGroup] || []),
               { id: "Uncategorized", title: "Uncategorized" },
             ].map((category) => ({
-              data: members
-                .filter((m) => !m.bot)
-                .map((member) => {
-                  const memberLogs = timelogs.filter(
-                    (log) =>
-                      log.username === member.id &&
-                      ((log.issueLabels || []).some(
-                        (label) => label === category.id,
-                      ) ||
-                        (category.id === "Uncategorized" &&
-                          !(log.issueLabels || []).some((label) =>
-                            (labels[selectedCategoryGroup] || []).some(
-                              (lbl) => lbl.id === label,
-                            ),
-                          ))),
-                  );
-                  const totalTime = memberLogs.reduce(
-                    (sum, log) => sum + log.timeSpent,
-                    0,
-                  );
-                  return totalTime / 3600; // Convert to hours
-                }),
+              data: nonBotMembers.map((member) => {
+                const memberLogs = timelogs.filter(
+                  (log) =>
+                    log.username === member.id &&
+                    ((log.issueLabels || []).some(
+                      (label) => label === category.id,
+                    ) ||
+                      (category.id === "Uncategorized" &&
+                        !(log.issueLabels || []).some((label) =>
+                          (labels[selectedCategoryGroup] || []).some(
+                            (lbl) => lbl.id === label,
+                          ),
+                        ))),
+                );
+                const totalTime = memberLogs.reduce(
+                  (sum, log) => sum + log.timeSpent,
+                  0,
+                );
+                return totalTime / 3600; // Convert to hours
+              }),
               label: category.title,
               stack: "a",
             }))}
             grid={{ horizontal: true }}
             xAxis={[
               {
-                data: members
-                  .filter((m) => !m.bot)
-                  .map((member) => member.name),
+                data: nonBotMembers.map((member) => member.name),
+                scaleType: "band",
               },
             ]}
           />

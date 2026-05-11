@@ -1,6 +1,7 @@
 import React from "react";
 import { GroupContext } from "../GroupContext";
-import { Card, CardContent, CardHeader } from "@mui/material";
+import { Card, CardContent, CardHeader, Box, AvatarGroup, Tooltip } from "@mui/material";
+import { UserAvatar } from "./UserAvatar";
 
 export default function HeaderCards() {
   const { members, sprints, timelogs, labels } = React.useContext(GroupContext);
@@ -118,6 +119,9 @@ export default function HeaderCards() {
     return topSubType;
   }, [sprints, timelogs, now, labelGroup]);
 
+  const humanMembers = members.filter((m) => !m.bot);
+  const botMembers = members.filter((m) => m.bot);
+
   return (
     <Card>
       <CardHeader title="Summary" />
@@ -129,11 +133,53 @@ export default function HeaderCards() {
         }}
       >
         <Card variant="outlined" sx={{ p: 1, m: 0 }}>
-          <CardHeader title="Total Members" />
-          <CardContent
-            sx={{ textAlign: "right", fontWeight: "bold", fontSize: 18 }}
-          >
-            {members.filter((m) => !m.bot).length}
+          <CardHeader title="Team Members" />
+          <CardContent>
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}>
+              <Box sx={{ fontSize: 18, fontWeight: "bold" }}>
+                {humanMembers.length}
+                {botMembers.length > 0 && (
+                  <Box sx={{ fontSize: "0.875rem", fontWeight: "normal", color: "rgba(255, 255, 255, 0.7)" }}>
+                    + {botMembers.length} accounts
+                  </Box>
+                )}
+              </Box>
+              <AvatarGroup
+                max={8}
+                sx={{
+                  "& .MuiAvatar-root": {
+                    width: 28,
+                    height: 28,
+                    fontSize: "0.7rem",
+                  },
+                }}
+              >
+                {humanMembers.map((member) => (
+                  <Tooltip key={member.id} title={member.name} arrow>
+                    <div>
+                      <UserAvatar
+                        member={member}
+                        size="small"
+                        showTooltip={false}
+                        sx={{ width: 28, height: 28 }}
+                      />
+                    </div>
+                  </Tooltip>
+                ))}
+                {botMembers.map((member) => (
+                  <Tooltip key={member.id} title={`${member.name} (service account)`} arrow>
+                    <div>
+                      <UserAvatar
+                        member={member}
+                        size="small"
+                        showTooltip={false}
+                        sx={{ width: 28, height: 28 }}
+                      />
+                    </div>
+                  </Tooltip>
+                ))}
+              </AvatarGroup>
+            </Box>
           </CardContent>
         </Card>
         <Card variant="outlined" sx={{ p: 1, m: 0 }}>
