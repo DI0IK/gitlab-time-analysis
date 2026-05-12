@@ -1,87 +1,88 @@
 "use client";
+import { Card, CardContent, CardHeader, useMediaQuery, useTheme } from "@mui/material";
 import React from "react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { GroupContext } from "../GroupContext";
-import { BarChart } from "@mui/x-charts";
-import { Card, CardContent, CardHeader } from "@mui/material";
+
+const PALETTE = [
+  "#8884d8", "#82ca9d", "#ffc658", "#ff7300", "#a4de6c",
+  "#d0ed57", "#8dd1e1", "#83a6ed", "#a893ed", "#e07b7b",
+];
 
 export default function TimePerWeek() {
   const { sprints, timelogs, members } = React.useContext(GroupContext);
+  const theme = useTheme();
+  const isSmall = useMediaQuery(theme.breakpoints.down("sm"));
+  const nonBotMembers = members.filter((m) => !m.bot);
 
-  // Sum timeSpent per sprint
-  const sprintTotals: { sprintNumber: number; timeSpent: number }[] =
-    sprints.map((sp) => ({ sprintNumber: sp.sprintNumber, timeSpent: 0 }));
-
-  timelogs.forEach((log) => {
+  const inSprint = (
+    log: (typeof timelogs)[number],
+    sprint: (typeof sprints)[number],
+  ) => {
     const logDate = new Date(log.spentAt);
-    const sprint = sprints.find(
-      (sp) =>
-        new Date(sp.startDate) <= logDate &&
-        logDate <= new Date(new Date(sp.endDate).setHours(23, 59, 59, 999))
+    return (
+      new Date(sprint.startDate) <= logDate &&
+      logDate <= new Date(new Date(sprint.endDate).setHours(23, 59, 59, 999))
     );
-    if (sprint) {
-      const idx = sprintTotals.findIndex(
-        (t) => t.sprintNumber === sprint.sprintNumber
-      );
-      if (idx >= 0) sprintTotals[idx].timeSpent += log.timeSpent;
-    }
-  });
+  };
 
-  // Prepare data for BarChart
-  const series = members
-    .filter((m) => !m.bot)
-    .map((member) => {
-      // Sum timeSpent per sprint for this member
-      const memberSprintTotals = sprints.map((sp) => ({
-        sprintNumber: sp.sprintNumber,
-        timeSpent: 0,
-      }));
-
-      timelogs
-        .filter((log) => log.username === member.id)
-        .forEach((log) => {
-          const logDate = new Date(log.spentAt);
-          const sprint = sprints.find(
-            (sp) =>
-              new Date(sp.startDate) <= logDate &&
-              logDate <=
-                new Date(new Date(sp.endDate).setHours(23, 59, 59, 999))
-          );
-          if (sprint) {
-            const idx = memberSprintTotals.findIndex(
-              (t) => t.sprintNumber === sprint.sprintNumber
-            );
-            if (idx >= 0) memberSprintTotals[idx].timeSpent += log.timeSpent;
-          }
-        });
-
-      return {
-        label: member.name,
-        data: memberSprintTotals.map((t) => +(t.timeSpent / 3600).toFixed(2)),
-        stack: "Total",
-      };
+  const chartData = sprints.map((sp) => {
+    const row: Record<string, number | string> = {
+      sprint: sp.sprintNumber,
+    };
+    nonBotMembers.forEach((m) => {
+      const total = timelogs
+        .filter((log) => log.username === m.id && inSprint(log, sp))
+        .reduce((sum, log) => sum + log.timeSpent, 0);
+      row[m.id] = +(total / 3600).toFixed(2);
     });
+    return row;
+  });
 
   return (
     <Card>
       <CardHeader title="Total hours per sprint" />
       <CardContent>
-        <BarChart
-          series={series}
-          height={300}
-          xAxis={[
-            {
-              data: sprintTotals.map((t) => t.sprintNumber),
-              label: "Sprint Number",
-              tickLabelStyle: {
-                fontSize: 10,
-                angle: 90,
-                textAnchor: "start",
-              },
-            },
-          ]}
-          grid={{ horizontal: true }}
-          yAxis={[{ label: "Hours" }]}
-        />
+        <ResponsiveContainer width="100%" height={300}>
+          <BarChart data={chartData}>
+            <CartesianGrid
+              strokeDasharray="3 3"
+              horizontal={true}
+              vertical={false}
+              opacity={0.3}
+            />
+            <XAxis dataKey="sprint" tick={{ fill: "rgba(255,255,255,0.75)", fontSize: 11 }} />
+            <YAxis tick={{ fill: "rgba(255,255,255,0.75)" }} label={{ value: "Hours", angle: -90, position: "insideLeft", fill: "rgba(255,255,255,0.9)" }} />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: "rgba(30, 30, 30, 0.95)",
+                border: "1px solid rgba(255, 255, 255, 0.15)",
+                borderRadius: 8,
+                color: "#fff",
+                fontSize: 13,
+              }}
+            />
+            {!isSmall && <Legend verticalAlign="top" height={36} />}
+            {nonBotMembers.map((m, i) => (
+              <Bar
+                key={m.id}
+                dataKey={m.id}
+                stackId="total"
+                fill={PALETTE[i % PALETTE.length]}
+                name={m.name}
+              />
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
       </CardContent>
     </Card>
   );

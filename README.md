@@ -101,7 +101,7 @@ The application exposes a small set of app-local API routes that wrap GitLab dat
 ## Development Notes
 
 - The dashboard uses [MUI](https://mui.com/) for cards, tables, selectors, and charts.
-- Charts are powered by `@mui/x-charts`.
+- Charts are powered by `recharts`.
 - The SVG export endpoint uses `satori` and downloads the Inter font from a CDN at render time.
 - The project is built with the Next.js App Router and client-side data fetching for the visible dashboard.
 

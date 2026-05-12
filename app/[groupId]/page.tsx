@@ -1,19 +1,23 @@
 "use client";
-import React from "react";
-import { GroupMembersResponse } from "../api/group/[id]/members/route";
-import { useParams } from "next/navigation";
-import { GroupLabelsResponse } from "../api/group/[id]/labels/route";
-import { GroupTimelogsResponse } from "../api/group/[id]/timelogs/route";
-import { GroupContext } from "../GroupContext";
-import Heatmap from "../components/Heatmap";
-import TimePerWeek from "../components/TimePerWeek";
-import SprintOverview from "../components/SprintOverview";
-import { GroupSprintsResponse } from "../api/group/[id]/sprints/route";
 
 import Typography from "@mui/material/Typography";
+import { useParams } from "next/navigation";
+import React from "react";
+import type { GroupLabelsResponse } from "../api/group/[id]/labels/route";
+import type { GroupMembersResponse } from "../api/group/[id]/members/route";
+import type { GroupSprintsResponse } from "../api/group/[id]/sprints/route";
+import type { GroupTimelogsResponse } from "../api/group/[id]/timelogs/route";
+import EstimateAccuracy from "../components/EstimateAccuracy";
 import HeaderCards from "../components/HeaderCards";
+import Heatmap from "../components/Heatmap";
+import SprintOverview from "../components/SprintOverview";
+import SprintRadar from "../components/SprintRadar";
 import TimePerCategory from "../components/TimePerCategory";
 import TimePerMember from "../components/TimePerMember";
+import TimePerSprintMember from "../components/TimePerSprintMember";
+import TimePerWeek from "../components/TimePerWeek";
+import TimePerWeekday from "../components/TimePerWeekday";
+import { GroupContext } from "../GroupContext";
 
 export default function GroupPage() {
   const { groupId } = useParams();
@@ -85,8 +89,12 @@ export default function GroupPage() {
         <HeaderCards />
         <Heatmap />
         <TimePerWeek />
+        <TimePerSprintMember />
+        <EstimateAccuracy />
         <TimePerCategory />
         <TimePerMember />
+        <SprintRadar />
+        <TimePerWeekday />
         <SprintOverview />
       </div>
     </GroupContext.Provider>
