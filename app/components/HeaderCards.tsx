@@ -10,15 +10,19 @@ import {
 } from "@mui/material";
 import { UserAvatar } from "./UserAvatar";
 
-const getTopSubTypeForSprint = (sprint, timelogs, labelGroup) => {
+const getTopSubTypeForSprint = (
+  sprint: any,
+  timelogs: any[],
+  labelGroup: string,
+) => {
   if (!sprint) return null;
 
   const labelTypeCount = {};
 
-  timelogs.forEach((log) => {
+  timelogs.forEach((log: any) => {
     if (log.sprintNumber !== sprint.sprintNumber) return;
 
-    const groupLabel = log.issueLabels.find((label) =>
+    const groupLabel = log.issueLabels.find((label: string) =>
       label.startsWith(`${labelGroup}::`),
     );
 
