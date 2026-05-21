@@ -6,9 +6,9 @@ import { runGitlabGraphQLQuery } from "../api/gitlab";
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ groupId: string }>;
 }): Promise<Metadata> {
-  const { id } = await params;
+  const { groupId: id } = await params;
   const fullPath = `${GITLAB_GROUP_PATH}/${id}`;
 
   let groupName = id;
