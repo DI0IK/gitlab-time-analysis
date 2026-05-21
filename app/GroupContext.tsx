@@ -11,6 +11,8 @@ export type GroupContextType = {
   sprints: GroupSprintsResponse;
   groupId: string;
   loaded: boolean;
+  lastFetchedAt: Record<string, number>;
+  refreshData: () => void;
 };
 
 export const GroupContext = React.createContext<GroupContextType>({
@@ -20,4 +22,6 @@ export const GroupContext = React.createContext<GroupContextType>({
   sprints: [],
   groupId: "",
   loaded: false,
+  lastFetchedAt: {},
+  refreshData: () => {},
 });

@@ -12,6 +12,7 @@ import HeaderCards from "../components/HeaderCards";
 import Heatmap from "../components/Heatmap";
 import SprintOverview from "../components/SprintOverview";
 import SprintRadar from "../components/SprintRadar";
+import StaleIndicator from "../components/StaleIndicator";
 import TimePerCategory from "../components/TimePerCategory";
 import TimePerMember from "../components/TimePerMember";
 import TimePerSprintMember from "../components/TimePerSprintMember";
@@ -19,48 +20,47 @@ import TimePerWeek from "../components/TimePerWeek";
 import TimePerWeekday from "../components/TimePerWeekday";
 import { GroupContext } from "../GroupContext";
 
+async function fetchJson(url: string) {
+  const res = await fetch(url);
+  return res.json();
+}
+
 export default function GroupPage() {
   const { groupId } = useParams();
+  const groupIdStr = groupId?.toString() || "";
 
   const [members, setMembers] = React.useState<GroupMembersResponse>([]);
-  React.useEffect(() => {
-    const fetchMembers = async () => {
-      const response = await fetch(`/api/group/${groupId}/members`);
-      const data = await response.json();
-      setMembers(data);
-    };
-    fetchMembers();
-  }, [groupId]);
-
   const [labels, setLabels] = React.useState<GroupLabelsResponse>({});
-  React.useEffect(() => {
-    const fetchLabels = async () => {
-      const response = await fetch(`/api/group/${groupId}/labels`);
-      const data = await response.json();
-      setLabels(data);
-    };
-    fetchLabels();
-  }, [groupId]);
-
   const [timelogs, setTimelogs] = React.useState<GroupTimelogsResponse>([]);
-  React.useEffect(() => {
-    const fetchTimelogs = async () => {
-      const response = await fetch(`/api/group/${groupId}/timelogs`);
-      const data = await response.json();
-      setTimelogs(data);
-    };
-    fetchTimelogs();
-  }, [groupId]);
-
   const [sprints, setSprints] = React.useState<GroupSprintsResponse>([]);
+  const [lastFetchedAt, setLastFetchedAt] = React.useState<Record<string, number>>({});
+
+  const fetchAllData = React.useCallback(async () => {
+    const [membersData, labelsData, timelogsData, sprintsData] = await Promise.all([
+      fetchJson(`/api/group/${groupIdStr}/members`),
+      fetchJson(`/api/group/${groupIdStr}/labels`),
+      fetchJson(`/api/group/${groupIdStr}/timelogs`),
+      fetchJson(`/api/group/${groupIdStr}/sprints`),
+    ]);
+    setMembers(membersData);
+    setLabels(labelsData);
+    setTimelogs(timelogsData);
+    setSprints(sprintsData);
+    setLastFetchedAt({
+      members: Date.now(),
+      labels: Date.now(),
+      timelogs: Date.now(),
+      sprints: Date.now(),
+    });
+  }, [groupIdStr]);
+
+  const refreshData = React.useCallback(() => {
+    fetchAllData();
+  }, [fetchAllData]);
+
   React.useEffect(() => {
-    const fetchSprints = async () => {
-      const response = await fetch(`/api/group/${groupId}/sprints`);
-      const data = await response.json();
-      setSprints(data);
-    };
-    fetchSprints();
-  }, [groupId]);
+    fetchAllData();
+  }, [fetchAllData]);
 
   return (
     <GroupContext.Provider
@@ -70,7 +70,9 @@ export default function GroupPage() {
         timelogs,
         sprints,
         loaded: true,
-        groupId: groupId?.toString() || "",
+        groupId: groupIdStr,
+        lastFetchedAt,
+        refreshData,
       }}
     >
       <div
@@ -97,6 +99,7 @@ export default function GroupPage() {
         <TimePerWeekday />
         <SprintOverview />
       </div>
+      <StaleIndicator />
     </GroupContext.Provider>
   );
 }
