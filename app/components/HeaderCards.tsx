@@ -9,17 +9,19 @@ import {
   Tooltip,
 } from "@mui/material";
 import { UserAvatar } from "./UserAvatar";
+import type { GroupTimelogsResponse } from "../api/group/[id]/timelogs/route";
+import type { GroupSprintsResponse } from "../api/group/[id]/sprints/route";
 
 const getTopSubTypeForSprint = (
-  sprint: any,
-  timelogs: any[],
+  sprint: GroupSprintsResponse[number] | undefined,
+  timelogs: GroupTimelogsResponse,
   labelGroup: string,
-) => {
+): string | null => {
   if (!sprint) return null;
 
-  const labelTypeCount = {};
+  const labelTypeCount: Record<string, number> = {};
 
-  timelogs.forEach((log: any) => {
+  timelogs.forEach((log: GroupTimelogsResponse[number]) => {
     if (log.sprintNumber !== sprint.sprintNumber) return;
 
     const groupLabel = log.issueLabels.find((label: string) =>

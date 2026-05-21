@@ -21,6 +21,8 @@ import {
   Line,
   ResponsiveContainer,
   Scatter,
+  type ScatterPointItem,
+  type ScatterShapeProps,
   XAxis,
   YAxis,
 } from "recharts";
@@ -241,16 +243,16 @@ export default function EstimateAccuracy() {
     return PALETTE[idx % PALETTE.length];
   };
 
-  const CustomScatterShape = (props: any) => {
+  const CustomScatterShape = (props: ScatterShapeProps) => {
     const { cx, cy, payload } = props;
     if (cx === undefined || cy === undefined) return null;
-    const sub = payload?.subcategory || "Uncategorized";
+    const sub = (payload?.subcategory as string | undefined) || "Uncategorized";
     const color = getColor(sub);
     return <circle cx={cx} cy={cy} r={4} fill={color} opacity={0.7} />;
   };
 
-  const handleScatterClick = (_: unknown, point: any) => {
-    const url = point?.issueUrl || point?.payload?.issueUrl;
+  const handleScatterClick = (data: ScatterPointItem, _index: number) => {
+    const url = data.payload?.issueUrl as string | undefined;
     if (url) window.open(url, "_blank");
   };
 
@@ -327,7 +329,7 @@ export default function EstimateAccuracy() {
               <Select<string[]>
                 multiple
                 value={selectedSubcategories}
-                onChange={(e: any) =>
+                onChange={(e: SelectChangeEvent<string[]>) =>
                   setSelectedSubcategories(
                     typeof e.target.value === "string"
                       ? e.target.value.split(",")
@@ -423,7 +425,7 @@ export default function EstimateAccuracy() {
               )}
               <Scatter
                 data={filteredData}
-                shape={<CustomScatterShape />}
+                shape={CustomScatterShape}
                 name="Issues"
                 legendType="none"
                 onClick={handleScatterClick}

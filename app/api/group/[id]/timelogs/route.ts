@@ -23,6 +23,31 @@ export type GroupTimelogsResponse = {
   sprintNumber?: number;
 }[];
 
+type TimelogNode = {
+  id: string;
+  issue: {
+    webUrl: string;
+    state: string;
+    title: string;
+    labels: { nodes: { title: string }[] };
+    timeEstimate: number;
+  } | null;
+  spentAt: string;
+  timeSpent: number;
+  user: { username: string } | null;
+};
+
+type TimelogsPage = {
+  data: {
+    group: {
+      timelogs: {
+        nodes: TimelogNode[];
+        pageInfo: { hasNextPage: boolean; endCursor: string | null };
+      };
+    };
+  };
+};
+
 // Updated cache type to handle background promises and prevent duplicate fetches
 type CacheEntry = {
   data: GroupTimelogsResponse | null;
@@ -37,8 +62,7 @@ const CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutes
 async function fetchAndProcessTimelogs(
   fullGroupPath: string,
 ): Promise<GroupTimelogsResponse> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let data: any;
+  let data: TimelogsPage | undefined;
   let finished = false;
   let cursor: string | null = null;
 
@@ -93,20 +117,8 @@ async function fetchAndProcessTimelogs(
     }
   }
 
-  const mappedResponse = data.data.group.timelogs.nodes.map(
-    (log: {
-      id: string;
-      issue: {
-        webUrl: string;
-        state: string;
-        title: string;
-        labels: { nodes: { title: string }[] };
-        timeEstimate: number;
-      } | null;
-      spentAt: string;
-      timeSpent: number;
-      user: { username: string } | null;
-    }) => {
+  const mappedResponse = data!.data.group.timelogs.nodes.map(
+    (log: TimelogNode) => {
       const spentDate = new Date(log.spentAt);
       const projectStartDate = new Date(PROJECT_START_DATE || "");
 
