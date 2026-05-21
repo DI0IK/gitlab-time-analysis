@@ -25,98 +25,60 @@ export default function HeaderCards() {
     [labels]
   );
 
+  const getTopSubTypeForSprint = (sprint, timelogs, labelGroup) => {
+    if (!sprint) return null;
+  
+    const start = new Date(sprint.startDate).getTime();
+    const end = new Date(sprint.endDate).getTime();
+    const labelTypeCount = {};
+  
+    timelogs.forEach((log) => {
+      const logTime = new Date(log.spentAt).getTime();
+      if (logTime < start || logTime > end) return;
+  
+      const groupLabel = log.issueLabels.find((label) =>
+        label.startsWith(`${labelGroup}::`)
+      );
+  
+      const subType = groupLabel ? groupLabel.split("::")[1] : "Ungrouped";
+      labelTypeCount[subType] = (labelTypeCount[subType] || 0) + log.timeSpent;
+    });
+  
+    let topSubType = null;
+    let maxTime = 0;
+  
+    for (const subType in labelTypeCount) {
+      if (labelTypeCount[subType] > maxTime) {
+        maxTime = labelTypeCount[subType];
+        topSubType = subType;
+      }
+    }
+  
+    return topSubType;
+  };
+  
   const focusLastSprint = React.useMemo(() => {
     if (sprints.length === 0) return null;
+  
     const lastSprint = sprints
       .filter((sprint) => new Date(sprint.endDate).getTime() <= now)
-      .sort(
-        (a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime()
-      )[0];
-    if (!lastSprint) return null;
-    const logsInLastSprint = timelogs.filter(
-      (log) =>
-        new Date(log.spentAt).getTime() >=
-          new Date(lastSprint.startDate).getTime() &&
-        new Date(log.spentAt).getTime() <=
-          new Date(lastSprint.endDate).getTime()
-    );
-    const labelTypeCount: { [key: string]: number } = {};
-    logsInLastSprint.forEach((log) => {
-      const groupLabel = log.issueLabels.find((label) =>
-        label.startsWith(labelGroup + "::")
-      );
-
-      if (groupLabel) {
-        const subType = groupLabel.split("::")[1];
-        if (!labelTypeCount[subType]) {
-          labelTypeCount[subType] = 0;
-        }
-        labelTypeCount[subType] += log.timeSpent;
-      } else {
-        if (!labelTypeCount["Ungrouped"]) {
-          labelTypeCount["Ungrouped"] = 0;
-        }
-        labelTypeCount["Ungrouped"] += log.timeSpent;
-      }
-    });
-    let topSubType = null;
-    let maxTime = 0;
-    for (const subType in labelTypeCount) {
-      if (labelTypeCount[subType] > maxTime) {
-        maxTime = labelTypeCount[subType];
-        topSubType = subType;
-      }
-    }
-    return topSubType;
+      .sort((a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime())[0];
+  
+    return getTopSubTypeForSprint(lastSprint, timelogs, labelGroup);
   }, [sprints, timelogs, now, labelGroup]);
-
+  
   const focusThisSprint = React.useMemo(() => {
     if (sprints.length === 0) return null;
+  
     const currentSprint = sprints
-      .filter(
-        (sprint) =>
-          new Date(sprint.startDate).getTime() <= now &&
-          new Date(sprint.endDate).getTime() >= now
-      )
-      .sort(
-        (a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime()
-      )[0];
-    if (!currentSprint) return null;
-    const logsInCurrentSprint = timelogs.filter(
-      (log) =>
-        new Date(log.spentAt).getTime() >=
-          new Date(currentSprint.startDate).getTime() &&
-        new Date(log.spentAt).getTime() <=
-          new Date(currentSprint.endDate).getTime()
-    );
-    const labelTypeCount: { [key: string]: number } = {};
-    logsInCurrentSprint.forEach((log) => {
-      const groupLabel = log.issueLabels.find((label) =>
-        label.startsWith(labelGroup + "::")
-      );
-
-      if (groupLabel) {
-        const subType = groupLabel.split("::")[1];
-        if (!labelTypeCount[subType]) {
-          labelTypeCount[subType] = 0;
-        }
-        labelTypeCount[subType] += log.timeSpent;
-      } else {
-        if (!labelTypeCount["Ungrouped"]) {
-          labelTypeCount["Ungrouped"] = 0;
-        }
-        labelTypeCount["Ungrouped"] += log.timeSpent;
-      }
-    });
-    let topSubType = null;
-    let maxTime = 0;
-    for (const subType in labelTypeCount) {
-      if (labelTypeCount[subType] > maxTime) {
-        maxTime = labelTypeCount[subType];
-        topSubType = subType;
-      }
-    }
-    return topSubType;
+      .filter((sprint) => {
+        const start = new Date(sprint.startDate).getTime();
+        const end = new Date(sprint.endDate).getTime();
+        return start <= now && end >= now;
+      })
+      .sort((a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime())[0];
+  
+    return getTopSubTypeForSprint(currentSprint, timelogs, labelGroup);
   }, [sprints, timelogs, now, labelGroup]);
 
   const humanMembers = members.filter((m) => !m.bot);
