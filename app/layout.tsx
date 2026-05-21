@@ -13,10 +13,25 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const title = "GitLab DHBW-SE Time Analysis Tool";
+const description =
+  "A tool to analyze time tracking data from GitLab for DHBW-SE students.";
+
 export const metadata: Metadata = {
-  title: "Gitlab DHBW-SE Time Analysis Tool",
-  description:
-    "A tool to analyze time tracking data from Gitlab for DHBW-SE students.",
+  title,
+  description,
+  openGraph: {
+    title,
+    description,
+    type: "website",
+    images: [{ url: "/api/og", width: 1200, height: 630 }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title,
+    description,
+    images: ["/api/og"],
+  },
 };
 
 export default function RootLayout({
