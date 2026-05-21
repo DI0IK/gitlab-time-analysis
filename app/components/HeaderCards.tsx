@@ -1,85 +1,91 @@
 import React from "react";
 import { GroupContext } from "../GroupContext";
-import { Card, CardContent, CardHeader, Box, AvatarGroup, Tooltip } from "@mui/material";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  Box,
+  AvatarGroup,
+  Tooltip,
+} from "@mui/material";
 import { UserAvatar } from "./UserAvatar";
+
+const getTopSubTypeForSprint = (sprint, timelogs, labelGroup) => {
+  if (!sprint) return null;
+
+  const labelTypeCount = {};
+
+  timelogs.forEach((log) => {
+    if (log.sprintNumber !== sprint.sprintNumber) return;
+
+    const groupLabel = log.issueLabels.find((label) =>
+      label.startsWith(`${labelGroup}::`),
+    );
+
+    const subType = groupLabel
+      ? groupLabel.split("::").slice(1).join("::") || "Ungrouped"
+      : "Ungrouped";
+    labelTypeCount[subType] = (labelTypeCount[subType] || 0) + log.timeSpent;
+  });
+
+  let topSubType = null;
+  let maxTime = 0;
+
+  for (const subType in labelTypeCount) {
+    if (labelTypeCount[subType] > maxTime) {
+      maxTime = labelTypeCount[subType];
+      topSubType = subType;
+    }
+  }
+
+  return topSubType;
+};
 
 export default function HeaderCards() {
   const { members, sprints, timelogs, labels } = React.useContext(GroupContext);
 
   const totalTimeSpent = timelogs.reduce(
     (total, log) => total + log.timeSpent,
-    0
+    0,
   );
 
-  const now = new Date().getTime();
+  const todayStr = new Date().toISOString().slice(0, 10);
 
   const totalSprints = sprints.filter(
-    (sprint) => new Date(sprint.endDate).getTime() <= now
+    (sprint) => sprint.endDate < todayStr,
   ).length;
 
   const labelGroup = React.useMemo(
     () =>
       Object.entries(labels).filter(([group, groupLabels]) =>
-        groupLabels.some((l) => l.title.match(/req/i))
+        groupLabels.some((l) => l.title.match(/req/i)),
       )[0]?.[0] || "",
-    [labels]
+    [labels],
   );
 
-  const getTopSubTypeForSprint = (sprint, timelogs, labelGroup) => {
-    if (!sprint) return null;
-  
-    const start = new Date(sprint.startDate).getTime();
-    const end = new Date(sprint.endDate).getTime();
-    const labelTypeCount = {};
-  
-    timelogs.forEach((log) => {
-      const logTime = new Date(log.spentAt).getTime();
-      if (logTime < start || logTime > end) return;
-  
-      const groupLabel = log.issueLabels.find((label) =>
-        label.startsWith(`${labelGroup}::`)
+  const currentSprint = React.useMemo(
+    () => sprints.find((s) => s.startDate <= todayStr && s.endDate >= todayStr),
+    [sprints, todayStr],
+  );
+
+  const lastSprint = React.useMemo(() => {
+    if (currentSprint) {
+      return sprints.find(
+        (s) => s.sprintNumber === currentSprint.sprintNumber - 1,
       );
-  
-      const subType = groupLabel ? groupLabel.split("::")[1] : "Ungrouped";
-      labelTypeCount[subType] = (labelTypeCount[subType] || 0) + log.timeSpent;
-    });
-  
-    let topSubType = null;
-    let maxTime = 0;
-  
-    for (const subType in labelTypeCount) {
-      if (labelTypeCount[subType] > maxTime) {
-        maxTime = labelTypeCount[subType];
-        topSubType = subType;
-      }
     }
-  
-    return topSubType;
-  };
-  
+    return sprints
+      .filter((s) => s.endDate < todayStr)
+      .sort((a, b) => b.sprintNumber - a.sprintNumber)[0];
+  }, [sprints, currentSprint, todayStr]);
+
   const focusLastSprint = React.useMemo(() => {
-    if (sprints.length === 0) return null;
-  
-    const lastSprint = sprints
-      .filter((sprint) => new Date(sprint.endDate).getTime() <= now)
-      .sort((a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime())[0];
-  
     return getTopSubTypeForSprint(lastSprint, timelogs, labelGroup);
-  }, [sprints, timelogs, now, labelGroup]);
-  
+  }, [lastSprint, timelogs, labelGroup]);
+
   const focusThisSprint = React.useMemo(() => {
-    if (sprints.length === 0) return null;
-  
-    const currentSprint = sprints
-      .filter((sprint) => {
-        const start = new Date(sprint.startDate).getTime();
-        const end = new Date(sprint.endDate).getTime();
-        return start <= now && end >= now;
-      })
-      .sort((a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime())[0];
-  
     return getTopSubTypeForSprint(currentSprint, timelogs, labelGroup);
-  }, [sprints, timelogs, now, labelGroup]);
+  }, [currentSprint, timelogs, labelGroup]);
 
   const humanMembers = members.filter((m) => !m.bot);
   const botMembers = members.filter((m) => m.bot);
@@ -97,12 +103,25 @@ export default function HeaderCards() {
         <Card variant="outlined" sx={{ p: 1, m: 0 }}>
           <CardHeader title="Team Members" />
           <CardContent>
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 2,
+              }}
+            >
               <Box sx={{ fontSize: 18, fontWeight: "bold" }}>
                 {humanMembers.length}
                 {botMembers.length > 0 && (
-                  <Box sx={{ fontSize: "0.875rem", fontWeight: "normal", color: "rgba(255, 255, 255, 0.7)" }}>
-                    + {botMembers.length} accounts
+                  <Box
+                    sx={{
+                      fontSize: "0.875rem",
+                      fontWeight: "normal",
+                      color: "rgba(255, 255, 255, 0.7)",
+                    }}
+                  >
+                    + {botMembers.length} SA
                   </Box>
                 )}
               </Box>
@@ -129,7 +148,11 @@ export default function HeaderCards() {
                   </Tooltip>
                 ))}
                 {botMembers.map((member) => (
-                  <Tooltip key={member.id} title={`${member.name} (service account)`} arrow>
+                  <Tooltip
+                    key={member.id}
+                    title={`${member.name} (service account)`}
+                    arrow
+                  >
                     <div>
                       <UserAvatar
                         member={member}

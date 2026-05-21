@@ -15,6 +15,7 @@ export type GroupTimelogsResponse = {
   issueUrl: string;
   issueLabels: string[];
   issueTitle: string;
+  issueState: string;
   issueTimeEstimate: number;
   spentAt: string;
   timeSpent: number;
@@ -58,6 +59,7 @@ async function fetchAndProcessTimelogs(
             }
             issue {
               webUrl
+              state
               timeEstimate
               title
               labels {
@@ -96,6 +98,7 @@ async function fetchAndProcessTimelogs(
       id: string;
       issue: {
         webUrl: string;
+        state: string;
         title: string;
         labels: { nodes: { title: string }[] };
         timeEstimate: number;
@@ -171,6 +174,7 @@ async function fetchAndProcessTimelogs(
               : "Ungrouped::" + title,
         ),
         issueTitle: log.issue?.title || "",
+        issueState: log.issue?.state || "",
         issueTimeEstimate: log.issue?.timeEstimate || 0,
         spentAt: log.spentAt,
         timeSpent: log.timeSpent,

@@ -51,7 +51,13 @@ export default function EstimateAccuracy() {
 
   const issueMap = new Map<
     string,
-    { estimated: number; actual: number; title: string; issueLabels: string[] }
+    {
+      estimated: number;
+      actual: number;
+      title: string;
+      issueLabels: string[];
+      issueState: string;
+    }
   >();
 
   timelogs.forEach((log) => {
@@ -62,6 +68,7 @@ export default function EstimateAccuracy() {
         actual: 0,
         title: log.issueTitle,
         issueLabels: log.issueLabels,
+        issueState: log.issueState,
       });
     }
     const entry = issueMap.get(log.issueUrl);
@@ -76,8 +83,17 @@ export default function EstimateAccuracy() {
       title: issue.title,
       issueUrl: url,
       issueLabels: issue.issueLabels,
+      issueState: issue.issueState,
     }))
     .filter((d) => d.x > 0 && d.y > 0);
+
+  // Issue status filter
+  const [statusFilter, setStatusFilter] = React.useState<string>("all");
+
+  const statusFilteredData = React.useMemo(() => {
+    if (statusFilter === "all") return rawChartData;
+    return rawChartData.filter((d) => d.issueState === statusFilter);
+  }, [rawChartData, statusFilter]);
 
   // Parent category selector state
   const categoryOptions = Object.keys(labels).map((c) => ({
@@ -101,7 +117,7 @@ export default function EstimateAccuracy() {
 
   // Enrich chart data with subcategory and build color map
   const enriched = React.useMemo(() => {
-    if (!labels[selectedCategory] || rawChartData.length === 0)
+    if (!labels[selectedCategory] || statusFilteredData.length === 0)
       return { points: [] as RawPoint[], labelColorMap: new Map<string, string>() };
 
     const labelColorMap = new Map<string, string>();
@@ -109,7 +125,7 @@ export default function EstimateAccuracy() {
       labelColorMap.set(`${selectedCategory}::${lbl.title}`, lbl.color);
     }
 
-    const points = rawChartData.map((d) => {
+    const points = statusFilteredData.map((d) => {
       const matchedLabel = d.issueLabels.find((l) =>
         l.startsWith(`${selectedCategory}::`),
       );
@@ -120,7 +136,7 @@ export default function EstimateAccuracy() {
     });
 
     return { points, labelColorMap };
-  }, [rawChartData, selectedCategory, labels]);
+  }, [statusFilteredData, selectedCategory, labels]);
 
   // Available subcategories
   const availableSubs = React.useMemo(() => {
@@ -152,7 +168,7 @@ export default function EstimateAccuracy() {
   // Domain and regression (from filtered data)
   const { maxVal, minVal, hasRegression, slope, intercept } =
     React.useMemo(() => {
-      const data = filteredData.length > 0 ? filteredData : rawChartData;
+      const data = filteredData.length > 0 ? filteredData : statusFilteredData;
 
       if (data.length === 0)
         return {
@@ -196,7 +212,7 @@ export default function EstimateAccuracy() {
         slope: s,
         intercept: i,
       };
-    }, [filteredData, rawChartData]);
+    }, [filteredData, statusFilteredData]);
 
   // Reference line point arrays
   const { yEqualsXData, regLineData } = React.useMemo(() => {
@@ -251,7 +267,7 @@ export default function EstimateAccuracy() {
     );
   }
 
-  if (rawChartData.length === 0) {
+  if (statusFilteredData.length === 0) {
     return (
       <Card>
         <CardHeader title="Estimate Accuracy" />
@@ -293,6 +309,19 @@ export default function EstimateAccuracy() {
                   {opt.label}
                 </option>
               ))}
+            </Select>
+            <Select
+              native
+              value={statusFilter}
+              onChange={(e: SelectChangeEvent<string>) =>
+                setStatusFilter(e.target.value as string)
+              }
+              sx={{ minWidth: 100 }}
+              size="small"
+            >
+              <option value="all">All issues</option>
+              <option value="opened">Open only</option>
+              <option value="closed">Closed only</option>
             </Select>
             {availableSubs.length > 1 && (
               <Select<string[]>
@@ -414,5 +443,6 @@ type RawPoint = {
   title: string;
   issueUrl: string;
   issueLabels: string[];
+  issueState: string;
   subcategory: string;
 };
