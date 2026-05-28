@@ -1,8 +1,7 @@
 import { matchLabelToCategory } from '../utils/categoryUtils';
-import { IssueLog } from '../types'; // assume IssueLog type definition exists
 
 // Compute issues without time estimate
-export function computeIssuesNoEstimate(timelogs: IssueLog[]) {
+export function computeIssuesNoEstimate(timelogs: any[]) {
   const issuesNoEstimate: Record<
     string,
     {
@@ -40,7 +39,7 @@ export function computeIssuesNoEstimate(timelogs: IssueLog[]) {
 }
 
 // Compute issues with time estimate (including category)
-export function computeIssuesWithEstimate(timelogs: IssueLog[]) {
+export function computeIssuesWithEstimate(timelogs: any[]) {
   const issuesWithEstimate: Record<
     string,
     {
