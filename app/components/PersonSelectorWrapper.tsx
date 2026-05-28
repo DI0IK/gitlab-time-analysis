@@ -47,7 +47,7 @@ export default function SelectorCard<T>({
   };
 
   return (
-    <Card>
+    <Card sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
       <CardHeader
         title={
           <Box
@@ -112,7 +112,7 @@ export default function SelectorCard<T>({
           </Box>
         }
       />
-      <CardContent>{children(option || defaultSelected, data)}</CardContent>
+      <CardContent sx={{ flexGrow: 1, display: "flex", flexDirection: "column" }}>{children(option || defaultSelected, data)}</CardContent>
     </Card>
   );
 }

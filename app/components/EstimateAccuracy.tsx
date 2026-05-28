@@ -29,6 +29,8 @@ import {
 import { GroupContext } from "../GroupContext";
 import { matchLabelToCategory } from "../utils/categoryUtils";
 import { CATEGORY_DEFINITIONS } from "../config/categories";
+import { useThemeMode } from "../ThemeContext";
+// import { getCategoryColor } from "../utils/themeColors"; // removed dynamic color handling
 
 const PALETTE = [
   "#8884d8",
@@ -51,7 +53,9 @@ const PALETTE = [
 export default function EstimateAccuracy() {
   const { timelogs } = React.useContext(GroupContext);
   const theme = useTheme();
+  // colorTheme no longer needed
   const isSmall = useMediaQuery(theme.breakpoints.down("sm"));
+  const isDark = theme.palette.mode === "dark";
 
   const issueMap = new Map<
     string,
@@ -216,9 +220,10 @@ export default function EstimateAccuracy() {
 
   // Compute color for a subcategory
   const getColor = (sub: string) => {
-    const catDef = CATEGORY_DEFINITIONS.find((d) => d.label === sub);
-    if (catDef) return catDef.color;
-    return PALETTE[0];
+    const idx = CATEGORY_DEFINITIONS.findIndex((d) => d.label === sub);
+    if (idx >= 0) return PALETTE[idx % PALETTE.length];
+    // other category
+    return PALETTE[CATEGORY_DEFINITIONS.length % PALETTE.length];
   };
 
   const CustomScatterShape = (props: ScatterShapeProps) => {
@@ -250,7 +255,7 @@ export default function EstimateAccuracy() {
   const chartMargin = { top: 10, right: 30, bottom: 20, left: 55 };
 
   return (
-    <Card>
+    <Card sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
       <CardHeader
         title={
           <Box
@@ -308,7 +313,7 @@ export default function EstimateAccuracy() {
           </Box>
         }
       />
-      <CardContent>
+      <CardContent sx={{ flexGrow: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
         {filteredData.length === 0 ? (
           <Typography
             color="text.secondary"
@@ -317,7 +322,7 @@ export default function EstimateAccuracy() {
             No issues match the selected subcategories.
           </Typography>
         ) : (
-          <ResponsiveContainer width="100%" height={420}>
+          <ResponsiveContainer width="100%" height={360}>
             <ComposedChart margin={chartMargin}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
               <XAxis

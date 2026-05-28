@@ -32,36 +32,29 @@ import Label from "./Label";
 import { UserAvatar } from "./UserAvatar";
 import ShareIcon from "@mui/icons-material/Share";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import IssueDetailModal from "./IssueDetailModal";
+import { useUserProfile } from "../UserProfileContext";
 
 
 export default function SprintOverview() {
-  const { sprints, timelogs, members, labels, groupId } =
-    React.useContext(GroupContext);
+  const {
+    sprints,
+    timelogs,
+    members,
+    labels,
+    groupId,
+    selectedSprint,
+    setSelectedSprint,
+  } = React.useContext(GroupContext);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const isTablet = useMediaQuery(theme.breakpoints.down("md"));
 
-  const [selectedSprint, setSelectedSprint] = React.useState<number | null>(
-    sprints.find(
-      (sp) =>
-        sp.startDate <= new Date().toISOString().slice(0, 10) &&
-        new Date().toISOString().slice(0, 10) <= sp.endDate,
-    )?.sprintNumber ?? null,
-  );
+  const [selectedIssueUrl, setSelectedIssueUrl] = React.useState<string | null>(null);
+  const [selectedIssueTitle, setSelectedIssueTitle] = React.useState<string>("");
+  const { openProfile } = useUserProfile();
 
   const [hideZeroColumns, setHideZeroColumns] = React.useState(false);
-
-  React.useEffect(() => {
-    if (sprints.length && selectedSprint === null) {
-      setSelectedSprint(
-        sprints.find(
-          (sp) =>
-            sp.startDate <= new Date().toISOString().slice(0, 10) &&
-            new Date().toISOString().slice(0, 10) <= sp.endDate,
-        )?.sprintNumber ?? null,
-      );
-    }
-  }, [sprints, selectedSprint]);
 
   const categoryColumns = [
     ...CATEGORY_DEFINITIONS.map((d) => ({ id: d.id, title: d.label })),
@@ -188,44 +181,9 @@ export default function SprintOverview() {
 
   return (
     <Card>
-      <CardHeader title="Sprint overview" />
+      <CardHeader title="Cycle Overview" />
        <CardContent sx={{ overflowX: "auto" }}>
-         <Box sx={{ display: "flex", gap: 2, alignItems: isMobile ? "stretch" : "center", mb: 2, flexWrap: isMobile ? "wrap" : "nowrap" }}>
-           <FormControl sx={{ minWidth: isMobile ? "100%" : 220, flex: isMobile ? 1 : "auto" }} size="small">
-             <InputLabel id="sprint-select-label">Sprint</InputLabel>
-             <Select
-               labelId="sprint-select-label"
-               value={selectedSprint ?? ""}
-               label="Sprint"
-               onChange={(e) => setSelectedSprint(Number(e.target.value))}
-             >
-               {sprints.map((sp) => (
-                 <MenuItem key={sp.sprintNumber} value={sp.sprintNumber}>
-                   {`Sprint ${sp.sprintNumber} (${new Date(
-                     sp.startDate,
-                   ).toLocaleDateString()} - ${new Date(
-                     sp.endDate,
-                   ).toLocaleDateString()})`}
-                 </MenuItem>
-               ))}
-               {timelogs
-                 .reduce((years, log) => {
-                   const year = new Date(log.spentAt).getFullYear();
-                   if (!years.includes(year)) years.push(year);
-                   return years;
-                 }, [] as number[])
-                 .sort((a, b) => b - a)
-                 .map((year) => (
-                   <MenuItem
-                     key={10000 + year}
-                     value={10000 + year}
-                   >{`Year ${year}`}</MenuItem>
-                 ))}
-               <MenuItem key={1000} value={1000}>
-                 All time
-               </MenuItem>
-             </Select>
-           </FormControl>
+         <Box sx={{ display: "flex", gap: 2, alignItems: "center", mb: 2, flexWrap: "wrap" }}>
            {!isMobile && (
              <IconButton
                size="small"
@@ -243,7 +201,7 @@ export default function SprintOverview() {
                />
              }
              label={isMobile ? "Hide 0h" : "Hide zero-hour columns"}
-             sx={{ ml: isMobile ? 0 : "auto", whiteSpace: "nowrap" }}
+             sx={{ ml: "auto", whiteSpace: "nowrap" }}
            />
          </Box>
 
@@ -258,8 +216,18 @@ export default function SprintOverview() {
                if (memberTotal === 0) return null;
 
                return (
-                 <Card key={memberId} sx={{ p: 1.5, backgroundColor: "rgba(255, 255, 255, 0.05)" }}>
-                   <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+                  <Card key={memberId} sx={{ p: 1.5, backgroundColor: theme.palette.mode === "dark" ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.03)" }}>
+                   <Box
+                     sx={{
+                       display: "flex",
+                       alignItems: "center",
+                       gap: 1,
+                       mb: 1,
+                       cursor: "pointer",
+                       "&:hover": { color: "primary.light" },
+                     }}
+                     onClick={() => openProfile(memberId)}
+                   >
                      {member && (
                        <UserAvatar member={member} size="small" showTooltip={false} />
                      )}
@@ -273,7 +241,7 @@ export default function SprintOverview() {
                    <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
                      {visibleColumns.map((col) => (
                        <Box key={col.id}>
-                         <Typography sx={{ fontSize: "0.7rem", color: "rgba(255, 255, 255, 0.6)" }}>
+                         <Typography sx={{ fontSize: "0.7rem", color: "text.secondary" }}>
                            {col.title}
                          </Typography>
                          <Typography sx={{ fontWeight: 600, fontSize: "0.85rem" }}>
@@ -286,14 +254,14 @@ export default function SprintOverview() {
                );
              })}
              {/* Mobile totals card */}
-             <Card sx={{ p: 1.5, backgroundColor: "rgba(255, 255, 255, 0.08)", border: "1px solid rgba(255, 255, 255, 0.1)" }}>
+              <Card sx={{ p: 1.5, backgroundColor: theme.palette.mode === "dark" ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.04)", border: "1px solid var(--border-color)" }}>
                <Typography sx={{ fontWeight: 700, fontSize: "0.95rem", mb: 1 }}>
                  Total
                </Typography>
                <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
                  {visibleColumns.map((col) => (
                    <Box key={col.id}>
-                     <Typography sx={{ fontSize: "0.7rem", color: "rgba(255, 255, 255, 0.6)" }}>
+                     <Typography sx={{ fontSize: "0.7rem", color: "text.secondary" }}>
                        {col.title}
                      </Typography>
                      <Typography sx={{ fontWeight: 600, fontSize: "0.85rem" }}>
@@ -323,7 +291,10 @@ export default function SprintOverview() {
                  const member = members.find((m) => m.id === memberId);
                  return (
                    <TableRow key={memberId}>
-                     <TableCell>
+                     <TableCell
+                       onClick={() => openProfile(memberId)}
+                       sx={{ cursor: "pointer", "&:hover": { color: "primary.light" } }}
+                     >
                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                          {member && (
                            <UserAvatar member={member} size="small" showTooltip={false} />
@@ -389,10 +360,10 @@ export default function SprintOverview() {
                   return (
                     <Card
                       key={issue.url}
-                      component="a"
-                      href={issue.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                      onClick={() => {
+                        setSelectedIssueUrl(issue.url);
+                        setSelectedIssueTitle(issue.title);
+                      }}
                       sx={{
                         mb: 1,
                         p: 1.5,
@@ -401,7 +372,7 @@ export default function SprintOverview() {
                         "&:hover": {
                           boxShadow: 2,
                           transform: "translateY(-2px)",
-                          backgroundColor: "rgba(255, 255, 255, 0.02)",
+                           backgroundColor: theme.palette.mode === "dark" ? "rgba(255, 255, 255, 0.02)" : "rgba(0, 0, 0, 0.01)",
                         },
                       }}
                     >
@@ -431,13 +402,21 @@ export default function SprintOverview() {
                                   (m) => m.id === username
                                 );
                                 return member ? (
-                                  <UserAvatar
+                                  <Box
                                     key={username}
-                                    member={member}
-                                    size="small"
-                                    showTooltip={true}
-                                    sx={{ width: 20, height: 20 }}
-                                  />
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openProfile(username);
+                                    }}
+                                    sx={{ cursor: "pointer" }}
+                                  >
+                                    <UserAvatar
+                                      member={member}
+                                      size="small"
+                                      showTooltip={true}
+                                      sx={{ width: 20, height: 20 }}
+                                    />
+                                  </Box>
                                 ) : null;
                               });
                             })()}
@@ -450,25 +429,26 @@ export default function SprintOverview() {
                              display: "grid",
                              gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr",
                              gap: 1,
-                             fontSize: "0.8rem",
-                             color: "rgba(255, 255, 255, 0.8)",
+                              fontSize: "0.8rem",
+                              color: "text.primary",
+                              opacity: 0.85,
                            }}
                          >
                            <Box>
-                             <span style={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "0.7rem" }}>Sprint</span>
+                              <span style={{ color: theme.palette.text.secondary, opacity: 0.8, fontSize: "0.7rem" }}>Cycle</span>
                              <div style={{ fontWeight: 600 }}>
                                {(logged / 3600).toFixed(1)}h
                              </div>
                            </Box>
                            <Box>
-                             <span style={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "0.7rem" }}>Total</span>
+                              <span style={{ color: theme.palette.text.secondary, opacity: 0.8, fontSize: "0.7rem" }}>Total</span>
                              <div style={{ fontWeight: 600 }}>
                                {(loggedTotal / 3600).toFixed(1)}h
                              </div>
                            </Box>
                            {!isMobile && (
                              <Box>
-                               <span style={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "0.7rem" }}>Estimate</span>
+                                <span style={{ color: theme.palette.text.secondary, opacity: 0.8, fontSize: "0.7rem" }}>Estimate</span>
                                <div style={{ fontWeight: 600 }}>
                                  {(estimate / 3600).toFixed(1)}h
                                </div>
@@ -479,13 +459,13 @@ export default function SprintOverview() {
                          {/* Deviation and Labels Row */}
                          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
                            <Box sx={{ fontSize: "0.8rem" }}>
-                             <span style={{ color: "rgba(255, 255, 255, 0.6)" }}>Deviation: </span>
+                              <span style={{ color: theme.palette.text.secondary, opacity: 0.8 }}>Deviation: </span>
                              <span
                                style={{
                                  fontWeight: "bold",
-                                 color:
-                                   deviationPercent === "N/A"
-                                     ? "rgba(255, 255, 255, 0.7)"
+                                   color:
+                                    deviationPercent === "N/A"
+                                      ? "text.secondary"
                                      : (() => {
                                          const deviation = Number(deviationPercent);
                                          const thresholdBad = 20;
@@ -537,14 +517,22 @@ export default function SprintOverview() {
                   );
                 })
                 ) : (
-                  <Box sx={{ p: 2, textAlign: "center", color: "rgba(255, 255, 255, 0.6)" }}>
-                    No sprint selected
+                  <Box sx={{ p: 2, textAlign: "center", color: "text.secondary" }}>
+                    No cycle selected
                   </Box>
                 )}
             </Box>
           </AccordionDetails>
         </Accordion>
       </CardContent>
+      {selectedIssueUrl && (
+        <IssueDetailModal
+          open={!!selectedIssueUrl}
+          onClose={() => setSelectedIssueUrl(null)}
+          issueUrl={selectedIssueUrl}
+          issueTitle={selectedIssueTitle}
+        />
+      )}
     </Card>
   );
 }

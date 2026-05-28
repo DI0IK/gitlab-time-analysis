@@ -23,7 +23,27 @@ import NextLink from "next/link";
 import { useRouter } from "next/navigation";
 import { CATEGORY_DEFINITIONS } from "./config/categories";
 import { UserLeaderboard } from "./components/UserLeaderboard";
+import { useUserAuth } from "./UserAuthContext";
 import type { GroupComparisonResponse } from "./api/groups/comparison/route";
+import { useThemeMode } from "./ThemeContext";
+// Fixed color palette for categories
+const PALETTE = [
+  "#8884d8",
+  "#82ca9d",
+  "#ffc658",
+  "#ff7300",
+  "#ff4d4f",
+  "#13c2c2",
+  "#722ed1",
+  "#eb2f96",
+  "#faad14",
+  "#52c41a",
+  "#2f54eb",
+  "#fa541c",
+  "#a0d911",
+  "#1890ff",
+  "#f5222d",
+];
 
 const OTHER_COLOR = "rgba(255,255,255,0.15)";
 
@@ -35,6 +55,7 @@ function StackedBar({
   maxTotalHours,
 }: {
   segments: {
+    id?: string;
     label: string;
     hours: number;
     color: string;
@@ -45,18 +66,28 @@ function StackedBar({
   totalHours: number;
   maxTotalHours: number;
 }) {
-  const otherSegment: typeof segments =
+  const theme = useTheme();
+  const { colorTheme } = useThemeMode();
+  const isDark = theme.palette.mode === "dark";
+
+  const otherSegment =
     otherHours > 0
       ? [
           {
             label: "Other",
             hours: otherHours,
-            color: OTHER_COLOR,
+            color: PALETTE[CATEGORY_DEFINITIONS.length % PALETTE.length],
             matchedLabels: otherLabels,
           },
         ]
       : [];
-  const allSegments = [...segments, ...otherSegment];
+  const allSegments = [
+    ...segments.map((s) => ({
+      ...s,
+      color: s.id ? PALETTE[CATEGORY_DEFINITIONS.findIndex(d => d.id === s.id) % PALETTE.length] : s.color,
+    })),
+    ...otherSegment,
+  ];
 
   const barWidthPct =
     maxTotalHours > 0 ? Math.max((totalHours / maxTotalHours) * 100, 10) : 100;
@@ -166,6 +197,10 @@ function MemberAvatars({
 }
 
 function CategoryLegend() {
+  const theme = useTheme();
+  const { colorTheme } = useThemeMode();
+  const isDark = theme.palette.mode === "dark";
+
   return (
     <Box
       sx={{ display: "flex", gap: 2, flexWrap: "wrap", alignItems: "center" }}
@@ -180,7 +215,7 @@ function CategoryLegend() {
               width: 10,
               height: 10,
               borderRadius: "2px",
-              bgcolor: def.color,
+               bgcolor: PALETTE[CATEGORY_DEFINITIONS.findIndex(d => d.id === def.id) % PALETTE.length],
             }}
           />
           <Typography variant="caption" color="text.secondary">
@@ -194,7 +229,7 @@ function CategoryLegend() {
             width: 10,
             height: 10,
             borderRadius: "2px",
-            bgcolor: OTHER_COLOR,
+             bgcolor: PALETTE[CATEGORY_DEFINITIONS.length % PALETTE.length],
           }}
         />
         <Typography variant="caption" color="text.secondary">
@@ -314,13 +349,19 @@ export default function Home() {
   const [error, setError] = React.useState<string | null>(null);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const { token, loading: authLoading } = useUserAuth();
 
   React.useEffect(() => {
+    if (authLoading) return;
     let cancelled = false;
     const fetchData = async () => {
       try {
         setLoading(true);
-        const res = await fetch("/api/groups/comparison");
+        const headers: Record<string, string> = {};
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+        const res = await fetch("/api/groups/comparison", { headers });
         if (!res.ok) throw new Error(`Failed to load: ${res.statusText}`);
         const json = await res.json();
         if (!cancelled) setData(json);
@@ -335,14 +376,12 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [token, authLoading]);
 
   return (
     <Box
       sx={{
-        width: "min(max(80svw, 400px), 100svw)",
-        mx: "auto",
-        p: 3,
+        width: "100%",
       }}
     >
       <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5 }}>

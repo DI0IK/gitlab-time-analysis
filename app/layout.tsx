@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ThemeWrapper from "./ThemeWrapper";
+import { UserAuthProvider } from "./UserAuthContext";
+import AppShell from "./components/AppShell";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,6 +20,9 @@ import { APP_URL, GITLAB_DOMAIN } from "./api/env";
 const title = "GitLab DHBW-SE Time Analysis Tool";
 const description =
   "A tool to analyze time tracking data from GitLab for DHBW-SE students.";
+
+import { ThemeModeProvider } from "./ThemeContext";
+import { UserProfileProvider } from "./UserProfileContext";
 
 const baseUrl = APP_URL || `https://${GITLAB_DOMAIN || "gitlab.com"}`;
 
@@ -49,8 +54,17 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <ThemeWrapper>{children}</ThemeWrapper>
+        <UserAuthProvider>
+          <UserProfileProvider>
+            <ThemeModeProvider>
+              <ThemeWrapper>
+                <AppShell>{children}</AppShell>
+              </ThemeWrapper>
+            </ThemeModeProvider>
+          </UserProfileProvider>
+        </UserAuthProvider>
       </body>
     </html>
   );
 }
+

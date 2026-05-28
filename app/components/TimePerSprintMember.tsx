@@ -24,9 +24,16 @@ export default function TimePerSprintMember() {
   const theme = useTheme();
   const isSmall = useMediaQuery(theme.breakpoints.down("sm"));
 
+  const isDark = theme.palette.mode === "dark";
+  const tickColor = isDark ? "rgba(255, 255, 255, 0.75)" : "rgba(15, 23, 42, 0.75)";
+  const labelColor = isDark ? "rgba(255, 255, 255, 0.9)" : "rgba(15, 23, 42, 0.9)";
+  const tooltipBg = isDark ? "rgba(17, 24, 39, 0.95)" : "rgba(255, 255, 255, 0.95)";
+  const tooltipBorder = isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.08)";
+  const tooltipTextColor = isDark ? "#f3f4f6" : "#0f172a";
+
   return (
     <SelectorCard
-      title="Hours per sprint per member"
+      title="Hours per cycle per member"
       options={[
         ...members
           .filter((m) => !m.bot)
@@ -88,14 +95,14 @@ export default function TimePerSprintMember() {
                 vertical={false}
                 opacity={0.3}
               />
-              <XAxis dataKey="sprint" tick={{ fill: "rgba(255,255,255,0.75)", fontSize: 11 }} />
-              <YAxis tick={{ fill: "rgba(255,255,255,0.75)" }} label={{ value: "Hours", angle: -90, position: "insideLeft", fill: "rgba(255,255,255,0.9)" }} />
+              <XAxis dataKey="sprint" tick={{ fill: tickColor, fontSize: 11 }} />
+              <YAxis tick={{ fill: tickColor }} label={{ value: "Hours", angle: -90, position: "insideLeft", fill: labelColor }} />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "rgba(30, 30, 30, 0.95)",
-                  border: "1px solid rgba(255, 255, 255, 0.15)",
+                  backgroundColor: tooltipBg,
+                  border: `1px solid ${tooltipBorder}`,
                   borderRadius: 8,
-                  color: "#fff",
+                  color: tooltipTextColor,
                   fontSize: 13,
                 }}
               />
@@ -119,7 +126,7 @@ export default function TimePerSprintMember() {
                 strokeWidth={2}
                 strokeDasharray="4 4"
                 dot={false}
-                name="3-Sprint Avg"
+                name="3-Cycle Avg"
               />
             </LineChart>
           </ResponsiveContainer>

@@ -27,29 +27,9 @@ import { matchLabelToCategory } from "../utils/categoryUtils";
 import { CATEGORY_DEFINITIONS } from "../config/categories";
 
 export default function SprintRadar() {
-  const { sprints, timelogs } = React.useContext(GroupContext);
+  const { sprints, timelogs, selectedSprint, setSelectedSprint } = React.useContext(GroupContext);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-
-  const [selectedSprint, setSelectedSprint] = React.useState<number | null>(
-    sprints.find(
-      (sp) =>
-        sp.startDate <= new Date().toISOString().slice(0, 10) &&
-        new Date().toISOString().slice(0, 10) <= sp.endDate,
-    )?.sprintNumber ?? null,
-  );
-
-  React.useEffect(() => {
-    if (sprints.length && selectedSprint === null) {
-      setSelectedSprint(
-        sprints.find(
-          (sp) =>
-            sp.startDate <= new Date().toISOString().slice(0, 10) &&
-            new Date().toISOString().slice(0, 10) <= sp.endDate,
-        )?.sprintNumber ?? null,
-      );
-    }
-  }, [sprints, selectedSprint]);
 
   const inSelectedSprint = (log: (typeof timelogs)[number]) =>
     log.sprintNumber === selectedSprint ||
@@ -127,54 +107,13 @@ export default function SprintRadar() {
     }, [] as number[])
     .sort((a, b) => b - a);
 
+  const isDark = theme.palette.mode === "dark";
+  const tickColor = isDark ? "rgba(255, 255, 255, 0.75)" : "rgba(15, 23, 42, 0.75)";
+
   return (
-    <Card>
-      <CardHeader title="Sprint Category Distribution" />
-      <CardContent>
-        <Box
-          sx={{
-            display: "flex",
-            gap: 2,
-            alignItems: isMobile ? "stretch" : "center",
-            mb: 3,
-            flexWrap: isMobile ? "wrap" : "nowrap",
-          }}
-        >
-          <FormControl
-            sx={{
-              minWidth: isMobile ? "100%" : 220,
-              flex: isMobile ? 1 : "auto",
-            }}
-            size="small"
-          >
-            <InputLabel id="radar-sprint-select-label">Sprint</InputLabel>
-            <Select
-              labelId="radar-sprint-select-label"
-              value={selectedSprint ?? ""}
-              label="Sprint"
-              onChange={(e) => setSelectedSprint(Number(e.target.value))}
-            >
-              {sprints.map((sp) => (
-                <MenuItem key={sp.sprintNumber} value={sp.sprintNumber}>
-                  {`Sprint ${sp.sprintNumber} (${new Date(
-                    sp.startDate,
-                  ).toLocaleDateString()} - ${new Date(
-                    sp.endDate,
-                  ).toLocaleDateString()})`}
-                </MenuItem>
-              ))}
-              {years.map((year) => (
-                <MenuItem
-                  key={10000 + year}
-                  value={10000 + year}
-                >{`Year ${year}`}</MenuItem>
-              ))}
-              <MenuItem key={1000} value={1000}>
-                All time
-              </MenuItem>
-            </Select>
-          </FormControl>
-        </Box>
+    <Card sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+      <CardHeader title="Cycle Category Distribution" />
+      <CardContent sx={{ flexGrow: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
 
         {selectedSprint === null ? (
           <Typography
@@ -192,26 +131,35 @@ export default function SprintRadar() {
             No timelogs found for the selected filters.
           </Typography>
         ) : (
-          <ResponsiveContainer width="100%" height={400}>
+          <ResponsiveContainer width="100%" height={350}>
             <RadarChart data={radarData}>
               <PolarGrid />
               <PolarAngleAxis
                 dataKey="subject"
-                tick={{ fill: "rgba(255,255,255,0.75)" }}
+                tick={{ fill: tickColor }}
               />
               <PolarRadiusAxis
                 angle={30}
                 domain={[0, 100]}
-                tick={{ fill: "rgba(255,255,255,0.75)" }}
+                tick={{ fill: tickColor }}
               />
               <Radar
                 name="% of Time"
                 dataKey="value"
-                stroke="#82ca9d"
-                fill="#82ca9d"
+                stroke={theme.palette.primary.main}
+                fill={theme.palette.primary.main}
                 fillOpacity={0.6}
               />
-              <Tooltip formatter={(value) => `${value}%`} />
+              <Tooltip
+                formatter={(value) => `${value}%`}
+                contentStyle={{
+                  backgroundColor: isDark ? "rgba(17, 24, 39, 0.95)" : "rgba(255, 255, 255, 0.95)",
+                  border: `1px solid ${isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.08)"}`,
+                  borderRadius: 8,
+                  color: isDark ? "#f3f4f6" : "#0f172a",
+                  fontSize: 13,
+                }}
+              />
             </RadarChart>
           </ResponsiveContainer>
         )}

@@ -1,16 +1,9 @@
 "use client";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
   Box,
   Card,
   CardContent,
   CardHeader,
-  List,
-  ListItem,
-  ListItemText,
   Typography,
   useMediaQuery,
   useTheme,
@@ -29,12 +22,11 @@ import {
 import { GroupContext } from "../GroupContext";
 import { matchLabelToCategory } from "../utils/categoryUtils";
 import { CATEGORY_DEFINITIONS } from "../config/categories";
-import Label from "./Label";
 
 const PALETTE = ["#8884d8", "#82ca9d", "#ffc658", "#ff7300"];
 
 export default function TimePerCategory() {
-  const { timelogs, labels } = React.useContext(GroupContext);
+  const { timelogs } = React.useContext(GroupContext);
   const theme = useTheme();
   const isSmall = useMediaQuery(theme.breakpoints.down("sm"));
 
@@ -140,11 +132,18 @@ export default function TimePerCategory() {
   ).length;
   const hasOther = otherIssuesWithEst + otherIssuesNoEst > 0;
 
+  const isDark = theme.palette.mode === "dark";
+  const tickColor = isDark ? "rgba(255, 255, 255, 0.75)" : "rgba(15, 23, 42, 0.75)";
+  const labelColor = isDark ? "rgba(255, 255, 255, 0.9)" : "rgba(15, 23, 42, 0.9)";
+  const tooltipBg = isDark ? "rgba(17, 24, 39, 0.95)" : "rgba(255, 255, 255, 0.95)";
+  const tooltipBorder = isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.08)";
+  const tooltipTextColor = isDark ? "#f3f4f6" : "#0f172a";
+
   return (
-    <Card>
+    <Card sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
       <CardHeader title="Hours by Category" />
-      <CardContent>
-      {chartData.length === 0 || chartData.every((d) => d.usedHours === 0 && d.estimatedHours === 0 && d.usedNotEstimatedHours === 0) ? (
+      <CardContent sx={{ flexGrow: 1, overflowY: "auto" }}>
+        {chartData.length === 0 || chartData.every((d) => d.usedHours === 0 && d.estimatedHours === 0 && d.usedNotEstimatedHours === 0) ? (
         <Typography
           color="text.secondary"
           sx={{ textAlign: "center", py: 4 }}
@@ -162,19 +161,19 @@ export default function TimePerCategory() {
             />
             <XAxis
               dataKey="label"
-              tick={{ fill: "rgba(255,255,255,0.75)", fontSize: 11 }}
+              tick={{ fill: tickColor, fontSize: 11 }}
               height={40}
             />
             <YAxis
-              tick={{ fill: "rgba(255,255,255,0.75)" }}
-              label={{ value: "Hours", angle: -90, position: "insideLeft", fill: "rgba(255,255,255,0.9)" }}
+              tick={{ fill: tickColor }}
+              label={{ value: "Hours", angle: -90, position: "insideLeft", fill: labelColor }}
             />
             <Tooltip
               contentStyle={{
-                backgroundColor: "rgba(30, 30, 30, 0.95)",
-                border: "1px solid rgba(255, 255, 255, 0.15)",
+                backgroundColor: tooltipBg,
+                border: `1px solid ${tooltipBorder}`,
                 borderRadius: 8,
-                color: "#fff",
+                color: tooltipTextColor,
                 fontSize: 13,
               }}
             />
@@ -200,149 +199,8 @@ export default function TimePerCategory() {
           </BarChart>
         </ResponsiveContainer>
       )}
-      {hasNoEstimate ? (
-        <Accordion>
-          <AccordionSummary
-            expandIcon={<ExpandMoreIcon />}
-            aria-controls="panel1-content"
-            id="panel1-header"
-          >
-            <Typography component="span">
-              Issues without Time Estimate
-            </Typography>
-          </AccordionSummary>
-          <AccordionDetails>
-            <List>
-              {Object.entries(issuesNoEstimate).map(([url, data]) => (
-                <ListItem
-                  key={url}
-                  component="a"
-                  href={url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  sx={{
-                    flexDirection: "row",
-                    alignItems: "flex-start",
-                  }}
-                >
-                  <ListItemText
-                    primary={data.issueTitle}
-                    secondary={data.category}
-                  />
-                  <Box
-                    sx={{
-                      display: "flex",
-                      gap: 1,
-                      flexWrap: "wrap",
-                      alignItems: "center",
-                      justifyContent: "flex-end",
-                      mt: 0.5,
-                    }}
-                  >
-                    {(data.issueLabels || []).map((label) => (
-                      <Label
-                        key={label}
-                        name={label}
-                        color={
-                          Object.values(labels || {})
-                            .flat()
-                            .find((l) => l.id === label)?.color || "#428fdc"
-                        }
-                      />
-                    ))}
-                  </Box>
-                </ListItem>
-              ))}
-            </List>
-          </AccordionDetails>
-        </Accordion>
-      ) : null}
-      {hasOther ? (
-        <Accordion>
-          <AccordionSummary
-            expandIcon={<ExpandMoreIcon />}
-            aria-controls="panel2-content"
-            id="panel2-header"
-          >
-            <Typography component="span">Uncategorized Issues</Typography>
-          </AccordionSummary>
-          <AccordionDetails>
-            <List>
-              {Object.entries(issuesWithEstimate)
-                .filter(([_, data]) => data.category === "Other")
-                .map(([url, data]) => (
-                  <ListItem
-                    key={url}
-                    component="a"
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <ListItemText primary={data.issueTitle} />
-                    <Box
-                      sx={{
-                        display: "flex",
-                        gap: 1,
-                        flexWrap: "wrap",
-                        alignItems: "center",
-                        justifyContent: "flex-end",
-                        mt: 0.5,
-                      }}
-                    >
-                      {(data.issueLabels || []).map((label) => (
-                        <Label
-                          key={label}
-                          name={label}
-                          color={
-                            Object.values(labels || {})
-                              .flat()
-                              .find((l) => l.id === label)?.color || "#428fdc"
-                          }
-                        />
-                      ))}
-                    </Box>
-                  </ListItem>
-                ))}
-              {Object.entries(issuesNoEstimate)
-                .filter(([_, data]) => data.category === "Other")
-                .map(([url, data]) => (
-                  <ListItem
-                    key={url}
-                    component="a"
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <ListItemText primary={data.issueTitle} />
-                    <Box
-                      sx={{
-                        display: "flex",
-                        gap: 1,
-                        flexWrap: "wrap",
-                        alignItems: "center",
-                        justifyContent: "flex-end",
-                        mt: 0.5,
-                      }}
-                    >
-                      {(data.issueLabels || []).map((label) => (
-                        <Label
-                          key={label}
-                          name={label}
-                          color={
-                            Object.values(labels || {})
-                              .flat()
-                              .find((l) => l.id === label)?.color || "#428fdc"
-                          }
-                        />
-                      ))}
-                    </Box>
-                  </ListItem>
-                ))}
-            </List>
-          </AccordionDetails>
-        </Accordion>
-      ) : null}
       </CardContent>
     </Card>
   );
 }
+

@@ -4,6 +4,7 @@ import { getMembers } from "../../group/[id]/members/route";
 import { getTimelogs } from "../../group/[id]/timelogs/route";
 import { matchLabelToCategory } from "@/app/utils/categoryUtils";
 import { CATEGORY_DEFINITIONS } from "@/app/config/categories";
+import { computeGamification } from "@/app/utils/gamification";
 
 export type CategoryEntry = {
   categoryId: string;
@@ -20,11 +21,12 @@ export type UserLeaderboardEntry = {
   categoryBreakdown: CategoryEntry[];
   otherHours: number;
   groups: string[];
+  level: number;
 };
 
 export type UserLeaderboardResponse = UserLeaderboardEntry[];
 
-export const GET = async () => {
+export const GET = async (request: Request) => {
   const { data: groups } = await getDescendantGroups();
 
   const userMap: Record<
@@ -39,11 +41,15 @@ export const GET = async () => {
     }
   > = {};
 
+  const allTimelogs: any[] = [];
+
   for (const group of groups) {
     const [timelogs, members] = await Promise.all([
       getTimelogs(group.id).then((r) => r.data),
       getMembers(group.id).then((r) => r.data),
     ]);
+
+    allTimelogs.push(...timelogs);
 
     const memberMap = new Map(
       members.map((m) => [m.id, { name: m.name, avatarUrl: m.avatarUrl }]),
@@ -98,6 +104,8 @@ export const GET = async () => {
         color: def.color,
       }));
 
+      const gamification = computeGamification(userId, allTimelogs);
+
       return {
         userId,
         name: u.name,
@@ -106,6 +114,7 @@ export const GET = async () => {
         categoryBreakdown,
         otherHours: +((u.otherSeconds || 0) / 3600).toFixed(1),
         groups: Array.from(u.groups).sort(),
+        level: gamification.level,
       };
     })
     .filter((u) => u.totalHours > 0)

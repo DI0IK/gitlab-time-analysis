@@ -7,7 +7,7 @@ export type GroupResponse = {
   url: string;
 }[];
 
-export const GET = async () => {
+export const GET = async (request: Request) => {
   const { data, timestamp } = await getDescendantGroups();
 
   const result = data.map((g) => ({

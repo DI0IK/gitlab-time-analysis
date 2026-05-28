@@ -20,8 +20,35 @@ import {
 } from "@mui/material";
 import { CATEGORY_DEFINITIONS } from "@/app/config/categories";
 import type { UserLeaderboardResponse, UserLeaderboardEntry, CategoryEntry } from "@/app/api/users/leaderboard/route";
+import { useUserAuth } from "../UserAuthContext";
+import { useThemeMode } from "../ThemeContext";
+import { useUserProfile } from "../UserProfileContext";
 
+const PALETTE = [
+  "#8884d8",
+  "#82ca9d",
+  "#ffc658",
+  "#ff7300",
+  "#ff4d4f",
+  "#13c2c2",
+  "#722ed1",
+  "#eb2f96",
+  "#faad14",
+  "#52c41a",
+  "#2f54eb",
+  "#fa541c",
+  "#a0d911",
+  "#1890ff",
+  "#f5222d",
+];
 const OTHER_COLOR = "rgba(255,255,255,0.15)";
+
+const getTierColor = (level: number) => {
+  if (level < 10) return "#cd7f32"; // Bronze
+  if (level < 20) return "#c0c0c0"; // Silver
+  if (level < 30) return "#ffd700"; // Gold
+  return "#a855f7"; // Purple (Legend)
+};
 
 function LeaderboardRank({ rank }: { rank: number }) {
   const medalColors = {
@@ -63,9 +90,27 @@ function CategoryBar({
   totalHours: number;
   maxTotalHours: number;
 }) {
+  const theme = useTheme();
+  const { colorTheme } = useThemeMode();
+  const isDark = theme.palette.mode === "dark";
+
   const filteredCategories = categoryBreakdown.filter((c) => c.hours > 0);
   const showOther = otherHours > 0;
-  const segments = [...filteredCategories, ...(showOther ? [{ label: "Other", hours: otherHours, color: OTHER_COLOR }] : [])];
+  const segments = [
+    ...filteredCategories.map((c) => ({
+      ...c,
+      color: PALETTE[CATEGORY_DEFINITIONS.findIndex(d => d.id === c.categoryId) % PALETTE.length],
+    })),
+    ...(showOther
+      ? [
+          {
+            label: "Other",
+            hours: otherHours,
+            color: PALETTE[CATEGORY_DEFINITIONS.length % PALETTE.length],
+          },
+        ]
+      : []),
+  ];
 
   const barWidthPct = maxTotalHours > 0 ? Math.max((totalHours / maxTotalHours) * 100, 5) : 100;
 
@@ -114,6 +159,8 @@ function CategoryBar({
 
 function LeaderboardTable({ data }: { data: UserLeaderboardResponse }) {
   const maxTotalHours = Math.max(...data.map((u) => u.totalHours), 0);
+  const { openProfile } = useUserProfile();
+
   return (
     <Table size="small">
       <TableHead>
@@ -126,73 +173,107 @@ function LeaderboardTable({ data }: { data: UserLeaderboardResponse }) {
         </TableRow>
       </TableHead>
       <TableBody>
-        {data.map((user, idx) => (
-          <TableRow
-            key={user.userId}
-            sx={{
-              "&:last-child td": { borderBottom: 0 },
-            }}
-          >
-            <TableCell sx={{ textAlign: "center" }}>
-              <LeaderboardRank rank={idx + 1} />
-            </TableCell>
-            <TableCell>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                <Avatar
-                  alt={user.name}
-                  src={user.avatarUrl || undefined}
-                  sx={{ width: 36, height: 36 }}
+        {data.map((user, idx) => {
+          const tierColor = getTierColor(user.level || 1);
+          return (
+            <TableRow
+              key={user.userId}
+              sx={{
+                "&:last-child td": { borderBottom: 0 },
+              }}
+            >
+              <TableCell sx={{ textAlign: "center" }}>
+                <LeaderboardRank rank={idx + 1} />
+              </TableCell>
+              <TableCell>
+                <Box
+                  onClick={() => openProfile(user.userId)}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.5,
+                    cursor: "pointer",
+                    width: "fit-content",
+                    "&:hover .username": {
+                      color: "primary.light",
+                      textDecoration: "underline",
+                    },
+                  }}
                 >
-                  {user.name.charAt(0).toUpperCase()}
-                </Avatar>
-                <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                  {user.name}
-                </Typography>
-              </Box>
-            </TableCell>
-            <TableCell align="right">
-              <Chip
-                label={`${user.totalHours.toFixed(1)}h`}
-                sx={{
-                  fontWeight: 700,
-                  fontSize: "0.9rem",
-                  backgroundColor: idx <= 2 ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.08)",
-                }}
-              />
-            </TableCell>
-            <TableCell>
-              <CategoryBar
-                categoryBreakdown={user.categoryBreakdown}
-                otherHours={user.otherHours}
-                totalHours={user.totalHours}
-                maxTotalHours={maxTotalHours}
-              />
-            </TableCell>
-            <TableCell sx={{ maxWidth: 150 }}>
-              <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
-                {user.groups.slice(0, 2).map((group) => (
+                  <Avatar
+                    alt={user.name}
+                    src={user.avatarUrl || undefined}
+                    sx={{
+                      width: 36,
+                      height: 36,
+                      border: `2px solid ${tierColor}`,
+                      boxShadow: `0 0 6px ${tierColor}33`,
+                    }}
+                  >
+                    {user.name.charAt(0).toUpperCase()}
+                  </Avatar>
+                  <Typography variant="body2" className="username" sx={{ fontWeight: 500, transition: "color 0.2s" }}>
+                    {user.name}
+                  </Typography>
                   <Chip
-                    key={group}
-                    label={group}
+                    label={`Lv. ${user.level || 1}`}
                     size="small"
-                    variant="outlined"
-                    sx={{ fontSize: "0.7rem", height: 20 }}
+                    sx={{
+                      height: 18,
+                      fontSize: "0.65rem",
+                      fontWeight: 800,
+                      backgroundColor: tierColor,
+                      color: (user.level || 1) >= 10 && (user.level || 1) < 30 ? "#0f172a" : "#ffffff",
+                      px: 0.5,
+                      cursor: "pointer",
+                    }}
                   />
-                ))}
-                {user.groups.length > 2 && (
-                  <Tooltip title={user.groups.slice(2).join(", ")} arrow>
+                </Box>
+              </TableCell>
+              <TableCell align="right">
+                <Chip
+                  label={`${user.totalHours.toFixed(1)}h`}
+                  sx={{
+                    fontWeight: 700,
+                    fontSize: "0.9rem",
+                    backgroundColor: idx <= 2 ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.08)",
+                  }}
+                />
+              </TableCell>
+              <TableCell>
+                <CategoryBar
+                  categoryBreakdown={user.categoryBreakdown}
+                  otherHours={user.otherHours}
+                  totalHours={user.totalHours}
+                  maxTotalHours={maxTotalHours}
+                />
+              </TableCell>
+              <TableCell sx={{ maxWidth: 150 }}>
+                <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
+                  {user.groups.slice(0, 2).map((group) => (
                     <Chip
-                      label={`+${user.groups.length - 2}`}
+                      key={group}
+                      label={group}
                       size="small"
                       variant="outlined"
                       sx={{ fontSize: "0.7rem", height: 20 }}
                     />
-                  </Tooltip>
-                )}
-              </Box>
-            </TableCell>
-          </TableRow>
-        ))}
+                  ))}
+                  {user.groups.length > 2 && (
+                    <Tooltip title={user.groups.slice(2).join(", ")} arrow>
+                      <Chip
+                        label={`+${user.groups.length - 2}`}
+                        size="small"
+                        variant="outlined"
+                        sx={{ fontSize: "0.7rem", height: 20 }}
+                      />
+                    </Tooltip>
+                  )}
+                </Box>
+              </TableCell>
+            </TableRow>
+          );
+        })}
       </TableBody>
     </Table>
   );
@@ -200,67 +281,105 @@ function LeaderboardTable({ data }: { data: UserLeaderboardResponse }) {
 
 function LeaderboardCards({ data }: { data: UserLeaderboardResponse }) {
   const maxTotalHours = Math.max(...data.map((u) => u.totalHours), 0);
+  const { openProfile } = useUserProfile();
+
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-      {data.map((user, idx) => (
-        <Card key={user.userId}>
-          <CardContent>
-            <Box sx={{ display: "flex", gap: 2, alignItems: "flex-start", mb: 2 }}>
-              <LeaderboardRank rank={idx + 1} />
-              <Box sx={{ flex: 1 }}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-                  <Avatar
-                    alt={user.name}
-                    src={user.avatarUrl || undefined}
-                    sx={{ width: 40, height: 40 }}
+      {data.map((user, idx) => {
+        const tierColor = getTierColor(user.level || 1);
+        return (
+          <Card key={user.userId}>
+            <CardContent>
+              <Box sx={{ display: "flex", gap: 2, alignItems: "flex-start", mb: 2 }}>
+                <LeaderboardRank rank={idx + 1} />
+                <Box sx={{ flex: 1 }}>
+                  <Box
+                    onClick={() => openProfile(user.userId)}
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1.5,
+                      cursor: "pointer",
+                      width: "fit-content",
+                      "&:hover .username": {
+                        color: "primary.light",
+                        textDecoration: "underline",
+                      },
+                    }}
                   >
-                    {user.name.charAt(0).toUpperCase()}
-                  </Avatar>
-                  <Box>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                      {user.name}
-                    </Typography>
-                    <Chip
-                      label={`${user.totalHours.toFixed(1)}h`}
-                      size="small"
-                      sx={{ fontWeight: 700, fontSize: "0.8rem" }}
-                    />
+                    <Avatar
+                      alt={user.name}
+                      src={user.avatarUrl || undefined}
+                      sx={{
+                        width: 40,
+                        height: 40,
+                        border: `2px solid ${tierColor}`,
+                        boxShadow: `0 0 6px ${tierColor}33`,
+                      }}
+                    >
+                      {user.name.charAt(0).toUpperCase()}
+                    </Avatar>
+                    <Box>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <Typography variant="subtitle2" className="username" sx={{ fontWeight: 700, transition: "color 0.2s" }}>
+                          {user.name}
+                        </Typography>
+                        <Chip
+                          label={`Lv. ${user.level || 1}`}
+                          size="small"
+                          sx={{
+                            height: 16,
+                            fontSize: "0.6rem",
+                            fontWeight: 800,
+                            backgroundColor: tierColor,
+                            color: (user.level || 1) >= 10 && (user.level || 1) < 30 ? "#0f172a" : "#ffffff",
+                            px: 0.5,
+                            cursor: "pointer",
+                          }}
+                        />
+                      </Box>
+                      <Chip
+                        label={`${user.totalHours.toFixed(1)}h`}
+                        size="small"
+                        sx={{ fontWeight: 700, fontSize: "0.8rem", mt: 0.5 }}
+                      />
+                    </Box>
                   </Box>
                 </Box>
               </Box>
-            </Box>
-            <Box sx={{ mb: 1.5 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
-                Category Breakdown
-              </Typography>
-              <CategoryBar
-                categoryBreakdown={user.categoryBreakdown}
-                otherHours={user.otherHours}
-                totalHours={user.totalHours}
-                maxTotalHours={maxTotalHours}
-              />
-            </Box>
-            {user.groups.length > 0 && (
-              <Box>
+              <Box sx={{ mb: 1.5 }}>
                 <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
-                  Groups ({user.groups.length})
+                  Category Breakdown
                 </Typography>
-                <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
-                  {user.groups.map((group) => (
-                    <Chip
-                      key={group}
-                      label={group}
-                      size="small"
-                      variant="outlined"
-                      sx={{ fontSize: "0.75rem", height: 20 }}
-                    />
-                  ))}
-                </Box>
+                <CategoryBar
+                  categoryBreakdown={user.categoryBreakdown}
+                  otherHours={user.otherHours}
+                  totalHours={user.totalHours}
+                  maxTotalHours={maxTotalHours}
+                />
               </Box>
-            )}
-          </CardContent>
-        </Card>
-      ))}
+              {user.groups.length > 0 && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
+                    Groups ({user.groups.length})
+                  </Typography>
+                  <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
+                    {user.groups.map((group) => (
+                      <Chip
+                        key={group}
+                        label={group}
+                        size="small"
+                        variant="outlined"
+                        sx={{ fontSize: "0.75rem", height: 20 }}
+                      />
+                    ))}
+                  </Box>
+                </Box>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })}
     </Box>
   );
 }
@@ -271,13 +390,19 @@ export function UserLeaderboard() {
   const [error, setError] = React.useState<string | null>(null);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-
+  const { token, loading: authLoading } = useUserAuth();
+  
   React.useEffect(() => {
+    if (authLoading) return;
     let cancelled = false;
     const fetchData = async () => {
       try {
         setLoading(true);
-        const res = await fetch("/api/users/leaderboard");
+        const headers: Record<string, string> = {};
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+        const res = await fetch("/api/users/leaderboard", { headers });
         if (!res.ok) throw new Error(`Failed to load: ${res.statusText}`);
         const json = await res.json();
         if (!cancelled) setData(json);
@@ -289,7 +414,7 @@ export function UserLeaderboard() {
     };
     fetchData();
     return () => { cancelled = true; };
-  }, []);
+  }, [token, authLoading]);
 
   if (loading) {
     return (

@@ -1,5 +1,5 @@
 "use client";
-import { Card, CardContent, CardHeader } from "@mui/material";
+import { Card, CardContent, CardHeader, useTheme } from "@mui/material";
 import React from "react";
 import {
   Bar,
@@ -24,6 +24,7 @@ const DAYS = [
 
 export default function TimePerWeekday() {
   const { timelogs } = React.useContext(GroupContext);
+  const theme = useTheme();
 
   const dayTotals = DAYS.map(() => 0);
 
@@ -39,10 +40,17 @@ export default function TimePerWeekday() {
     hours: +(dayTotals[i] / 3600).toFixed(2),
   }));
 
+  const isDark = theme.palette.mode === "dark";
+  const tickColor = isDark ? "rgba(255, 255, 255, 0.75)" : "rgba(15, 23, 42, 0.75)";
+  const labelColor = isDark ? "rgba(255, 255, 255, 0.9)" : "rgba(15, 23, 42, 0.9)";
+  const tooltipBg = isDark ? "rgba(17, 24, 39, 0.95)" : "rgba(255, 255, 255, 0.95)";
+  const tooltipBorder = isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.08)";
+  const tooltipTextColor = isDark ? "#f3f4f6" : "#0f172a";
+
   return (
-    <Card>
+    <Card sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
       <CardHeader title="Hours per weekday" />
-      <CardContent>
+      <CardContent sx={{ flexGrow: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={chartData}>
             <CartesianGrid
@@ -51,17 +59,17 @@ export default function TimePerWeekday() {
               vertical={false}
               opacity={0.3}
             />
-            <XAxis dataKey="day" tick={{ fill: "rgba(255,255,255,0.75)" }} />
+            <XAxis dataKey="day" tick={{ fill: tickColor }} />
             <YAxis
-              tick={{ fill: "rgba(255,255,255,0.75)" }}
-              label={{ value: "Hours", angle: -90, position: "insideLeft", fill: "rgba(255,255,255,0.9)" }}
+              tick={{ fill: tickColor }}
+              label={{ value: "Hours", angle: -90, position: "insideLeft", fill: labelColor }}
             />
             <Tooltip
               contentStyle={{
-                backgroundColor: "rgba(30, 30, 30, 0.95)",
-                border: "1px solid rgba(255, 255, 255, 0.15)",
+                backgroundColor: tooltipBg,
+                border: `1px solid ${tooltipBorder}`,
                 borderRadius: 8,
-                color: "#fff",
+                color: tooltipTextColor,
                 fontSize: 13,
               }}
             />

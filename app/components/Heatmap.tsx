@@ -167,6 +167,7 @@ export default function Heatmap() {
               overflowY: "hidden",
               marginTop: 16,
               paddingBottom: 16,
+              flexGrow: 1,
             }}
           >
             <div style={{ gridRow: 1, gridColumn: 1 }} />

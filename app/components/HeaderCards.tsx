@@ -13,6 +13,7 @@ import { matchLabelToCategory } from "../utils/categoryUtils";
 import { CATEGORY_DEFINITIONS } from "../config/categories";
 import type { GroupTimelogsResponse } from "../api/group/[id]/timelogs/route";
 import type { GroupSprintsResponse } from "../api/group/[id]/sprints/route";
+import { useUserProfile } from "../UserProfileContext";
 
 const getTopCategoryForSprint = (
   sprint: GroupSprintsResponse[number] | undefined,
@@ -51,6 +52,7 @@ const getTopCategoryForSprint = (
 
 export default function HeaderCards() {
   const { members, sprints, timelogs } = React.useContext(GroupContext);
+  const { openProfile } = useUserProfile();
 
   const totalTimeSpent = timelogs.reduce(
     (total, log) => total + log.timeSpent,
@@ -118,7 +120,7 @@ export default function HeaderCards() {
                     sx={{
                       fontSize: "0.875rem",
                       fontWeight: "normal",
-                      color: "rgba(255, 255, 255, 0.7)",
+                      color: "text.secondary",
                     }}
                   >
                     + {botMembers.length} SA
@@ -137,7 +139,7 @@ export default function HeaderCards() {
               >
                 {humanMembers.map((member) => (
                   <Tooltip key={member.id} title={member.name} arrow>
-                    <div>
+                    <div onClick={() => openProfile(member.id)} style={{ cursor: "pointer" }}>
                       <UserAvatar
                         member={member}
                         size="small"
@@ -153,7 +155,7 @@ export default function HeaderCards() {
                     title={`${member.name} (service account)`}
                     arrow
                   >
-                    <div>
+                    <div onClick={() => openProfile(member.id)} style={{ cursor: "pointer" }}>
                       <UserAvatar
                         member={member}
                         size="small"
@@ -168,7 +170,7 @@ export default function HeaderCards() {
           </CardContent>
         </Card>
         <Card variant="outlined" sx={{ p: 1, m: 0 }}>
-          <CardHeader title="Total Sprints" />
+          <CardHeader title="Total Cycles" />
           <CardContent
             sx={{ textAlign: "right", fontWeight: "bold", fontSize: 18 }}
           >
@@ -184,7 +186,7 @@ export default function HeaderCards() {
           </CardContent>
         </Card>
         <Card variant="outlined" sx={{ p: 1, m: 0 }}>
-          <CardHeader title="Time Spent per Sprint" />
+          <CardHeader title="Time Spent per Cycle" />
           <CardContent
             sx={{ textAlign: "right", fontWeight: "bold", fontSize: 18 }}
           >
@@ -194,7 +196,7 @@ export default function HeaderCards() {
           </CardContent>
         </Card>
         <Card variant="outlined" sx={{ p: 1, m: 0 }}>
-          <CardHeader title="Focus Last Sprint" />
+          <CardHeader title="Focus Last Cycle" />
           <CardContent
             sx={{ textAlign: "right", fontWeight: "bold", fontSize: 18 }}
           >
@@ -202,7 +204,7 @@ export default function HeaderCards() {
           </CardContent>
         </Card>
         <Card variant="outlined" sx={{ p: 1, m: 0 }}>
-          <CardHeader title="Focus This Sprint" />
+          <CardHeader title="Focus This Cycle" />
           <CardContent
             sx={{ textAlign: "right", fontWeight: "bold", fontSize: 18 }}
           >

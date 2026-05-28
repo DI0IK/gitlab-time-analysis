@@ -33,18 +33,20 @@ export type GroupComparisonItem = {
 
 export type GroupComparisonResponse = GroupComparisonItem[];
 
-export const GET = async () => {
+export const GET = async (request: Request) => {
   const { data: groups } = await getDescendantGroups();
 
   const results = await Promise.allSettled(
     groups.map(async (group) => {
-      const [{ data: members }, { data: labels }, { data: timelogs }] = await Promise.all([
-        getMembers(group.id),
-        getLabels(group.id),
-        getTimelogs(group.id),
-      ]);
+      const [{ data: members }, { data: labels }, { data: timelogs }] =
+        await Promise.all([
+          getMembers(group.id),
+          getLabels(group.id),
+          getTimelogs(group.id),
+        ]);
 
-      const { categories, otherHours, otherLabels, totalHours } = computeCategorySummary(timelogs, labels);
+      const { categories, otherHours, otherLabels, totalHours } =
+        computeCategorySummary(timelogs, labels);
 
       return {
         id: group.id,

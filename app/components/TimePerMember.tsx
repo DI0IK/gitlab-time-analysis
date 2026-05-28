@@ -14,6 +14,8 @@ import {
 import { GroupContext } from "../GroupContext";
 import { matchLabelToCategory } from "../utils/categoryUtils";
 import { CATEGORY_DEFINITIONS } from "../config/categories";
+import { useThemeMode } from "../ThemeContext";
+// Dynamic category colors removed; using fixed palette
 
 const PALETTE = [
   "#8884d8",
@@ -31,13 +33,19 @@ const PALETTE = [
 export default function TimePerMember() {
   const { timelogs, members } = React.useContext(GroupContext);
   const theme = useTheme();
+  // colorTheme no longer used
   const isSmall = useMediaQuery(theme.breakpoints.down("sm"));
+  const isDark = theme.palette.mode === "dark";
 
   const nonBotMembers = members.filter((m) => !m.bot);
 
   const allCategories = [
-    ...CATEGORY_DEFINITIONS.map((d) => ({ id: d.id, title: d.label, color: d.color })),
-    { id: "other", title: "Other", color: PALETTE[4] },
+    ...CATEGORY_DEFINITIONS.map((d, idx) => ({
+      id: d.id,
+      title: d.label,
+      color: PALETTE[idx % PALETTE.length],
+    })),
+    { id: "other", title: "Other", color: PALETTE[CATEGORY_DEFINITIONS.length % PALETTE.length] },
   ];
 
   const chartData = nonBotMembers.map((member) => {
@@ -76,11 +84,17 @@ export default function TimePerMember() {
       ? allCategories
       : allCategories.filter((c) => c.id !== "other");
 
+  const tickColor = isDark ? "rgba(255, 255, 255, 0.75)" : "rgba(15, 23, 42, 0.75)";
+  const labelColor = isDark ? "rgba(255, 255, 255, 0.9)" : "rgba(15, 23, 42, 0.9)";
+  const tooltipBg = isDark ? "rgba(17, 24, 39, 0.95)" : "rgba(255, 255, 255, 0.95)";
+  const tooltipBorder = isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.08)";
+  const tooltipTextColor = isDark ? "#f3f4f6" : "#0f172a";
+
   return (
-    <Card>
+    <Card sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
       <CardHeader title="Time Per Member" />
-      <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
+      <CardContent sx={{ flexGrow: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+        <ResponsiveContainer width="100%" height={360}>
           <BarChart data={chartData}>
             <CartesianGrid
               strokeDasharray="3 3"
@@ -88,17 +102,17 @@ export default function TimePerMember() {
               vertical={false}
               opacity={0.3}
             />
-            <XAxis dataKey="name" tick={{ fill: "rgba(255,255,255,0.75)" }} />
+            <XAxis dataKey="name" tick={{ fill: tickColor }} />
             <YAxis
-              tick={{ fill: "rgba(255,255,255,0.75)" }}
-              label={{ value: "Hours", angle: -90, position: "insideLeft", fill: "rgba(255,255,255,0.9)" }}
+              tick={{ fill: tickColor }}
+              label={{ value: "Hours", angle: -90, position: "insideLeft", fill: labelColor }}
             />
             <Tooltip
               contentStyle={{
-                backgroundColor: "rgba(30, 30, 30, 0.95)",
-                border: "1px solid rgba(255, 255, 255, 0.15)",
+                backgroundColor: tooltipBg,
+                border: `1px solid ${tooltipBorder}`,
                 borderRadius: 8,
-                color: "#fff",
+                color: tooltipTextColor,
                 fontSize: 13,
               }}
             />
