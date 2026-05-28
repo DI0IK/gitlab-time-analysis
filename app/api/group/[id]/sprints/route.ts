@@ -66,5 +66,7 @@ export const GET = async (
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) => {
-  return NextResponse.json(generateSprints());
+  return NextResponse.json(generateSprints(), {
+    headers: { "x-cache-timestamp": String(Date.now()) },
+  });
 };

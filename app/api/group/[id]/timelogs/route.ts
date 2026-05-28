@@ -241,11 +241,12 @@ export async function getTimelogs(groupId: string) {
   if (cached.data) {
     // Catch potential unhandled promise rejections since we are not awaiting it here
     cached.fetchPromise?.catch(() => {});
-    return cached.data;
+    return { data: cached.data, timestamp: cached.timestamp };
   }
 
   // If we have NO data at all (first ever request), we MUST wait for the fetch to finish
-  return await cached.fetchPromise!;
+  const freshData = await cached.fetchPromise!;
+  return { data: freshData, timestamp: cache[fullGroupPath].timestamp };
 }
 
 export const GET = async (
@@ -254,5 +255,8 @@ export const GET = async (
 ) => {
   const groupId = (await params).id;
 
-  return NextResponse.json(await getTimelogs(groupId));
+  const { data, timestamp } = await getTimelogs(groupId);
+  return NextResponse.json(data, {
+    headers: { "x-cache-timestamp": String(timestamp) },
+  });
 };

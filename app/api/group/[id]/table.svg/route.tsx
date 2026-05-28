@@ -4,7 +4,6 @@ import { NextRequest } from "next/server";
 import { getTimelogs } from "../timelogs/route";
 import { generateSprints } from "../sprints/route";
 import { getMembers } from "../members/route";
-import { getLabels } from "../labels/route";
 import { NextResponse } from "next/server";
 
 export const revalidate = 60;
@@ -22,22 +21,14 @@ export async function GET(
 ) {
   const { id } = await params;
 
-  const [timelogs, members, labels] = await Promise.all([
+  const [{ data: timelogs }, { data: members }] = await Promise.all([
     getTimelogs(id),
     getMembers(id),
-    getLabels(id),
   ]);
 
   const sprints = generateSprints();
 
   const searchParams = request.nextUrl.searchParams;
-  const labelGroup = searchParams.get("labelGroup") || "Ungrouped";
-  if (!labels[labelGroup]) {
-    return NextResponse.json(
-      { error: `Label group '${labelGroup}' not found.` },
-      { status: 400 },
-    );
-  }
   const sprintNumberParam = searchParams.get("sprintNumber");
   if (!sprintNumberParam) {
     return NextResponse.json(
@@ -67,8 +58,6 @@ export async function GET(
     <SprintOverview
       timelogs={timelogs}
       members={members}
-      labels={labels}
-      labelGroup={labelGroup}
       sprintNumber={sprintNumber}
     />,
     {

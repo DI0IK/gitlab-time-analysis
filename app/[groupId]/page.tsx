@@ -22,7 +22,9 @@ import { GroupContext } from "../GroupContext";
 
 async function fetchJson(url: string) {
   const res = await fetch(url);
-  return res.json();
+  const data = await res.json();
+  const cacheTimestamp = Number(res.headers.get("x-cache-timestamp")) || Date.now();
+  return { data, cacheTimestamp };
 }
 
 export default function GroupPage() {
@@ -36,7 +38,12 @@ export default function GroupPage() {
   const [lastFetchedAt, setLastFetchedAt] = React.useState<Record<string, number>>({});
 
   const fetchAllData = React.useCallback(async () => {
-    const [membersData, labelsData, timelogsData, sprintsData] = await Promise.all([
+    const [
+      { data: membersData, cacheTimestamp: membersTs },
+      { data: labelsData, cacheTimestamp: labelsTs },
+      { data: timelogsData, cacheTimestamp: timelogsTs },
+      { data: sprintsData, cacheTimestamp: sprintsTs },
+    ] = await Promise.all([
       fetchJson(`/api/group/${groupIdStr}/members`),
       fetchJson(`/api/group/${groupIdStr}/labels`),
       fetchJson(`/api/group/${groupIdStr}/timelogs`),
@@ -47,10 +54,10 @@ export default function GroupPage() {
     setTimelogs(timelogsData);
     setSprints(sprintsData);
     setLastFetchedAt({
-      members: Date.now(),
-      labels: Date.now(),
-      timelogs: Date.now(),
-      sprints: Date.now(),
+      members: membersTs,
+      labels: labelsTs,
+      timelogs: timelogsTs,
+      sprints: sprintsTs,
     });
   }, [groupIdStr]);
 

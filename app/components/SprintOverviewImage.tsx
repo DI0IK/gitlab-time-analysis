@@ -1,33 +1,24 @@
 import React from "react";
-import { GroupLabelsResponse } from "../api/group/[id]/labels/route";
 import { GroupTimelogsResponse } from "../api/group/[id]/timelogs/route";
 import { GroupMembersResponse } from "../api/group/[id]/members/route";
+import { CATEGORY_DEFINITIONS } from "../config/categories";
+import { matchLabelToCategory } from "../utils/categoryUtils";
 
 export default function SprintOverview({
   timelogs,
   members,
-  labels,
   sprintNumber,
-  labelGroup,
 }: React.PropsWithChildren<{
   timelogs: GroupTimelogsResponse;
   members: GroupMembersResponse;
-  labels: GroupLabelsResponse;
   sprintNumber: number;
-  labelGroup: string;
 }>) {
   const selectedSprint = sprintNumber;
-  const selectedLabelGroup = labelGroup;
 
-  // Determine columns: if a label group is selected, show its label titles as columns
-  const labelColumns: string[] = selectedLabelGroup
-    ? (labels[selectedLabelGroup] || ([] as GroupLabelsResponse[string])).map(
-        (l) => l.title
-      )
-    : Object.keys(labels || {});
-
-  // Ensure Ungrouped column exists for items without a matching label
-  if (!labelColumns.includes("Ungrouped")) labelColumns.push("Ungrouped");
+  const categoryColumns = [
+    ...CATEGORY_DEFINITIONS.map((d) => ({ id: d.id, title: d.label })),
+    { id: "other", title: "Other" },
+  ];
 
   // Build a map: memberId -> column -> timeSpent (seconds)
   const tableData: Record<string, Record<string, number>> = {};
@@ -36,7 +27,7 @@ export default function SprintOverview({
     .filter((m) => !m.bot)
     .forEach((m) => {
       tableData[m.id] = {};
-      labelColumns.forEach((c) => (tableData[m.id][c] = 0));
+      categoryColumns.forEach((c) => (tableData[m.id][c.id] = 0));
       tableData[m.id]["__sum"] = 0;
     });
 
@@ -53,24 +44,18 @@ export default function SprintOverview({
     if (!inSelectedSprint(log)) return;
     const memberId = log.username || "unknown";
     if (!tableData[memberId]) {
-      // ensure unknown members are present
       tableData[memberId] = {};
-      labelColumns.forEach((c) => (tableData[memberId][c] = 0));
+      categoryColumns.forEach((c) => (tableData[memberId][c.id] = 0));
       tableData[memberId]["__sum"] = 0;
     }
 
-    let assignedColumn = "Ungrouped";
-    if (selectedLabelGroup) {
-      // find the first label in the timelog that belongs to the selected group
-      const match = (log.issueLabels || []).find((il: string) =>
-        il.startsWith(selectedLabelGroup + "::")
-      );
-      if (match) {
-        assignedColumn = match.split("::").slice(1).join("::") || "Ungrouped";
+    let assignedColumn = "other";
+    for (const label of log.issueLabels || []) {
+      const catDef = matchLabelToCategory(label);
+      if (catDef) {
+        assignedColumn = catDef.id;
+        break;
       }
-    } else {
-      // if no specific group selected, place into 'Ungrouped' (shouldn't happen because select defaults)
-      assignedColumn = "Ungrouped";
     }
 
     if (!tableData[memberId][assignedColumn])
@@ -81,37 +66,38 @@ export default function SprintOverview({
 
   // Column sums
   const columnSums: Record<string, number> = {};
-  labelColumns.forEach((g) => (columnSums[g] = 0));
+  categoryColumns.forEach((g) => (columnSums[g.id] = 0));
   columnSums["__sum"] = 0;
 
   Object.values(tableData).forEach((groupMap) => {
-    labelColumns.forEach((g) => {
-      columnSums[g] = (columnSums[g] || 0) + (groupMap[g] || 0);
+    categoryColumns.forEach((g) => {
+      columnSums[g.id] = (columnSums[g.id] || 0) + (groupMap[g.id] || 0);
     });
     columnSums["__sum"] += groupMap["__sum"] || 0;
   });
 
-  if (columnSums["Ungrouped"] === 0) {
-    // Remove Ungrouped column if empty
-    const index = labelColumns.indexOf("Ungrouped");
+  if (columnSums["other"] === 0) {
+    const index = categoryColumns.findIndex((c) => c.id === "other");
     if (index > -1) {
-      labelColumns.splice(index, 1);
-      delete columnSums["Ungrouped"];
+      categoryColumns.splice(index, 1);
+      delete columnSums["other"];
       Object.keys(tableData).forEach((memberId) => {
-        delete tableData[memberId]["Ungrouped"];
+        delete tableData[memberId]["other"];
       });
     }
   }
+
+  const visibleColumns = categoryColumns;
 
   return (
     <div
       style={{
         display: "flex",
-        flexDirection: "column", // Stacks rows vertically
+        flexDirection: "column",
         width: "100%",
-        backgroundColor: "white", // Important: Satori default transparent
+        backgroundColor: "white",
         fontFamily: "Inter",
-        border: "1px solid #ccc", // Outer border
+        border: "1px solid #ccc",
       }}
     >
       {/* HEADER ROW */}
@@ -119,14 +105,13 @@ export default function SprintOverview({
         style={{
           display: "flex",
           flexDirection: "row",
-          backgroundColor: "#f3f4f6", // Light gray header
+          backgroundColor: "#f3f4f6",
           borderBottom: "1px solid #ccc",
         }}
       >
-        {/* Empty Header for Name Column */}
         <div
           style={{
-            flex: 2, // Wider for the name column
+            flex: 2,
             padding: "8px",
             borderRight: "1px solid #ccc",
             fontWeight: "bold",
@@ -134,13 +119,11 @@ export default function SprintOverview({
         >
           Member
         </div>
-
-        {/* Dynamic Header Columns */}
-        {labelColumns.map((g: string) => (
+        {visibleColumns.map((col) => (
           <div
-            key={g}
+            key={col.id}
             style={{
-              flex: 1.5, // Increased from 1 to 1.5 for wider columns
+              flex: 1.5,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -150,11 +133,9 @@ export default function SprintOverview({
               textAlign: "center",
             }}
           >
-            {g}
+            {col.title}
           </div>
         ))}
-
-        {/* Sum Header */}
         <div
           style={{
             flex: 1,
@@ -176,13 +157,12 @@ export default function SprintOverview({
             style={{
               display: "flex",
               flexDirection: "row",
-              borderBottom: "1px solid #ccc", // Row divider
+              borderBottom: "1px solid #ccc",
             }}
           >
-            {/* Name Cell */}
             <div
               style={{
-                flex: 2, // Matches header flex
+                flex: 2,
                 padding: "8px",
                 borderRight: "1px solid #ccc",
                 whiteSpace: "nowrap",
@@ -192,23 +172,19 @@ export default function SprintOverview({
             >
               {member ? member.name : memberId}
             </div>
-
-            {/* Dynamic Data Cells */}
-            {labelColumns.map((g: string) => (
+            {visibleColumns.map((col) => (
               <div
-                key={g}
+                key={col.id}
                 style={{
-                  flex: 1.5, // Matches header flex
+                  flex: 1.5,
                   textAlign: "right",
                   padding: "8px",
                   borderRight: "1px solid #ccc",
                 }}
               >
-                {((tableData[memberId][g] || 0) / 3600).toFixed(2)}
+                {((tableData[memberId][col.id] || 0) / 3600).toFixed(2)}
               </div>
             ))}
-
-            {/* Sum Cell */}
             <div
               style={{
                 flex: 1,
@@ -241,9 +217,9 @@ export default function SprintOverview({
         >
           Total
         </div>
-        {labelColumns.map((g: string) => (
+        {visibleColumns.map((col) => (
           <div
-            key={g}
+            key={col.id}
             style={{
               flex: 1.5,
               textAlign: "right",
@@ -251,7 +227,7 @@ export default function SprintOverview({
               borderRight: "1px solid #ccc",
             }}
           >
-            {(columnSums[g] / 3600).toFixed(2)}
+            {(columnSums[col.id] / 3600).toFixed(2)}
           </div>
         ))}
         <div

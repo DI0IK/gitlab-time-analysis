@@ -9,46 +9,48 @@ import {
   Tooltip,
 } from "@mui/material";
 import { UserAvatar } from "./UserAvatar";
+import { matchLabelToCategory } from "../utils/categoryUtils";
+import { CATEGORY_DEFINITIONS } from "../config/categories";
 import type { GroupTimelogsResponse } from "../api/group/[id]/timelogs/route";
 import type { GroupSprintsResponse } from "../api/group/[id]/sprints/route";
 
-const getTopSubTypeForSprint = (
+const getTopCategoryForSprint = (
   sprint: GroupSprintsResponse[number] | undefined,
   timelogs: GroupTimelogsResponse,
-  labelGroup: string,
 ): string | null => {
   if (!sprint) return null;
 
-  const labelTypeCount: Record<string, number> = {};
+  const categorySeconds: Record<string, number> = {};
+  for (const def of CATEGORY_DEFINITIONS) {
+    categorySeconds[def.label] = 0;
+  }
 
   timelogs.forEach((log: GroupTimelogsResponse[number]) => {
     if (log.sprintNumber !== sprint.sprintNumber) return;
 
-    const groupLabel = log.issueLabels.find((label: string) =>
-      label.startsWith(`${labelGroup}::`),
-    );
-
-    const subType = groupLabel
-      ? groupLabel.split("::").slice(1).join("::") || "Ungrouped"
-      : "Ungrouped";
-    labelTypeCount[subType] = (labelTypeCount[subType] || 0) + log.timeSpent;
+    for (const label of log.issueLabels || []) {
+      const catDef = matchLabelToCategory(label);
+      if (catDef) {
+        categorySeconds[catDef.label] =
+          (categorySeconds[catDef.label] || 0) + log.timeSpent;
+        return;
+      }
+    }
   });
 
-  let topSubType = null;
+  let topCategory: string | null = null;
   let maxTime = 0;
-
-  for (const subType in labelTypeCount) {
-    if (labelTypeCount[subType] > maxTime) {
-      maxTime = labelTypeCount[subType];
-      topSubType = subType;
+  for (const [cat, seconds] of Object.entries(categorySeconds)) {
+    if (seconds > maxTime) {
+      maxTime = seconds;
+      topCategory = cat;
     }
   }
-
-  return topSubType;
+  return topCategory;
 };
 
 export default function HeaderCards() {
-  const { members, sprints, timelogs, labels } = React.useContext(GroupContext);
+  const { members, sprints, timelogs } = React.useContext(GroupContext);
 
   const totalTimeSpent = timelogs.reduce(
     (total, log) => total + log.timeSpent,
@@ -60,14 +62,6 @@ export default function HeaderCards() {
   const totalSprints = sprints.filter(
     (sprint) => sprint.endDate < todayStr,
   ).length;
-
-  const labelGroup = React.useMemo(
-    () =>
-      Object.entries(labels).filter(([group, groupLabels]) =>
-        groupLabels.some((l) => l.title.match(/req/i)),
-      )[0]?.[0] || "",
-    [labels],
-  );
 
   const currentSprint = React.useMemo(
     () => sprints.find((s) => s.startDate <= todayStr && s.endDate >= todayStr),
@@ -86,12 +80,12 @@ export default function HeaderCards() {
   }, [sprints, currentSprint, todayStr]);
 
   const focusLastSprint = React.useMemo(() => {
-    return getTopSubTypeForSprint(lastSprint, timelogs, labelGroup);
-  }, [lastSprint, timelogs, labelGroup]);
+    return getTopCategoryForSprint(lastSprint, timelogs);
+  }, [lastSprint, timelogs]);
 
   const focusThisSprint = React.useMemo(() => {
-    return getTopSubTypeForSprint(currentSprint, timelogs, labelGroup);
-  }, [currentSprint, timelogs, labelGroup]);
+    return getTopCategoryForSprint(currentSprint, timelogs);
+  }, [currentSprint, timelogs]);
 
   const humanMembers = members.filter((m) => !m.bot);
   const botMembers = members.filter((m) => m.bot);

@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 import { GITLAB_GROUP_PATH } from "../../../env";
 import { runGitlabGraphQLQuery } from "../../../gitlab";
+import { CATEGORY_DEFINITIONS } from "@/app/config/categories";
 import { getMembers } from "../members/route";
 import { getTimelogs } from "../timelogs/route";
 import { generateSprints } from "../sprints/route";
@@ -13,7 +14,7 @@ export async function GET(
 ) {
   const { id } = await params;
 
-  const [inter, interBold, members, timelogs, sprints] = await Promise.all([
+  const [inter, interBold, { data: members }, { data: timelogs }, sprints] = await Promise.all([
     fetch(
       "https://cdn.jsdelivr.net/npm/@fontsource/inter/files/inter-latin-400-normal.woff",
     ).then((res) => res.arrayBuffer()),
@@ -44,12 +45,18 @@ export async function GET(
     }
   }
 
-  // Pick default category (same heuristic as the site: first group with subcategory matching /req/i)
   let defaultCat = "";
+  let bestScore = 0;
   for (const [cat, subs] of catSubs) {
-    if ([...subs].some((s) => /req/i.test(s))) {
+    const subsArr = [...subs];
+    const score = CATEGORY_DEFINITIONS.reduce((acc, def) => {
+      if (def.patterns.some((p) => p.test(cat) || subsArr.some((s) => p.test(s))))
+        return acc + 1;
+      return acc;
+    }, 0);
+    if (score > bestScore) {
+      bestScore = score;
       defaultCat = cat;
-      break;
     }
   }
   if (!defaultCat && catSubs.size > 0) {

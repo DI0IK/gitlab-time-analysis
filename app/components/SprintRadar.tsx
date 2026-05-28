@@ -23,13 +23,13 @@ import {
   Tooltip,
 } from "recharts";
 import { GroupContext } from "../GroupContext";
+import { matchLabelToCategory } from "../utils/categoryUtils";
+import { CATEGORY_DEFINITIONS } from "../config/categories";
 
 export default function SprintRadar() {
-  const { sprints, timelogs, labels } = React.useContext(GroupContext);
+  const { sprints, timelogs } = React.useContext(GroupContext);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-
-  const availableGroups = Object.keys(labels || {});
 
   const [selectedSprint, setSelectedSprint] = React.useState<number | null>(
     sprints.find(
@@ -38,9 +38,6 @@ export default function SprintRadar() {
         new Date().toISOString().slice(0, 10) <= sp.endDate,
     )?.sprintNumber ?? null,
   );
-  const [selectedLabelGroup, setSelectedLabelGroup] = React.useState<
-    string | null
-  >(availableGroups[0] ?? null);
 
   React.useEffect(() => {
     if (sprints.length && selectedSprint === null) {
@@ -54,18 +51,6 @@ export default function SprintRadar() {
     }
   }, [sprints, selectedSprint]);
 
-  React.useEffect(() => {
-    if (availableGroups.length && !selectedLabelGroup) {
-      const labelGroup =
-        Object.entries(labels).filter(([_group, groupLabels]) =>
-          groupLabels.some((l) => l.title.match(/req/i)),
-        )[0]?.[0] || availableGroups[0];
-      if (availableGroups.includes(labelGroup)) {
-        setSelectedLabelGroup(labelGroup);
-      }
-    }
-  }, [availableGroups, labels, selectedLabelGroup]);
-
   const inSelectedSprint = (log: (typeof timelogs)[number]) =>
     log.sprintNumber === selectedSprint ||
     selectedSprint === 1000 ||
@@ -73,51 +58,66 @@ export default function SprintRadar() {
       selectedSprint >= 10000 &&
       log.spentAt.startsWith((selectedSprint - 10000).toString()));
 
-  const filteredLogs = selectedSprint ? timelogs.filter(inSelectedSprint) : [];
+  const filteredLogs = selectedSprint
+    ? timelogs.filter(inSelectedSprint)
+    : [];
 
-  // Initialize all subcategories from the label group (including Ungrouped) to 0
-  const allSubcategories =
-    selectedLabelGroup && labels[selectedLabelGroup]
-      ? [...labels[selectedLabelGroup].map((l) => l.title), "Ungrouped"]
-      : ["Ungrouped"];
+  // Build category totals
+  const categorySeconds: Record<string, number> = {};
+  for (const def of CATEGORY_DEFINITIONS) {
+    categorySeconds[def.id] = 0;
+  }
+  categorySeconds["other"] = 0;
 
-  const subcategoryTotals: Record<string, number> = {};
-  allSubcategories.forEach((sub) => {
-    subcategoryTotals[sub] = 0;
-  });
-
-  // Add timelog data
   filteredLogs.forEach((log) => {
-    if (selectedLabelGroup) {
-      const match = (log.issueLabels || []).find((il) =>
-        il.startsWith(`${selectedLabelGroup}::`),
-      );
-      const subcategory = match
-        ? match.split("::").slice(1).join("::") || "Ungrouped"
-        : "Ungrouped";
-      subcategoryTotals[subcategory] =
-        (subcategoryTotals[subcategory] || 0) + log.timeSpent;
-    } else {
-      subcategoryTotals.Ungrouped =
-        (subcategoryTotals.Ungrouped || 0) + log.timeSpent;
+    let assigned = false;
+    for (const label of log.issueLabels || []) {
+      const catDef = matchLabelToCategory(label);
+      if (catDef) {
+        categorySeconds[catDef.id] =
+          (categorySeconds[catDef.id] || 0) + log.timeSpent;
+        assigned = true;
+        break;
+      }
+    }
+    if (!assigned) {
+      categorySeconds["other"] =
+        (categorySeconds["other"] || 0) + log.timeSpent;
     }
   });
 
-  const totalSeconds = Object.values(subcategoryTotals).reduce(
+  const totalSeconds = Object.values(categorySeconds).reduce(
     (a, b) => a + b,
     0,
   );
 
-  const radarData = allSubcategories
-    .map((sub) => ({
-      subject: sub,
+  const radarData = [
+    ...CATEGORY_DEFINITIONS.map((def) => ({
+      subject: def.label,
       value:
         totalSeconds > 0
-          ? +((subcategoryTotals[sub] / totalSeconds) * 100).toFixed(1)
+          ? +((categorySeconds[def.id] / totalSeconds) * 100).toFixed(1)
           : 0,
-      hours: +(subcategoryTotals[sub] / 3600).toFixed(1),
-    }))
-    .sort((a, b) => b.value - a.value);
+      hours: +((categorySeconds[def.id] || 0) / 3600).toFixed(1),
+      color: def.color,
+    })),
+    ...(categorySeconds["other"] > 0
+      ? [
+          {
+            subject: "Other",
+            value:
+              totalSeconds > 0
+                ? +(
+                    (categorySeconds["other"] / totalSeconds) *
+                    100
+                  ).toFixed(1)
+                : 0,
+            hours: +((categorySeconds["other"] || 0) / 3600).toFixed(1),
+            color: "#666",
+          },
+        ]
+      : []),
+  ].sort((a, b) => b.value - a.value);
 
   const years = timelogs
     .reduce((acc, log) => {
@@ -174,27 +174,6 @@ export default function SprintRadar() {
               </MenuItem>
             </Select>
           </FormControl>
-          <FormControl
-            sx={{
-              minWidth: isMobile ? "100%" : 220,
-              flex: isMobile ? 1 : "auto",
-            }}
-            size="small"
-          >
-            <InputLabel id="radar-split-select-label">Split by</InputLabel>
-            <Select
-              labelId="radar-split-select-label"
-              value={selectedLabelGroup ?? ""}
-              label="Split by"
-              onChange={(e) => setSelectedLabelGroup(e.target.value as string)}
-            >
-              {availableGroups.map((g) => (
-                <MenuItem key={g} value={g}>
-                  {g}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
         </Box>
 
         {selectedSprint === null ? (
@@ -204,7 +183,8 @@ export default function SprintRadar() {
           >
             No sprint selected.
           </Typography>
-        ) : radarData.length === 0 ? (
+        ) : radarData.length === 0 ||
+          radarData.every((d) => d.value === 0) ? (
           <Typography
             color="text.secondary"
             sx={{ textAlign: "center", py: 4 }}
@@ -215,8 +195,15 @@ export default function SprintRadar() {
           <ResponsiveContainer width="100%" height={400}>
             <RadarChart data={radarData}>
               <PolarGrid />
-              <PolarAngleAxis dataKey="subject" tick={{ fill: "rgba(255,255,255,0.75)" }} />
-              <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: "rgba(255,255,255,0.75)" }} />
+              <PolarAngleAxis
+                dataKey="subject"
+                tick={{ fill: "rgba(255,255,255,0.75)" }}
+              />
+              <PolarRadiusAxis
+                angle={30}
+                domain={[0, 100]}
+                tick={{ fill: "rgba(255,255,255,0.75)" }}
+              />
               <Radar
                 name="% of Time"
                 dataKey="value"

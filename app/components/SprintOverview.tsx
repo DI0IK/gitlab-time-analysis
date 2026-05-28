@@ -15,9 +15,6 @@ import {
   TableCell,
   TableHead,
   TableRow,
-  List,
-  ListItem,
-  ListItemText,
   IconButton,
   Accordion,
   AccordionSummary,
@@ -28,8 +25,9 @@ import {
   FormControlLabel,
   Switch,
 } from "@mui/material";
-import { GroupLabelsResponse } from "../api/group/[id]/labels/route";
 import { GroupTimelogsResponse } from "../api/group/[id]/timelogs/route";
+import { matchLabelToCategory } from "../utils/categoryUtils";
+import { CATEGORY_DEFINITIONS } from "../config/categories";
 import Label from "./Label";
 import { UserAvatar } from "./UserAvatar";
 import ShareIcon from "@mui/icons-material/Share";
@@ -51,24 +49,7 @@ export default function SprintOverview() {
     )?.sprintNumber ?? null,
   );
 
-  const availableGroups = Object.keys(labels || {});
-  const [selectedLabelGroup, setSelectedLabelGroup] = React.useState<
-    string | null
-  >(availableGroups[0] ?? null);
-
   const [hideZeroColumns, setHideZeroColumns] = React.useState(false);
-
-  React.useEffect(() => {
-    if (availableGroups.length && !selectedLabelGroup) {
-      const labelGroup =
-        Object.entries(labels).filter(([group, groupLabels]) =>
-          groupLabels.some((l) => l.title.match(/req/i)),
-        )[0]?.[0] || "";
-      if (availableGroups.includes(labelGroup)) {
-        setSelectedLabelGroup(labelGroup);
-      }
-    }
-  }, [availableGroups, labels, selectedLabelGroup]);
 
   React.useEffect(() => {
     if (sprints.length && selectedSprint === null) {
@@ -82,15 +63,10 @@ export default function SprintOverview() {
     }
   }, [sprints, selectedSprint]);
 
-  // Determine columns: if a label group is selected, show its label titles as columns
-  const labelColumns: string[] = selectedLabelGroup
-    ? (labels[selectedLabelGroup] || ([] as GroupLabelsResponse[string])).map(
-        (l) => l.title,
-      )
-    : Object.keys(labels || {});
-
-  // Ensure Ungrouped column exists for items without a matching label
-  if (!labelColumns.includes("Ungrouped")) labelColumns.push("Ungrouped");
+  const categoryColumns = [
+    ...CATEGORY_DEFINITIONS.map((d) => ({ id: d.id, title: d.label })),
+    { id: "other", title: "Other" },
+  ];
 
   // Build a map: memberId -> column -> timeSpent (seconds)
   const tableData: Record<string, Record<string, number>> = {};
@@ -99,8 +75,8 @@ export default function SprintOverview() {
     .filter((m) => !m.bot)
     .forEach((m) => {
       tableData[m.id] = {};
-      labelColumns.forEach((c) => {
-        tableData[m.id][c] = 0;
+      categoryColumns.forEach((c) => {
+        tableData[m.id][c.id] = 0;
       });
       tableData[m.id]["__sum"] = 0;
     });
@@ -118,26 +94,20 @@ export default function SprintOverview() {
     if (!inSelectedSprint(log)) return;
     const memberId = log.username || "unknown";
     if (!tableData[memberId]) {
-      // ensure unknown members are present
       tableData[memberId] = {};
-      labelColumns.forEach((c) => {
-        tableData[memberId][c] = 0;
+      categoryColumns.forEach((c) => {
+        tableData[memberId][c.id] = 0;
       });
       tableData[memberId]["__sum"] = 0;
     }
 
-    let assignedColumn = "Ungrouped";
-    if (selectedLabelGroup) {
-      // find the first label in the timelog that belongs to the selected group
-      const match = (log.issueLabels || []).find((il: string) =>
-        il.startsWith(selectedLabelGroup + "::"),
-      );
-      if (match) {
-        assignedColumn = match.split("::").slice(1).join("::") || "Ungrouped";
+    let assignedColumn = "other";
+    for (const label of log.issueLabels || []) {
+      const catDef = matchLabelToCategory(label);
+      if (catDef) {
+        assignedColumn = catDef.id;
+        break;
       }
-    } else {
-      // if no specific group selected, place into 'Ungrouped' (shouldn't happen because select defaults)
-      assignedColumn = "Ungrouped";
     }
 
     if (!tableData[memberId][assignedColumn])
@@ -148,34 +118,34 @@ export default function SprintOverview() {
 
   // Column sums
   const columnSums: Record<string, number> = {};
-  labelColumns.forEach((g) => {
-    columnSums[g] = 0;
+  categoryColumns.forEach((g) => {
+    columnSums[g.id] = 0;
   });
   columnSums["__sum"] = 0;
 
   Object.values(tableData).forEach((groupMap) => {
-    labelColumns.forEach((g) => {
-      columnSums[g] = (columnSums[g] || 0) + (groupMap[g] || 0);
+    categoryColumns.forEach((g) => {
+      columnSums[g.id] = (columnSums[g.id] || 0) + (groupMap[g.id] || 0);
     });
     columnSums["__sum"] += groupMap["__sum"] || 0;
   });
 
-  if (columnSums["Ungrouped"] === 0) {
-    // Remove Ungrouped column if empty
-    const index = labelColumns.indexOf("Ungrouped");
+  // Remove Other column when empty (unconditional — no toggle needed)
+  if (columnSums["other"] === 0) {
+    const index = categoryColumns.findIndex((c) => c.id === "other");
     if (index > -1) {
-      labelColumns.splice(index, 1);
-      delete columnSums["Ungrouped"];
+      categoryColumns.splice(index, 1);
+      delete columnSums["other"];
       Object.keys(tableData).forEach((memberId) => {
-        delete tableData[memberId]["Ungrouped"];
+        delete tableData[memberId]["other"];
       });
     }
   }
 
   // Filter out columns with 0 total hours to reduce clutter (based on toggle)
   const visibleColumns = hideZeroColumns
-    ? labelColumns.filter((col) => columnSums[col] > 0)
-    : labelColumns;
+    ? categoryColumns.filter((col) => columnSums[col.id] > 0)
+    : categoryColumns;
 
   const sprintIssues = React.useMemo(() => {
     if (selectedSprint === null) return {};
@@ -256,25 +226,10 @@ export default function SprintOverview() {
                </MenuItem>
              </Select>
            </FormControl>
-           <FormControl sx={{ minWidth: isMobile ? "100%" : 220, flex: isMobile ? 1 : "auto" }} size="small">
-             <InputLabel id="split-select-label">Split by</InputLabel>
-             <Select
-               labelId="split-select-label"
-               value={selectedLabelGroup ?? ""}
-               label="Split by"
-               onChange={(e) => setSelectedLabelGroup(e.target.value as string)}
-             >
-               {availableGroups.map((g: string) => (
-                 <MenuItem key={g} value={g}>
-                   {g}
-                 </MenuItem>
-               ))}
-             </Select>
-           </FormControl>
            {!isMobile && (
              <IconButton
                size="small"
-               href={`/api/group/${groupId}/table.svg?sprintNumber=${selectedSprint}&labelGroup=${selectedLabelGroup}`}
+               href={`/api/group/${groupId}/table.svg?sprintNumber=${selectedSprint}`}
                aria-label="Link to SVG"
              >
                <ShareIcon />
@@ -298,10 +253,10 @@ export default function SprintOverview() {
              {Object.keys(tableData).map((memberId) => {
                const member = members.find((m) => m.id === memberId);
                const memberTotal = (tableData[memberId]["__sum"] || 0) / 3600;
-               
+
                // Skip members with 0 time on mobile
                if (memberTotal === 0) return null;
-               
+
                return (
                  <Card key={memberId} sx={{ p: 1.5, backgroundColor: "rgba(255, 255, 255, 0.05)" }}>
                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
@@ -317,12 +272,12 @@ export default function SprintOverview() {
                    </Box>
                    <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
                      {visibleColumns.map((col) => (
-                       <Box key={col}>
+                       <Box key={col.id}>
                          <Typography sx={{ fontSize: "0.7rem", color: "rgba(255, 255, 255, 0.6)" }}>
-                           {col}
+                           {col.title}
                          </Typography>
                          <Typography sx={{ fontWeight: 600, fontSize: "0.85rem" }}>
-                           {((tableData[memberId][col] || 0) / 3600).toFixed(1)}h
+                           {((tableData[memberId][col.id] || 0) / 3600).toFixed(1)}h
                          </Typography>
                        </Box>
                      ))}
@@ -337,12 +292,12 @@ export default function SprintOverview() {
                </Typography>
                <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
                  {visibleColumns.map((col) => (
-                   <Box key={col}>
+                   <Box key={col.id}>
                      <Typography sx={{ fontSize: "0.7rem", color: "rgba(255, 255, 255, 0.6)" }}>
-                       {col}
+                       {col.title}
                      </Typography>
                      <Typography sx={{ fontWeight: 600, fontSize: "0.85rem" }}>
-                       {(columnSums[col] / 3600).toFixed(1)}h
+                       {(columnSums[col.id] / 3600).toFixed(1)}h
                      </Typography>
                    </Box>
                  ))}
@@ -355,9 +310,9 @@ export default function SprintOverview() {
              <TableHead>
                <TableRow>
                  <TableCell />
-                 {visibleColumns.map((g: string) => (
-                   <TableCell key={g} align="right">
-                     {g}
+                 {visibleColumns.map((col) => (
+                   <TableCell key={col.id} align="right">
+                     {col.title}
                    </TableCell>
                  ))}
                  <TableCell align="right">Sum (hrs)</TableCell>
@@ -376,9 +331,9 @@ export default function SprintOverview() {
                          <span>{member ? member.name : memberId}</span>
                        </Box>
                      </TableCell>
-                     {visibleColumns.map((g: string) => (
-                       <TableCell key={g} align="right">
-                         {((tableData[memberId][g] || 0) / 3600).toFixed(2)}
+                     {visibleColumns.map((col) => (
+                       <TableCell key={col.id} align="right">
+                         {((tableData[memberId][col.id] || 0) / 3600).toFixed(2)}
                        </TableCell>
                      ))}
                      <TableCell align="right">
@@ -391,9 +346,9 @@ export default function SprintOverview() {
                {/* Totals row */}
                <TableRow>
                  <TableCell style={{ fontWeight: "bold" }}>Total</TableCell>
-                 {visibleColumns.map((g: string) => (
-                   <TableCell key={g} align="right" style={{ fontWeight: "bold" }}>
-                     {(columnSums[g] / 3600).toFixed(2)}
+                 {visibleColumns.map((col) => (
+                   <TableCell key={col.id} align="right" style={{ fontWeight: "bold" }}>
+                     {(columnSums[col.id] / 3600).toFixed(2)}
                    </TableCell>
                  ))}
                  <TableCell align="right" style={{ fontWeight: "bold" }}>

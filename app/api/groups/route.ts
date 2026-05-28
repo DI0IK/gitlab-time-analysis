@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { GITLAB_DOMAIN, GITLAB_GROUP_PATH } from "../env";
-import { runGitlabGraphQLQuery } from "../gitlab";
+import { getDescendantGroups } from "../descendantGroups";
 
 export type GroupResponse = {
   id: string;
@@ -9,31 +8,15 @@ export type GroupResponse = {
 }[];
 
 export const GET = async () => {
-  const data = await runGitlabGraphQLQuery(`
-    {
-      group(fullPath: "${GITLAB_GROUP_PATH}") {
-        descendantGroups {
-          nodes {
-            fullPath
-            name
-          }
-        }
-      }
-    }
-  `);
+  const { data, timestamp } = await getDescendantGroups();
 
-  return new NextResponse(
-    JSON.stringify(
-      data.data.group.descendantGroups.nodes.map(
-        (group: { fullPath: string; name: string }) => ({
-          id: group.fullPath.replace(GITLAB_GROUP_PATH + "/", ""),
-          name: group.name,
-          url: `${GITLAB_DOMAIN || "https://gitlab.com"}/${group.fullPath}`,
-        })
-      )
-    ),
-    {
-      status: 200,
-    }
-  );
+  const result = data.map((g) => ({
+    id: g.id,
+    name: g.name,
+    url: g.url,
+  }));
+
+  return NextResponse.json(result, {
+    headers: { "x-cache-timestamp": String(timestamp) },
+  });
 };

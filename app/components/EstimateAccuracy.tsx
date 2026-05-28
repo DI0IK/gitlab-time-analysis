@@ -27,6 +27,8 @@ import {
   YAxis,
 } from "recharts";
 import { GroupContext } from "../GroupContext";
+import { matchLabelToCategory } from "../utils/categoryUtils";
+import { CATEGORY_DEFINITIONS } from "../config/categories";
 
 const PALETTE = [
   "#8884d8",
@@ -47,7 +49,7 @@ const PALETTE = [
 ];
 
 export default function EstimateAccuracy() {
-  const { timelogs, labels } = React.useContext(GroupContext);
+  const { timelogs } = React.useContext(GroupContext);
   const theme = useTheme();
   const isSmall = useMediaQuery(theme.breakpoints.down("sm"));
 
@@ -97,53 +99,31 @@ export default function EstimateAccuracy() {
     return rawChartData.filter((d) => d.issueState === statusFilter);
   }, [rawChartData, statusFilter]);
 
-  // Parent category selector state
-  const categoryOptions = Object.keys(labels).map((c) => ({
-    label: c,
-    value: c,
-  }));
-
-  const defaultCategory =
-    Object.entries(labels).filter(([_group, groupLabels]) =>
-      groupLabels.some((l) => l.title.match(/req/i)),
-    )[0]?.[0] ||
-    categoryOptions[0]?.value ||
-    "";
-
-  const [selectedCategory, setSelectedCategory] =
-    React.useState<string>(defaultCategory);
-
-  React.useEffect(() => {
-    setSelectedCategory(defaultCategory);
-  }, [defaultCategory]);
-
-  // Enrich chart data with subcategory and build color map
+  // Assign each issue to a category based on the first matching label
   const enriched = React.useMemo(() => {
-    if (!labels[selectedCategory] || statusFilteredData.length === 0)
-      return { points: [] as RawPoint[], labelColorMap: new Map<string, string>() };
-
-    const labelColorMap = new Map<string, string>();
-    for (const lbl of labels[selectedCategory]) {
-      labelColorMap.set(`${selectedCategory}::${lbl.title}`, lbl.color);
-    }
-
     const points = statusFilteredData.map((d) => {
-      const matchedLabel = d.issueLabels.find((l) =>
-        l.startsWith(`${selectedCategory}::`),
-      );
-      const subcategory = matchedLabel
-        ? matchedLabel.split("::").slice(1).join("::")
-        : "Uncategorized";
+      let subcategory = "Uncategorized";
+      for (const label of d.issueLabels) {
+        const catDef = matchLabelToCategory(label);
+        if (catDef) {
+          subcategory = catDef.label;
+          break;
+        }
+      }
       return { ...d, subcategory };
     });
+    return { points };
+  }, [statusFilteredData]);
 
-    return { points, labelColorMap };
-  }, [statusFilteredData, selectedCategory, labels]);
-
-  // Available subcategories
+  // Available subcategories (the 4 categories + Uncategorized)
   const availableSubs = React.useMemo(() => {
     const set = new Set(enriched.points.map((p) => p.subcategory));
-    return Array.from(set);
+    return Array.from(set).sort((a, b) => {
+      // Put known categories first, then Others
+      const idxA = CATEGORY_DEFINITIONS.findIndex((d) => d.label === a);
+      const idxB = CATEGORY_DEFINITIONS.findIndex((d) => d.label === b);
+      return (idxA >= 0 ? idxA : 99) - (idxB >= 0 ? idxB : 99);
+    });
   }, [enriched.points]);
 
   // Subcategory filter state
@@ -236,11 +216,9 @@ export default function EstimateAccuracy() {
 
   // Compute color for a subcategory
   const getColor = (sub: string) => {
-    const labelId = `${selectedCategory}::${sub}`;
-    const gitlabColor = enriched.labelColorMap.get(labelId);
-    if (gitlabColor) return gitlabColor;
-    const idx = availableSubs.indexOf(sub);
-    return PALETTE[idx % PALETTE.length];
+    const catDef = CATEGORY_DEFINITIONS.find((d) => d.label === sub);
+    if (catDef) return catDef.color;
+    return PALETTE[0];
   };
 
   const CustomScatterShape = (props: ScatterShapeProps) => {
@@ -255,19 +233,6 @@ export default function EstimateAccuracy() {
     const url = data.payload?.issueUrl as string | undefined;
     if (url) window.open(url, "_blank");
   };
-
-  if (categoryOptions.length === 0 || !labels[selectedCategory]) {
-    return (
-      <Card>
-        <CardHeader title="Estimate Accuracy" />
-        <CardContent>
-          <Typography color="text.secondary" sx={{ textAlign: "center", py: 4 }}>
-            No data available.
-          </Typography>
-        </CardContent>
-      </Card>
-    );
-  }
 
   if (statusFilteredData.length === 0) {
     return (
@@ -297,21 +262,6 @@ export default function EstimateAccuracy() {
             }}
           >
             <span>Estimate Accuracy</span>
-            <Select
-              native
-              value={selectedCategory}
-              onChange={(e: SelectChangeEvent<string>) =>
-                setSelectedCategory(e.target.value as string)
-              }
-              sx={{ minWidth: 120 }}
-              size="small"
-            >
-              {categoryOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </Select>
             <Select
               native
               value={statusFilter}
@@ -438,13 +388,3 @@ export default function EstimateAccuracy() {
     </Card>
   );
 }
-
-type RawPoint = {
-  x: number;
-  y: number;
-  title: string;
-  issueUrl: string;
-  issueLabels: string[];
-  issueState: string;
-  subcategory: string;
-};
