@@ -818,3 +818,28 @@ export function invalidateCache() {
   timelogsStore.clear();
   issuesStore.clear();
 }
+
+export async function warmCache() {
+  console.log("[Cache] Starting eager cache warming...");
+  try {
+    const { data: groups } = await getDescendantGroups();
+    console.log(`[Cache] Found ${groups.length} groups to warm.`);
+
+    for (const group of groups) {
+      console.log(`[Cache] Warming data for group: ${group.id}`);
+      try {
+        await Promise.all([
+          getMembers(group.id),
+          getTimelogs(group.id),
+          getLabels(group.id),
+        ]);
+        console.log(`[Cache] Successfully warmed data for group: ${group.id}`);
+      } catch (groupError) {
+        console.error(`[Cache] Error warming data for group ${group.id}:`, groupError);
+      }
+    }
+    console.log("[Cache] Cache warming completed.");
+  } catch (error) {
+    console.error("[Cache] Failed to load groups during cache warming:", error);
+  }
+}
