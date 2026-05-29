@@ -69,6 +69,7 @@ export default function UserDetailModal({
     member: any;
     timelogs: any[];
     allTimelogsForGamification: any[];
+    allMergeRequestsForGamification?: any[];
     sprints: any[];
   } | null>(null);
 
