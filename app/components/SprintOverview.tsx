@@ -22,8 +22,6 @@ import {
   AccordionDetails,
   useMediaQuery,
   useTheme,
-  FormControlLabel,
-  Switch,
 } from "@mui/material";
 import { GroupTimelogsResponse } from "../api/group/[id]/timelogs/route";
 import { matchLabelToCategory } from "../utils/categoryUtils";
@@ -53,8 +51,6 @@ export default function SprintOverview() {
   const [selectedIssueUrl, setSelectedIssueUrl] = React.useState<string | null>(null);
   const [selectedIssueTitle, setSelectedIssueTitle] = React.useState<string>("");
   const { openProfile } = useUserProfile();
-
-  const [hideZeroColumns, setHideZeroColumns] = React.useState(false);
 
   const categoryColumns = [
     ...CATEGORY_DEFINITIONS.map((d) => ({ id: d.id, title: d.label })),
@@ -135,10 +131,7 @@ export default function SprintOverview() {
     }
   }
 
-  // Filter out columns with 0 total hours to reduce clutter (based on toggle)
-  const visibleColumns = hideZeroColumns
-    ? categoryColumns.filter((col) => columnSums[col.id] > 0)
-    : categoryColumns;
+  const visibleColumns = categoryColumns;
 
   const sprintIssues = React.useMemo(() => {
     if (selectedSprint === null) return {};
@@ -193,16 +186,7 @@ export default function SprintOverview() {
                <ShareIcon />
              </IconButton>
            )}
-           <FormControlLabel
-             control={
-               <Switch
-                 checked={hideZeroColumns}
-                 onChange={(e) => setHideZeroColumns(e.target.checked)}
-               />
-             }
-             label={isMobile ? "Hide 0h" : "Hide zero-hour columns"}
-             sx={{ ml: "auto", whiteSpace: "nowrap" }}
-           />
+
          </Box>
 
          {isMobile ? (

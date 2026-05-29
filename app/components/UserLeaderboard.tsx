@@ -17,6 +17,8 @@ import {
   Typography,
   useMediaQuery,
   useTheme,
+  ToggleButton,
+  ToggleButtonGroup,
 } from "@mui/material";
 import { CATEGORY_DEFINITIONS } from "@/app/config/categories";
 import type { UserLeaderboardResponse, UserLeaderboardEntry, CategoryEntry } from "@/app/api/users/leaderboard/route";
@@ -391,6 +393,17 @@ export function UserLeaderboard() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const { token, loading: authLoading } = useUserAuth();
+  const [sortBy, setSortBy] = React.useState<"hours" | "level">("hours");
+
+  const sortedData = React.useMemo(() => {
+    if (!data) return [];
+    return [...data].sort((a, b) => {
+      if (sortBy === "level") {
+        return (b.level || 1) - (a.level || 1);
+      }
+      return b.totalHours - a.totalHours;
+    });
+  }, [data, sortBy]);
   
   React.useEffect(() => {
     if (authLoading) return;
@@ -456,22 +469,38 @@ export function UserLeaderboard() {
     <Card>
       <CardHeader
         title={
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 1 }}>
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 2 }}>
             <span>
               User Leaderboard{" "}
               <Typography component="span" variant="body2" color="text.secondary">
                 ({data.length} users)
               </Typography>
             </span>
+            <ToggleButtonGroup
+              value={sortBy}
+              exclusive
+              onChange={(_, value) => {
+                if (value) setSortBy(value);
+              }}
+              size="small"
+              aria-label="sort leaderboard by"
+            >
+              <ToggleButton value="hours" aria-label="sort by hours">
+                Hours
+              </ToggleButton>
+              <ToggleButton value="level" aria-label="sort by level / xp">
+                XP & Level
+              </ToggleButton>
+            </ToggleButtonGroup>
           </Box>
         }
         sx={{ pb: 0 }}
       />
       <CardContent sx={{ px: { xs: 1, sm: 2 } }}>
         {isMobile ? (
-          <LeaderboardCards data={data} />
+          <LeaderboardCards data={sortedData} />
         ) : (
-          <LeaderboardTable data={data} />
+          <LeaderboardTable data={sortedData} />
         )}
       </CardContent>
     </Card>
