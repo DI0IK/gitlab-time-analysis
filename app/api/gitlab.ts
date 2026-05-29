@@ -89,11 +89,12 @@ export async function runGitlabRESTQuery(
   token?: string,
   method: string = "GET",
   body?: any,
+  forceUserToken: boolean = false,
 ) {
   const resolvedDomain = GITLAB_DOMAIN || "https://gitlab.com";
   // Reads (GET requests) exclusively use the server's API key, writes/mutations exclusively use the user's token
   const isRead = method === "GET";
-  const resolvedToken = isRead ? GITLAB_TOKEN : token;
+  const resolvedToken = isRead && !forceUserToken ? GITLAB_TOKEN : token;
   const headers: Record<string, string> = {};
 
   if (resolvedToken) {

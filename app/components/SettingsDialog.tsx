@@ -29,7 +29,7 @@ type SettingsDialogProps = {
 };
 
 export default function SettingsDialog({ open, onClose }: SettingsDialogProps) {
-  const { token: currentToken, login } = useUserAuth();
+  const { token: currentToken, login, logout } = useUserAuth();
   const { colorTheme, setColorTheme } = useThemeMode();
   
   const [tokenInput, setTokenInput] = useState(currentToken || "");
@@ -51,22 +51,33 @@ export default function SettingsDialog({ open, onClose }: SettingsDialogProps) {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!tokenInput.trim()) {
-      setError("Token is required");
-      return;
-    }
 
     setLoading(true);
     setError(null);
     setSuccess(false);
 
     try {
-      await login(tokenInput.trim());
+      const trimmedToken = tokenInput.trim();
+      let tokenChanged = trimmedToken !== (currentToken || "");
+
+      if (tokenChanged) {
+        if (trimmedToken) {
+          await login(trimmedToken);
+        } else {
+          logout();
+        }
+      }
+
+      // Save theme preset
       setColorTheme(themeInput);
       setSuccess(true);
-      setTimeout(() => {
-        onClose();
-      }, 1000);
+      
+      // If the page will reload because of login/logout, don't trigger onClose manual redirect
+      if (!tokenChanged) {
+        setTimeout(() => {
+          onClose();
+        }, 800);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to verify token");
     } finally {
@@ -105,7 +116,6 @@ export default function SettingsDialog({ open, onClose }: SettingsDialogProps) {
               label="GitLab Private Access Token"
               variant="outlined"
               fullWidth
-              required
               disabled={loading}
               type={showToken ? "text" : "password"}
               value={tokenInput}

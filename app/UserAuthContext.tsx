@@ -35,6 +35,31 @@ export function UserAuthProvider({ children }: { children: React.ReactNode }) {
           setUser(JSON.parse(storedUser));
         } catch {}
       }
+
+      // Verify that the stored token is still valid
+      fetch("/api/users/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: storedToken }),
+      })
+        .then(async (response) => {
+          if (response.status === 401) {
+            // Token is invalid/expired, reset auth state
+            localStorage.removeItem("gitlab_token");
+            localStorage.removeItem("gitlab_user");
+            setToken(null);
+            setUser(null);
+            console.warn("Stored GitLab token is invalid or expired. Session cleared.");
+          } else if (response.ok) {
+            const userData = await response.json();
+            setUser(userData);
+            localStorage.setItem("gitlab_user", JSON.stringify(userData));
+          }
+        })
+        .catch((err) => {
+          // Ignore network errors to avoid logging out users who are offline
+          console.error("Token verification check failed:", err);
+        });
     }
     setLoading(false);
   }, []);
