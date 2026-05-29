@@ -73,13 +73,13 @@ function StackedBar({
   const otherSegment =
     otherHours > 0
       ? [
-          {
-            label: "Other",
-            hours: otherHours,
-            color: PALETTE[CATEGORY_DEFINITIONS.length % PALETTE.length],
-            matchedLabels: otherLabels,
-          },
-        ]
+        {
+          label: "Other",
+          hours: otherHours,
+          color: PALETTE[CATEGORY_DEFINITIONS.length % PALETTE.length],
+          matchedLabels: otherLabels,
+        },
+      ]
       : [];
   const allSegments = [
     ...segments.map((s) => ({
@@ -174,7 +174,7 @@ function MemberAvatars({
 
   return (
     <AvatarGroup
-      max={5}
+      max={7}
       total={humanMembers.length}
       sx={{
         justifyContent: "flex-start",
@@ -215,7 +215,7 @@ function CategoryLegend() {
               width: 10,
               height: 10,
               borderRadius: "2px",
-               bgcolor: PALETTE[CATEGORY_DEFINITIONS.findIndex(d => d.id === def.id) % PALETTE.length],
+              bgcolor: PALETTE[CATEGORY_DEFINITIONS.findIndex(d => d.id === def.id) % PALETTE.length],
             }}
           />
           <Typography variant="caption" color="text.secondary">
@@ -229,7 +229,7 @@ function CategoryLegend() {
             width: 10,
             height: 10,
             borderRadius: "2px",
-             bgcolor: PALETTE[CATEGORY_DEFINITIONS.length % PALETTE.length],
+            bgcolor: PALETTE[CATEGORY_DEFINITIONS.length % PALETTE.length],
           }}
         />
         <Typography variant="caption" color="text.secondary">
