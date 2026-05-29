@@ -20,7 +20,7 @@ import {
   IconButton,
   CircularProgress,
 } from "@mui/material";
-import { Close, OpenInNew, AccessTime, Assignment, LocalFireDepartment } from "@mui/icons-material";
+import { Close, OpenInNew, AccessTime, Assignment, LocalFireDepartment, CallMerge, RateReview } from "@mui/icons-material";
 import { CATEGORY_DEFINITIONS } from "../config/categories";
 import { matchLabelToCategory } from "../utils/categoryUtils";
 import { useTheme } from "@mui/material";
@@ -106,6 +106,7 @@ export default function UserDetailModal({
   const member = profileData?.member;
   const userLogs = profileData?.timelogs || [];
   const allLogsForGamification = profileData?.allTimelogsForGamification || [];
+  const allMergeRequestsForGamification = profileData?.allMergeRequestsForGamification || [];
   const sprints = profileData?.sprints || [];
 
   // Total hours logged (seconds to hours)
@@ -113,10 +114,27 @@ export default function UserDetailModal({
     return userLogs.reduce((sum, log) => sum + log.timeSpent, 0) / 3600;
   }, [userLogs]);
 
+  const mergedMrsCount = React.useMemo(() => {
+    return allMergeRequestsForGamification.filter(
+      (mr) => mr.username === username && mr.state === "merged"
+    ).length;
+  }, [allMergeRequestsForGamification, username]);
+
+  const reviewedMrsCount = React.useMemo(() => {
+    return allMergeRequestsForGamification.filter(
+      (mr) => mr.username !== username &&
+        (mr.approvedBy.includes(username) || mr.discussionAuthors.includes(username))
+    ).length;
+  }, [allMergeRequestsForGamification, username]);
+
   // Gamification stats
   const stats = React.useMemo(() => {
-    return computeGamification(username, allLogsForGamification.length > 0 ? allLogsForGamification : userLogs);
-  }, [username, allLogsForGamification, userLogs]);
+    return computeGamification(
+      username,
+      allLogsForGamification.length > 0 ? allLogsForGamification : userLogs,
+      allMergeRequestsForGamification
+    );
+  }, [username, allLogsForGamification, userLogs, allMergeRequestsForGamification]);
 
   const getTierColor = (level: number) => {
     if (level < 10) return "#cd7f32"; // Bronze
@@ -363,12 +381,12 @@ export default function UserDetailModal({
               /* Tab 1: Overview */
               <Box>
                 {/* Highlight Stats */}
-                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr 1fr" }, gap: 2, mb: 4 }}>
+                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", sm: "repeat(5, 1fr)" }, gap: 2, mb: 4 }}>
                   <Card variant="outlined" sx={{ p: 1, backgroundColor: "rgba(255,255,255,0.01)" }}>
                     <CardContent sx={{ py: 1.5, "&:last-child": { pb: 1.5 } }}>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5, color: "primary.light" }}>
                         <AccessTime fontSize="small" />
-                        <Typography variant="caption" sx={{ fontWeight: 600 }}>Total Hours Logged</Typography>
+                        <Typography variant="caption" sx={{ fontWeight: 600 }}>Total Hours</Typography>
                       </Box>
                       <Typography variant="h4" sx={{ fontWeight: 800 }}>
                         {totalHours.toFixed(1)}h
@@ -380,7 +398,7 @@ export default function UserDetailModal({
                     <CardContent sx={{ py: 1.5, "&:last-child": { pb: 1.5 } }}>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5, color: "secondary.light" }}>
                         <Assignment fontSize="small" />
-                        <Typography variant="caption" sx={{ fontWeight: 600 }}>Issues Contributed</Typography>
+                        <Typography variant="caption" sx={{ fontWeight: 600 }}>Issues Solved</Typography>
                       </Box>
                       <Typography variant="h4" sx={{ fontWeight: 800 }}>
                         {issueSummary.length}
@@ -396,7 +414,30 @@ export default function UserDetailModal({
                       </Box>
                       <Typography variant="h4" sx={{ fontWeight: 800 }}>
                         {stats.longestStreak}
-                        <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 0.75, fontWeight: 500 }}>consecutive</Typography>
+                      </Typography>
+                    </CardContent>
+                  </Card>
+
+                  <Card variant="outlined" sx={{ p: 1, backgroundColor: "rgba(255,255,255,0.01)" }}>
+                    <CardContent sx={{ py: 1.5, "&:last-child": { pb: 1.5 } }}>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5, color: "success.light" }}>
+                        <CallMerge fontSize="small" />
+                        <Typography variant="caption" sx={{ fontWeight: 600 }}>MRs Merged</Typography>
+                      </Box>
+                      <Typography variant="h4" sx={{ fontWeight: 800 }}>
+                        {mergedMrsCount}
+                      </Typography>
+                    </CardContent>
+                  </Card>
+
+                  <Card variant="outlined" sx={{ p: 1, backgroundColor: "rgba(255,255,255,0.01)" }}>
+                    <CardContent sx={{ py: 1.5, "&:last-child": { pb: 1.5 } }}>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5, color: "info.light" }}>
+                        <RateReview fontSize="small" />
+                        <Typography variant="caption" sx={{ fontWeight: 600 }}>MRs Reviewed</Typography>
+                      </Box>
+                      <Typography variant="h4" sx={{ fontWeight: 800 }}>
+                        {reviewedMrsCount}
                       </Typography>
                     </CardContent>
                   </Card>
@@ -666,7 +707,20 @@ export default function UserDetailModal({
                       />
                       <Typography sx={{ fontWeight: 700, color: "text.primary" }}>{stats.xpBreakdown.sprintsXp.toLocaleString()} XP</Typography>
                     </ListItem>
-
+                    <ListItem sx={{ py: 1.5, px: 2.5, display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border-color)" }}>
+                      <ListItemText
+                        primary={<Typography variant="body2" sx={{ fontWeight: 600 }}>Merge Requests Merged XP</Typography>}
+                        secondary="25 XP per merged Merge Request"
+                      />
+                      <Typography sx={{ fontWeight: 700, color: "text.primary" }}>{stats.xpBreakdown.mergeRequestsXp.toLocaleString()} XP</Typography>
+                    </ListItem>
+                    <ListItem sx={{ py: 1.5, px: 2.5, display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border-color)" }}>
+                      <ListItemText
+                        primary={<Typography variant="body2" sx={{ fontWeight: 600 }}>Teammate MRs Reviewed XP</Typography>}
+                        secondary="15 XP per teammate MR approved or reviewed"
+                      />
+                      <Typography sx={{ fontWeight: 700, color: "text.primary" }}>{stats.xpBreakdown.reviewsXp.toLocaleString()} XP</Typography>
+                    </ListItem>
 
                     <ListItem sx={{ py: 1.5, px: 2.5, display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border-color)" }}>
                       <ListItemText

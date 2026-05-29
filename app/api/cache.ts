@@ -36,10 +36,24 @@ export interface NormalizedTimelog {
   sprintNumber?: number;
 }
 
+export interface NormalizedMergeRequest {
+  id: string;
+  title: string;
+  state: string;
+  webUrl: string;
+  createdAt: string;
+  mergedAt: string | null;
+  username: string; // references usersStore
+  approvedBy: string[]; // array of usernames
+  discussionAuthors: string[]; // array of usernames
+  discussionCount: number;
+}
+
 // Global registry maps
 const usersStore = new Map<string, NormalizedUser>();
 const issuesStore = new Map<string, NormalizedIssue>();
 const timelogsStore = new Map<string, NormalizedTimelog>();
+const mergeRequestsStore = new Map<string, NormalizedMergeRequest>();
 
 // Group lists maps
 interface GroupCacheEntry {
@@ -54,9 +68,35 @@ interface GroupCacheEntry {
   labels: any | null;
   labelsTimestamp: number;
   labelsPromise: Promise<any> | null;
+
+  mergeRequestIds: string[] | null;
+  mergeRequestsTimestamp: number;
+  mergeRequestsPromise: Promise<string[]> | null;
 }
 
 const groupCaches = new Map<string, GroupCacheEntry>();
+
+function getOrCreateGroupCache(cacheKey: string): GroupCacheEntry {
+  let groupCache = groupCaches.get(cacheKey);
+  if (!groupCache) {
+    groupCache = {
+      memberUsernames: null,
+      membersTimestamp: 0,
+      membersPromise: null,
+      timelogIds: null,
+      timelogsTimestamp: 0,
+      timelogsPromise: null,
+      labels: null,
+      labelsTimestamp: 0,
+      labelsPromise: null,
+      mergeRequestIds: null,
+      mergeRequestsTimestamp: 0,
+      mergeRequestsPromise: null,
+    };
+    groupCaches.set(cacheKey, groupCache);
+  }
+  return groupCache;
+}
 
 // Cache key helper
 function getCacheKey(fullGroupPath: string, token?: string): string {
@@ -188,7 +228,7 @@ function cleanupOrphanedEntities() {
   // Abort immediately if any network promises are in progress to prevent deleting mid-fetch entities
   const hasActivePromises =
     Array.from(groupCaches.values()).some(
-      (c) => c.membersPromise || c.timelogsPromise || c.labelsPromise,
+      (c) => c.membersPromise || c.timelogsPromise || c.labelsPromise || c.mergeRequestsPromise,
     ) || Array.from(descendantGroupsCache.values()).some((c) => c.fetchPromise);
 
   if (hasActivePromises) {
@@ -198,6 +238,7 @@ function cleanupOrphanedEntities() {
   const activeUsernames = new Set<string>();
   const activeIssueUrls = new Set<string>();
   const activeTimelogIds = new Set<string>();
+  const activeMergeRequestIds = new Set<string>();
 
   for (const cacheEntry of groupCaches.values()) {
     if (cacheEntry.memberUsernames) {
@@ -212,6 +253,17 @@ function cleanupOrphanedEntities() {
         if (log) {
           activeUsernames.add(log.username);
           activeIssueUrls.add(log.issueUrl);
+        }
+      }
+    }
+    if (cacheEntry.mergeRequestIds) {
+      for (const id of cacheEntry.mergeRequestIds) {
+        activeMergeRequestIds.add(id);
+        const mr = mergeRequestsStore.get(id);
+        if (mr) {
+          activeUsernames.add(mr.username);
+          mr.approvedBy.forEach(u => activeUsernames.add(u));
+          mr.discussionAuthors.forEach(u => activeUsernames.add(u));
         }
       }
     }
@@ -232,6 +284,12 @@ function cleanupOrphanedEntities() {
   for (const id of timelogsStore.keys()) {
     if (!activeTimelogIds.has(id)) {
       timelogsStore.delete(id);
+    }
+  }
+
+  for (const id of mergeRequestsStore.keys()) {
+    if (!activeMergeRequestIds.has(id)) {
+      mergeRequestsStore.delete(id);
     }
   }
 }
@@ -340,21 +398,7 @@ export async function getMembers(groupId: string, token?: string) {
   const now = Date.now();
   const cacheKey = getCacheKey(fullGroupPath, token);
 
-  let groupCache = groupCaches.get(cacheKey);
-  if (!groupCache) {
-    groupCache = {
-      memberUsernames: null,
-      membersTimestamp: 0,
-      membersPromise: null,
-      timelogIds: null,
-      timelogsTimestamp: 0,
-      timelogsPromise: null,
-      labels: null,
-      labelsTimestamp: 0,
-      labelsPromise: null,
-    };
-    groupCaches.set(cacheKey, groupCache);
-  }
+  const groupCache = getOrCreateGroupCache(cacheKey);
 
   const isStale = now - groupCache.membersTimestamp >= CACHE_TTL_MS;
 
@@ -494,21 +538,7 @@ export async function getTimelogs(groupId: string, token?: string) {
   const now = Date.now();
   const cacheKey = getCacheKey(fullGroupPath, token);
 
-  let groupCache = groupCaches.get(cacheKey);
-  if (!groupCache) {
-    groupCache = {
-      memberUsernames: null,
-      membersTimestamp: 0,
-      membersPromise: null,
-      timelogIds: null,
-      timelogsTimestamp: 0,
-      timelogsPromise: null,
-      labels: null,
-      labelsTimestamp: 0,
-      labelsPromise: null,
-    };
-    groupCaches.set(cacheKey, groupCache);
-  }
+  const groupCache = getOrCreateGroupCache(cacheKey);
 
   const isStale = now - groupCache.timelogsTimestamp >= CACHE_TTL_MS;
 
@@ -632,21 +662,7 @@ export async function getLabels(groupId: string, token?: string) {
   const now = Date.now();
   const cacheKey = getCacheKey(fullGroupPath, token);
 
-  let groupCache = groupCaches.get(cacheKey);
-  if (!groupCache) {
-    groupCache = {
-      memberUsernames: null,
-      membersTimestamp: 0,
-      membersPromise: null,
-      timelogIds: null,
-      timelogsTimestamp: 0,
-      timelogsPromise: null,
-      labels: null,
-      labelsTimestamp: 0,
-      labelsPromise: null,
-    };
-    groupCaches.set(cacheKey, groupCache);
-  }
+  const groupCache = getOrCreateGroupCache(cacheKey);
 
   const isStale = now - groupCache.labelsTimestamp >= CACHE_TTL_MS;
 
@@ -680,6 +696,138 @@ export async function getLabels(groupId: string, token?: string) {
   return {
     data: freshLabels,
     timestamp: groupCaches.get(cacheKey)!.labelsTimestamp,
+  };
+}
+
+async function fetchAndProcessMergeRequests(
+  fullGroupPath: string,
+  token?: string,
+): Promise<string[]> {
+  const query = `
+    {
+      group(fullPath: "${fullGroupPath}") {
+        mergeRequests(first: 100) {
+          nodes {
+            id
+            title
+            state
+            webUrl
+            createdAt
+            mergedAt
+            author {
+              username
+              name
+              webUrl
+              bot
+              avatarUrl
+            }
+            approvedBy {
+              nodes {
+                username
+              }
+            }
+            notes(first: 100) {
+              nodes {
+                system
+                author {
+                  username
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  const response = await runGitlabGraphQLQuery(query, token);
+  if (!response?.data?.group) {
+    throw new Error(`Group not found or inaccessible: ${fullGroupPath}`);
+  }
+  const nodes = response.data.group.mergeRequests?.nodes || [];
+  const mrIds: string[] = [];
+
+  for (const node of nodes) {
+    const id = node.id;
+    const username = node.author ? registerUser(node.author) : "unknown";
+
+    const approvedBy = (node.approvedBy?.nodes || []).map((u: any) => u.username);
+    const notesNodes = node.notes?.nodes || [];
+    const discussionAuthorsSet = new Set<string>();
+    let discussionCount = 0;
+
+    for (const note of notesNodes) {
+      if (!note.system && note.author?.username) {
+        discussionAuthorsSet.add(note.author.username);
+        discussionCount++;
+      }
+    }
+
+    const normalized: NormalizedMergeRequest = {
+      id,
+      title: node.title || "",
+      state: node.state || "",
+      webUrl: node.webUrl || "",
+      createdAt: node.createdAt,
+      mergedAt: node.mergedAt || null,
+      username,
+      approvedBy,
+      discussionAuthors: Array.from(discussionAuthorsSet),
+      discussionCount,
+    };
+
+    mergeRequestsStore.set(id, normalized);
+    mrIds.push(id);
+  }
+
+  return mrIds;
+}
+
+export async function getMergeRequests(groupId: string, token?: string) {
+  const fullGroupPath = `${GITLAB_GROUP_PATH}/${groupId}`;
+  const now = Date.now();
+  const cacheKey = getCacheKey(fullGroupPath, token);
+
+  const groupCache = getOrCreateGroupCache(cacheKey);
+
+  const isStale = now - groupCache.mergeRequestsTimestamp >= CACHE_TTL_MS;
+
+  if (isStale && !groupCache.mergeRequestsPromise) {
+    groupCache.mergeRequestsPromise = fetchAndProcessMergeRequests(fullGroupPath, token)
+      .then((ids) => {
+        const cacheEntry = groupCaches.get(cacheKey)!;
+        cacheEntry.mergeRequestIds = ids;
+        cacheEntry.mergeRequestsTimestamp = Date.now();
+        cacheEntry.mergeRequestsPromise = null;
+        cleanupOrphanedEntities();
+        return ids;
+      })
+      .catch((error) => {
+        console.error("Failed to refresh merge requests cache:", error);
+        const cacheEntry = groupCaches.get(cacheKey)!;
+        cacheEntry.mergeRequestsPromise = null;
+        throw error;
+      });
+  }
+
+  const resolveMergeRequests = (ids: string[]) => {
+    return ids
+      .map((id) => mergeRequestsStore.get(id))
+      .filter((x): x is NormalizedMergeRequest => !!x);
+  };
+
+  if (groupCache.mergeRequestIds) {
+    groupCache.mergeRequestsPromise?.catch(() => {});
+    return {
+      data: resolveMergeRequests(groupCache.mergeRequestIds),
+      timestamp: groupCache.mergeRequestsTimestamp,
+    };
+  }
+
+  const ids = await groupCache.mergeRequestsPromise!;
+  return {
+    data: resolveMergeRequests(ids),
+    timestamp: groupCaches.get(cacheKey)!.mergeRequestsTimestamp,
   };
 }
 
@@ -817,6 +965,7 @@ export function invalidateCache() {
   groupCaches.clear();
   timelogsStore.clear();
   issuesStore.clear();
+  mergeRequestsStore.clear();
 }
 
 export async function warmCache() {
@@ -832,6 +981,7 @@ export async function warmCache() {
           getMembers(group.id),
           getTimelogs(group.id),
           getLabels(group.id),
+          getMergeRequests(group.id),
         ]);
         console.log(`[Cache] Successfully warmed data for group: ${group.id}`);
       } catch (groupError) {

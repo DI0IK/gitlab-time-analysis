@@ -1,6 +1,19 @@
 import { matchLabelToCategory, CATEGORY_DEFINITIONS } from "../config/categories";
 import { GroupTimelogsResponse } from "../api/group/[id]/timelogs/route";
 
+export type GamificationMergeRequest = {
+  id: string;
+  title: string;
+  state: string;
+  webUrl: string;
+  createdAt: string;
+  mergedAt: string | null;
+  username: string; // author username
+  approvedBy: string[]; // array of usernames who approved
+  discussionAuthors: string[]; // array of usernames who commented
+  discussionCount: number;
+};
+
 export type GamificationStats = {
   xp: number;
   level: number;
@@ -20,6 +33,8 @@ export type GamificationStats = {
     longWeeksXp: number;
     speedDemonXp: number;
     heavyLifterXp: number;
+    mergeRequestsXp: number;
+    reviewsXp: number;
   };
   badges: {
     id: string;
@@ -50,7 +65,8 @@ function longestConsecutiveRun(sortedSprints: number[]): number {
 
 export function computeGamification(
   username: string,
-  timelogs: GroupTimelogsResponse
+  timelogs: GroupTimelogsResponse,
+  mergeRequests: GamificationMergeRequest[] = []
 ): GamificationStats {
   const userLogs = timelogs.filter((log) => log.username === username);
 
@@ -168,6 +184,31 @@ export function computeGamification(
     .filter((h) => h > 4.0)
     .reduce((sum, h) => sum + Math.floor(30 * Math.log(1 + (h - 4.0))), 0);
 
+  // Merge Request Computations
+  const userMergedMrs = mergeRequests.filter(
+    (mr) => mr.username === username && mr.state === "merged"
+  );
+  const mergedMrsCount = userMergedMrs.length;
+
+  const reviewedMrs = mergeRequests.filter(
+    (mr) => mr.username !== username &&
+      (mr.approvedBy.includes(username) || mr.discussionAuthors.includes(username))
+  );
+  const reviewedMrsCount = reviewedMrs.length;
+
+  let speedyMergerCount = 0;
+  userMergedMrs.forEach((mr) => {
+    if (mr.mergedAt) {
+      const durationHrs = (new Date(mr.mergedAt).getTime() - new Date(mr.createdAt).getTime()) / (1000 * 60 * 60);
+      if (durationHrs >= 0 && durationHrs <= 4) {
+        speedyMergerCount++;
+      }
+    }
+  });
+
+  const mergeRequestsXp = mergedMrsCount * 25;
+  const reviewsXp = reviewedMrsCount * 15;
+
   const perfectEstimateXp = perfectEstimateCount * 15;
   const underBudgetXp = underBudgetCount * 10;
   const speedDemonXp = speedDemonCount * 10;
@@ -183,7 +224,9 @@ export function computeGamification(
     speedDemonXp +
     heavyLifterXp +
     perfectWeeksXp +
-    longWeeksXp;
+    longWeeksXp +
+    mergeRequestsXp +
+    reviewsXp;
 
   const baseHrsXp = hoursXp + issuesXp + sprintsXp + otherBonusesXp;
   const issueCount = uniqueIssues.size;
@@ -397,6 +440,69 @@ export function computeGamification(
       progressText: `${maxSprintHours.toFixed(1)} / 15 h`,
       xpReward: 150,
     },
+    {
+      id: "mr_bronze",
+      name: "PR Pioneer",
+      icon: "🌱",
+      description: "Merge your first Merge Request",
+      unlocked: mergedMrsCount >= 1,
+      progressText: `${mergedMrsCount} / 1 MR`,
+      xpReward: 20,
+    },
+    {
+      id: "mr_silver",
+      name: "Continuous Integrator",
+      icon: "🚀",
+      description: "Merge at least 5 Merge Requests",
+      unlocked: mergedMrsCount >= 5,
+      progressText: `${mergedMrsCount} / 5 MRs`,
+      xpReward: 50,
+    },
+    {
+      id: "mr_gold",
+      name: "Git Master",
+      icon: "🥇",
+      description: "Merge at least 15 Merge Requests",
+      unlocked: mergedMrsCount >= 15,
+      progressText: `${mergedMrsCount} / 15 MRs`,
+      xpReward: 100,
+    },
+    {
+      id: "reviewer_bronze",
+      name: "Gatekeeper",
+      icon: "🦅",
+      description: "Approve or review your first teammate's Merge Request",
+      unlocked: reviewedMrsCount >= 1,
+      progressText: `${reviewedMrsCount} / 1 MR`,
+      xpReward: 15,
+    },
+    {
+      id: "reviewer_silver",
+      name: "Eagle Eye",
+      icon: "👁️",
+      description: "Approve or review at least 5 teammate Merge Requests",
+      unlocked: reviewedMrsCount >= 5,
+      progressText: `${reviewedMrsCount} / 5 MRs`,
+      xpReward: 50,
+    },
+    {
+      id: "reviewer_gold",
+      name: "Code Guardian",
+      icon: "🛡️",
+      description: "Approve or review at least 12 teammate Merge Requests",
+      unlocked: reviewedMrsCount >= 12,
+      progressText: `${reviewedMrsCount} / 12 MRs`,
+      xpReward: 100,
+    },
+    {
+      id: "speedy_merger",
+      name: "Fast Track",
+      icon: "🏎️",
+      description: "Merge an MR within 4 hours of creation",
+      unlocked: speedyMergerCount >= 1,
+      progressText: speedyMergerCount >= 1 ? "Unlocked" : "0 / 1",
+      xpReward: 30,
+    },
   ];
 
   const XP_PER_LEVEL_FACTOR = 12.5;
@@ -411,11 +517,11 @@ export function computeGamification(
   // Ultimate Rank Badge
   const levelBadge = {
     id: "gamification_level_tier",
-    name: "Ultimate Rank",
+    name: "Legendary Status",
     icon: "👑",
-    description: "Reach level 20 or higher",
-    unlocked: preliminaryLevel >= 20,
-    progressText: `Lv. ${preliminaryLevel} / 20`,
+    description: "Reach level 30 or higher",
+    unlocked: preliminaryLevel >= 30,
+    progressText: `Lv. ${preliminaryLevel} / 30`,
     xpReward: 200,
   };
 
@@ -430,8 +536,8 @@ export function computeGamification(
   const level = Math.min(100, Math.floor(Math.sqrt(xp / XP_PER_LEVEL_FACTOR)) + 1);
 
   // Sync the levelBadge with final level
-  levelBadge.progressText = `Lv. ${level} / 20`;
-  levelBadge.unlocked = level >= 20;
+  levelBadge.progressText = `Lv. ${level} / 30`;
+  levelBadge.unlocked = level >= 30;
 
   const xpForCurrentLevel = (level - 1) ** 2 * XP_PER_LEVEL_FACTOR;
   const xpForNextLevel = level ** 2 * XP_PER_LEVEL_FACTOR;
@@ -463,6 +569,8 @@ export function computeGamification(
       longWeeksXp,
       speedDemonXp,
       heavyLifterXp,
+      mergeRequestsXp,
+      reviewsXp,
     },
     badges: badgesList,
   };

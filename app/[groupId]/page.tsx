@@ -34,6 +34,7 @@ import TimePerWeekday from "../components/TimePerWeekday";
 import UserDetailModal from "../components/UserDetailModal";
 import { GroupContext } from "../GroupContext";
 import { useUserProfile } from "../UserProfileContext";
+import { GamificationMergeRequest } from "../utils/gamification";
 
 async function fetchJson(url: string, headers?: Record<string, string>) {
   const res = await fetch(url, { headers });
@@ -52,6 +53,7 @@ export default function GroupPage() {
   const [labels, setLabels] = React.useState<GroupLabelsResponse>({});
   const [timelogs, setTimelogs] = React.useState<GroupTimelogsResponse>([]);
   const [sprints, setSprints] = React.useState<GroupSprintsResponse>([]);
+  const [mergeRequests, setMergeRequests] = React.useState<GamificationMergeRequest[]>([]);
   const [lastFetchedAt, setLastFetchedAt] = React.useState<Record<string, number>>({});
   const [selectedSprint, setSelectedSprint] = React.useState<number | null>(null);
   const [showProblems, setShowProblems] = React.useState(false);
@@ -68,21 +70,25 @@ export default function GroupPage() {
       { data: labelsData, cacheTimestamp: labelsTs },
       { data: timelogsData, cacheTimestamp: timelogsTs },
       { data: sprintsData, cacheTimestamp: sprintsTs },
+      { data: mergeRequestsData, cacheTimestamp: mergeRequestsTs },
     ] = await Promise.all([
       fetchJson(`/api/group/${groupIdStr}/members`, headers),
       fetchJson(`/api/group/${groupIdStr}/labels`, headers),
       fetchJson(`/api/group/${groupIdStr}/timelogs`, headers),
       fetchJson(`/api/group/${groupIdStr}/sprints`, headers),
+      fetchJson(`/api/group/${groupIdStr}/merge-requests`, headers),
     ]);
     setMembers(membersData);
     setLabels(labelsData);
     setTimelogs(timelogsData);
     setSprints(sprintsData);
+    setMergeRequests(mergeRequestsData);
     setLastFetchedAt({
       members: membersTs,
       labels: labelsTs,
       timelogs: timelogsTs,
       sprints: sprintsTs,
+      mergeRequests: mergeRequestsTs,
     });
   }, [groupIdStr, token, authLoading]);
 
@@ -116,6 +122,7 @@ export default function GroupPage() {
         labels,
         timelogs,
         sprints,
+        mergeRequests,
         loaded: true,
         groupId: groupIdStr,
         lastFetchedAt,
