@@ -27,8 +27,8 @@ export async function POST(request: Request) {
     }
 
     // Parse issue URL to extract project path and issue IID
-    // e.g. https://gitlab.com/group/project/-/issues/123
-    const match = issueUrl.match(/^(?:https?:\/\/[^\/]+)\/(.+?)\/(?:-\/)?issues\/(\d+)(?:\/.*)?$/);
+    // e.g. https://gitlab.com/group/project/-/issues/123 or /-/work_items/123
+    const match = issueUrl.match(/^(?:https?:\/\/[^\/]+)\/(.+?)\/(?:-\/)?(?:issues|work_items)\/(\d+)(?:[/#?].*)?$/);
     if (!match) {
       return NextResponse.json(
         { error: "Invalid GitLab issue URL format" },

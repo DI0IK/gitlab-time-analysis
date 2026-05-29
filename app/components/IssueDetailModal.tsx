@@ -427,7 +427,13 @@ export default function IssueDetailModal({
                 Time Progress
               </Typography>
               {token && !isEditingEstimate && (
-                <IconButton size="small" onClick={() => setIsEditingEstimate(true)}>
+                <IconButton
+                  size="small"
+                  onClick={() => {
+                    setNewEstimateHours(estimate > 0 ? (estimate / 3600).toString() : "");
+                    setIsEditingEstimate(true);
+                  }}
+                >
                   <Edit fontSize="small" />
                 </IconButton>
               )}
@@ -464,7 +470,10 @@ export default function IssueDetailModal({
                   size="small"
                   variant="outlined"
                   color="inherit"
-                  onClick={() => setIsEditingEstimate(false)}
+                  onClick={() => {
+                    setNewEstimateHours(estimate > 0 ? (estimate / 3600).toString() : "");
+                    setIsEditingEstimate(false);
+                  }}
                 >
                   Cancel
                 </Button>
