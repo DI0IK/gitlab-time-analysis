@@ -21,6 +21,7 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { Close, OpenInNew, AccessTime, Assignment, LocalFireDepartment, CallMerge, RateReview } from "@mui/icons-material";
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as ChartTooltip } from "recharts";
 import { CATEGORY_DEFINITIONS } from "../config/categories";
 import { matchLabelToCategory } from "../utils/categoryUtils";
 import { useTheme } from "@mui/material";
@@ -117,14 +118,15 @@ export default function UserDetailModal({
 
   const mergedMrsCount = React.useMemo(() => {
     return allMergeRequestsForGamification.filter(
-      (mr) => mr.username === username && mr.state === "merged"
+      (mr) => mr.username.toLowerCase() === username.toLowerCase() && mr.state === "merged"
     ).length;
   }, [allMergeRequestsForGamification, username]);
 
   const reviewedMrsCount = React.useMemo(() => {
     return allMergeRequestsForGamification.filter(
-      (mr) => mr.username !== username &&
-        (mr.approvedBy.includes(username) || mr.discussionAuthors.includes(username))
+      (mr) => mr.username.toLowerCase() !== username.toLowerCase() &&
+        (mr.approvedBy.some((u: string) => u.toLowerCase() === username.toLowerCase()) ||
+         mr.discussionAuthors.some((u: string) => u.toLowerCase() === username.toLowerCase()))
     ).length;
   }, [allMergeRequestsForGamification, username]);
 
@@ -136,6 +138,46 @@ export default function UserDetailModal({
       allMergeRequestsForGamification
     );
   }, [username, allLogsForGamification, userLogs, allMergeRequestsForGamification]);
+
+  // XP progress history per sprint
+  const xpHistory = React.useMemo(() => {
+    if (!sprints.length || (!allLogsForGamification.length && !userLogs.length)) return [];
+    
+    const logs = allLogsForGamification.length > 0 ? allLogsForGamification : userLogs;
+    
+    return sprints.map((sp) => {
+      const sprintEndDate = new Date(new Date(sp.endDate).setHours(23, 59, 59, 999));
+      
+      // Filter timelogs up to this sprint's end date
+      const timelogsUpToSprint = logs.filter(
+        (log) => new Date(log.spentAt) <= sprintEndDate
+      );
+      
+      // Filter & adjust merge requests up to this sprint's end date
+      const mergeRequestsUpToSprint = allMergeRequestsForGamification
+        .filter((mr) => new Date(mr.createdAt) <= sprintEndDate)
+        .map((mr) => {
+          const isMergedBeforeSprint = mr.mergedAt && new Date(mr.mergedAt) <= sprintEndDate;
+          return {
+            ...mr,
+            state: isMergedBeforeSprint ? "merged" : "opened",
+            mergedAt: isMergedBeforeSprint ? mr.mergedAt : null,
+          };
+        });
+        
+      const statsAtSprint = computeGamification(
+        username,
+        timelogsUpToSprint,
+        mergeRequestsUpToSprint
+      );
+      
+      return {
+        sprint: `Sprint ${sp.sprintNumber}`,
+        xp: statsAtSprint.xp,
+        level: statsAtSprint.level,
+      };
+    });
+  }, [sprints, allLogsForGamification, userLogs, allMergeRequestsForGamification, username]);
 
   const getTierColor = (level: number) => {
     if (level < 10) return "#cd7f32"; // Bronze
@@ -229,6 +271,10 @@ export default function UserDetailModal({
   }, [sprintSummary]);
 
   const tierColor = stats ? getTierColor(stats.level) : "#cd7f32";
+  const tickColor = isDark ? "rgba(255, 255, 255, 0.75)" : "rgba(15, 23, 42, 0.75)";
+  const tooltipBg = isDark ? "rgba(17, 24, 39, 0.95)" : "rgba(255, 255, 255, 0.95)";
+  const tooltipBorder = isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.08)";
+  const tooltipTextColor = isDark ? "#f3f4f6" : "#0f172a";
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
@@ -443,6 +489,38 @@ export default function UserDetailModal({
                     </CardContent>
                   </Card>
                 </Box>
+
+                <Card variant="outlined" sx={{ mb: 4, p: 2.5, backgroundColor: "rgba(255,255,255,0.01)" }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 2.5, textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.05em", color: "text.secondary" }}>
+                    XP Progress Over Sprints
+                  </Typography>
+                  <Box sx={{ width: "100%", height: 240 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={xpHistory} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+                        <XAxis dataKey="sprint" tick={{ fill: tickColor, fontSize: 10 }} />
+                        <YAxis tick={{ fill: tickColor, fontSize: 10 }} />
+                        <ChartTooltip
+                          contentStyle={{
+                            backgroundColor: tooltipBg,
+                            border: `1px solid ${tooltipBorder}`,
+                            borderRadius: 8,
+                            color: tooltipTextColor,
+                            fontSize: 12,
+                          }}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="xp"
+                          stroke={tierColor}
+                          strokeWidth={3}
+                          activeDot={{ r: 6 }}
+                          name="XP"
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </Box>
+                </Card>
 
                 <Divider sx={{ my: 3 }} />
 

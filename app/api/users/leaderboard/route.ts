@@ -23,6 +23,7 @@ export type UserLeaderboardEntry = {
   otherHours: number;
   groups: string[];
   level: number;
+  xp: number;
 };
 
 export type UserLeaderboardResponse = UserLeaderboardEntry[];
@@ -119,6 +120,7 @@ export const GET = async (request: Request) => {
         otherHours: +((u.otherSeconds || 0) / 3600).toFixed(1),
         groups: Array.from(u.groups).sort(),
         level: gamification.level,
+        xp: gamification.xp,
       };
     })
     .filter((u) => u.totalHours > 0)

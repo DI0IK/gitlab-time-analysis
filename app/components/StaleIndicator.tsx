@@ -5,6 +5,8 @@ import { Box, Chip, IconButton, Tooltip, Typography } from "@mui/material";
 import React from "react";
 import { GroupContext } from "../GroupContext";
 
+import { useThemeMode } from "../ThemeContext";
+
 const CACHE_TTL_MS = 3 * 60 * 1000;
 
 function formatAge(ageMs: number): string {
@@ -20,6 +22,7 @@ function formatAge(ageMs: number): string {
 
 export default function StaleIndicator() {
   const { lastFetchedAt, refreshData } = React.useContext(GroupContext);
+  const { presentationMode } = useThemeMode();
   const [now, setNow] = React.useState(Date.now());
 
   React.useEffect(() => {
@@ -28,7 +31,7 @@ export default function StaleIndicator() {
   }, []);
 
   const timestamps = Object.values(lastFetchedAt);
-  if (timestamps.length === 0) return null;
+  if (presentationMode || timestamps.length === 0) return null;
 
   const oldest = Math.min(...timestamps);
   const age = now - oldest;

@@ -28,7 +28,7 @@ export const GET = async (
       allTimelogsForGamification.push(...timelogs);
       allMergeRequestsForGamification.push(...mergeRequests);
 
-      const foundMember = members.find((m) => m.id === username);
+      const foundMember = members.find((m) => m.id.toLowerCase() === username.toLowerCase());
       if (foundMember) {
         userMemberInfo = {
           name: foundMember.name,
@@ -39,7 +39,7 @@ export const GET = async (
         };
       }
 
-      const filteredLogs = timelogs.filter((log) => log.username === username);
+      const filteredLogs = timelogs.filter((log) => log.username.toLowerCase() === username.toLowerCase());
       userTimelogs.push(...filteredLogs);
     }
 

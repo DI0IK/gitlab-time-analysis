@@ -34,6 +34,7 @@ import {
   LightMode,
   DarkMode,
   SettingsBrightness,
+  Tv as TvIcon,
 } from "@mui/icons-material";
 import { useRouter, useParams, usePathname } from "next/navigation";
 import Link from "next/link";
@@ -53,7 +54,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { groupId } = useParams();
   const { user, logout, token, loading } = useUserAuth();
-  const { themeMode, setThemeMode } = useThemeMode();
+  const { themeMode, setThemeMode, presentationMode, setPresentationMode } = useThemeMode();
   const { openProfile, profileUsername, closeProfile } = useUserProfile();
 
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -114,7 +115,29 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     fetchGroups();
   }, [token, loading]);
 
-  const currentDrawerWidth = collapsed ? 72 : 260;
+  const togglePresentationMode = () => {
+    if (!presentationMode) {
+      document.documentElement.requestFullscreen().catch((err) => {
+        console.error("Error attempting to enable full-screen mode:", err);
+      });
+      setPresentationMode(true);
+    } else {
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+      }
+      setPresentationMode(false);
+    }
+  };
+
+  useEffect(() => {
+    const handleFullscreen = () => {
+      setPresentationMode(!!document.fullscreenElement);
+    };
+    document.addEventListener("fullscreenchange", handleFullscreen);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreen);
+  }, [setPresentationMode]);
+
+  const currentDrawerWidth = presentationMode ? 0 : (collapsed ? 72 : 260);
 
   const sidebarContent = (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column", bgcolor: "var(--background-sidebar)", transition: "background-color 0.2s ease, border-color 0.2s ease" }}>
@@ -234,7 +257,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                         height: 28, 
                         fontSize: "0.75rem", 
                         fontWeight: 700,
-                        bgcolor: isSelected ? "primary.main" : "rgba(124, 58, 237, 0.1)",
+                        bgcolor: isSelected ? "primary.main" : "rgba(124, 58, 237, 0.15)",
                         color: isSelected ? "primary.contrastText" : "primary.main",
                         border: isSelected ? "none" : "1px solid rgba(124, 58, 237, 0.2)"
                       }}
@@ -325,231 +348,258 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "var(--background-default)", transition: "background-color 0.2s ease" }}>
       {/* Header Bar */}
-      <AppBar
-        position="fixed"
-        sx={{
-          width: { md: `calc(100% - ${currentDrawerWidth}px)` },
-          ml: { md: `${currentDrawerWidth}px` },
-          transition: theme.transitions.create(["width", "margin"], {
-            easing: theme.transitions.easing.sharp,
-            duration: theme.transitions.duration.enteringScreen,
-          }),
-          bgcolor: theme.palette.mode === "dark" ? "rgba(9, 13, 22, 0.7)" : "rgba(255, 255, 255, 0.7)",
-          backdropFilter: "blur(12px)",
-          backgroundImage: "none",
-          borderBottom: "1px solid var(--border-color)",
-        }}
-      >
-        <Toolbar sx={{ justifyContent: "space-between" }}>
-          <Box sx={{ display: "flex", alignItems: "center" }}>
-            <IconButton
-              color="inherit"
-              aria-label="open drawer"
-              edge="start"
-              onClick={handleDrawerToggle}
-              sx={{ mr: 2, display: { md: "none" } }}
-            >
-              <MenuIcon />
-            </IconButton>
-            <Typography variant="subtitle1" noWrap sx={{ fontWeight: 600, display: { xs: "none", sm: "block" } }}>
-              {pathname === "/" ? "Dashboard Home" : `Active Group: ${groupId || ""}`}
-            </Typography>
-          </Box>
-
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            {/* Theme Selector Button */}
-            <Tooltip title="Theme mode">
+      {!presentationMode && (
+        <AppBar
+          position="fixed"
+          sx={{
+            width: { md: `calc(100% - ${currentDrawerWidth}px)` },
+            ml: { md: `${currentDrawerWidth}px` },
+            transition: theme.transitions.create(["width", "margin"], {
+              easing: theme.transitions.easing.sharp,
+              duration: theme.transitions.duration.enteringScreen,
+            }),
+            bgcolor: theme.palette.mode === "dark" ? "rgba(9, 13, 22, 0.7)" : "rgba(255, 255, 255, 0.7)",
+            backdropFilter: "blur(12px)",
+            backgroundImage: "none",
+            borderBottom: "1px solid var(--border-color)",
+          }}
+        >
+          <Toolbar sx={{ justifyContent: "space-between" }}>
+            <Box sx={{ display: "flex", alignItems: "center" }}>
               <IconButton
-                onClick={(e) => setThemeAnchorEl(e.currentTarget)}
-                size="small"
-                sx={{
-                  color: "text.secondary",
-                  border: "1px solid var(--border-color)",
-                  borderRadius: 2,
-                  p: 1,
-                  bgcolor: "rgba(255,255,255,0.02)",
-                  "&:hover": {
-                    borderColor: "primary.light",
-                    color: "primary.light",
-                  },
-                }}
+                color="inherit"
+                aria-label="open drawer"
+                edge="start"
+                onClick={handleDrawerToggle}
+                sx={{ mr: 2, display: { md: "none" } }}
               >
-                {themeMode === "light" && <LightMode sx={{ fontSize: 20 }} />}
-                {themeMode === "dark" && <DarkMode sx={{ fontSize: 20 }} />}
-                {themeMode === "system" && <SettingsBrightness sx={{ fontSize: 20 }} />}
+                <MenuIcon />
               </IconButton>
-            </Tooltip>
-            <Menu
-              anchorEl={themeAnchorEl}
-              open={Boolean(themeAnchorEl)}
-              onClose={() => setThemeAnchorEl(null)}
-              slotProps={{
-                paper: {
-                  sx: {
-                    mt: 1.5,
-                    border: "1px solid",
-                    borderColor: "divider",
-                    bgcolor: "background.paper",
-                    boxShadow: "var(--card-shadow)",
-                  },
-                },
-              }}
-              transformOrigin={{ horizontal: "right", vertical: "top" }}
-              anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
-            >
-              <MenuItem 
-                onClick={() => { setThemeMode("light"); setThemeAnchorEl(null); }}
-                selected={themeMode === "light"}
-                sx={{ gap: 1.5, fontSize: "0.85rem" }}
-              >
-                <LightMode fontSize="small" /> Light
-              </MenuItem>
-              <MenuItem 
-                onClick={() => { setThemeMode("dark"); setThemeAnchorEl(null); }}
-                selected={themeMode === "dark"}
-                sx={{ gap: 1.5, fontSize: "0.85rem" }}
-              >
-                <DarkMode fontSize="small" /> Dark
-              </MenuItem>
-              <MenuItem 
-                onClick={() => { setThemeMode("system"); setThemeAnchorEl(null); }}
-                selected={themeMode === "system"}
-                sx={{ gap: 1.5, fontSize: "0.85rem" }}
-              >
-                <SettingsBrightness fontSize="small" /> System
-              </MenuItem>
-            </Menu>
+              <Typography variant="subtitle1" noWrap sx={{ fontWeight: 600, display: { xs: "none", sm: "block" } }}>
+                {pathname === "/" ? "Dashboard Home" : `Active Group: ${groupId || ""}`}
+              </Typography>
+            </Box>
 
-            {user ? (
-              <>
-                <Tooltip title={`Logged in as ${user.name}`}>
-                  <IconButton
-                    onClick={handleProfileMenuOpen}
-                    size="small"
-                    sx={{ p: 0.5, border: "1px solid var(--border-color)" }}
-                  >
-                    <Avatar
-                      alt={user.name}
-                      src={user.avatarUrl || undefined}
-                      sx={{ width: 32, height: 32 }}
-                    >
-                      {user.name.charAt(0).toUpperCase()}
-                    </Avatar>
-                  </IconButton>
-                </Tooltip>
-                <Menu
-                  anchorEl={anchorEl}
-                  open={Boolean(anchorEl)}
-                  onClose={handleProfileMenuClose}
-                  onClick={handleProfileMenuClose}
-                  slotProps={{
-                    paper: {
-                      sx: {
-                        mt: 1.5,
-                        width: 220,
-                        border: "1px solid",
-                        borderColor: "divider",
-                        bgcolor: "background.paper",
-                        boxShadow: "var(--card-shadow)",
-                      },
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              {/* Theme Selector Button */}
+              <Tooltip title="Theme mode">
+                <IconButton
+                  onClick={(e) => setThemeAnchorEl(e.currentTarget)}
+                  size="small"
+                  sx={{
+                    color: "text.secondary",
+                    border: "1px solid var(--border-color)",
+                    borderRadius: 2,
+                    p: 1,
+                    bgcolor: "rgba(255,255,255,0.02)",
+                    "&:hover": {
+                      borderColor: "primary.light",
+                      color: "primary.light",
                     },
                   }}
-                  transformOrigin={{ horizontal: "right", vertical: "top" }}
-                  anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
                 >
-                  <Box sx={{ px: 2, py: 1.5 }}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }} noWrap>
-                      {user.name}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" noWrap>
-                      @{user.username}
-                    </Typography>
-                  </Box>
-                  <Divider />
-                  <MenuItem component="a" href={user.webUrl} target="_blank" rel="noopener noreferrer">
-                    GitLab Profile
-                  </MenuItem>
-                  <MenuItem onClick={() => openProfile(user.username)}>
-                    My Profile
-                  </MenuItem>
-                  <MenuItem onClick={() => setSettingsOpen(true)}>
-                    Settings
-                  </MenuItem>
-                  <Divider />
-                  <MenuItem onClick={logout}>
-                    <ListItemIcon>
-                      <Logout fontSize="small" />
-                    </ListItemIcon>
-                    Logout
-                  </MenuItem>
-                </Menu>
-              </>
-            ) : (
-              <Button
-                variant="contained"
-                size="small"
-                startIcon={<Login />}
-                onClick={() => setSettingsOpen(true)}
+                  {themeMode === "light" && <LightMode sx={{ fontSize: 20 }} />}
+                  {themeMode === "dark" && <DarkMode sx={{ fontSize: 20 }} />}
+                  {themeMode === "system" && <SettingsBrightness sx={{ fontSize: 20 }} />}
+                </IconButton>
+              </Tooltip>
+
+              {/* Presentation Mode Button */}
+              <Tooltip title="Presentation mode">
+                <IconButton
+                  onClick={togglePresentationMode}
+                  size="small"
+                  sx={{
+                    color: "text.secondary",
+                    border: "1px solid var(--border-color)",
+                    borderRadius: 2,
+                    p: 1,
+                    bgcolor: "rgba(255,255,255,0.02)",
+                    "&:hover": {
+                      borderColor: "primary.light",
+                      color: "primary.light",
+                    },
+                  }}
+                >
+                  <TvIcon sx={{ fontSize: 20 }} />
+                </IconButton>
+              </Tooltip>
+              <Menu
+                anchorEl={themeAnchorEl}
+                open={Boolean(themeAnchorEl)}
+                onClose={() => setThemeAnchorEl(null)}
+                slotProps={{
+                  paper: {
+                    sx: {
+                      mt: 1.5,
+                      border: "1px solid",
+                      borderColor: "divider",
+                      bgcolor: "background.paper",
+                      boxShadow: "var(--card-shadow)",
+                    },
+                  },
+                }}
+                transformOrigin={{ horizontal: "right", vertical: "top" }}
+                anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
               >
-                Link GitLab Account
-              </Button>
-            )}
-          </Box>
-        </Toolbar>
-      </AppBar>
+                <MenuItem 
+                  onClick={() => { setThemeMode("light"); setThemeAnchorEl(null); }}
+                  selected={themeMode === "light"}
+                  sx={{ gap: 1.5, fontSize: "0.85rem" }}
+                >
+                  <LightMode fontSize="small" /> Light
+                </MenuItem>
+                <MenuItem 
+                  onClick={() => { setThemeMode("dark"); setThemeAnchorEl(null); }}
+                  selected={themeMode === "dark"}
+                  sx={{ gap: 1.5, fontSize: "0.85rem" }}
+                >
+                  <DarkMode fontSize="small" /> Dark
+                </MenuItem>
+                <MenuItem 
+                  onClick={() => { setThemeMode("system"); setThemeAnchorEl(null); }}
+                  selected={themeMode === "system"}
+                  sx={{ gap: 1.5, fontSize: "0.85rem" }}
+                >
+                  <SettingsBrightness fontSize="small" /> System
+                </MenuItem>
+              </Menu>
+
+              {user ? (
+                <>
+                  <Tooltip title={`Logged in as ${user.name}`}>
+                    <IconButton
+                      onClick={handleProfileMenuOpen}
+                      size="small"
+                      sx={{ p: 0.5, border: "1px solid var(--border-color)" }}
+                    >
+                      <Avatar
+                        alt={user.name}
+                        src={user.avatarUrl || undefined}
+                        sx={{ width: 32, height: 32 }}
+                      >
+                        {user.name.charAt(0).toUpperCase()}
+                      </Avatar>
+                    </IconButton>
+                  </Tooltip>
+                  <Menu
+                    anchorEl={anchorEl}
+                    open={Boolean(anchorEl)}
+                    onClose={handleProfileMenuClose}
+                    onClick={handleProfileMenuClose}
+                    slotProps={{
+                      paper: {
+                        sx: {
+                          mt: 1.5,
+                          width: 220,
+                          border: "1px solid",
+                          borderColor: "divider",
+                          bgcolor: "background.paper",
+                          boxShadow: "var(--card-shadow)",
+                        },
+                      },
+                    }}
+                    transformOrigin={{ horizontal: "right", vertical: "top" }}
+                    anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
+                  >
+                    <Box sx={{ px: 2, py: 1.5 }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700 }} noWrap>
+                        {user.name}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" noWrap>
+                        @{user.username}
+                      </Typography>
+                    </Box>
+                    <Divider />
+                    <MenuItem component="a" href={user.webUrl} target="_blank" rel="noopener noreferrer">
+                      GitLab Profile
+                    </MenuItem>
+                    <MenuItem onClick={() => openProfile(user.username)}>
+                      My Profile
+                    </MenuItem>
+                    <MenuItem onClick={() => setSettingsOpen(true)}>
+                      Settings
+                    </MenuItem>
+                    <Divider />
+                    <MenuItem onClick={logout}>
+                      <ListItemIcon>
+                        <Logout fontSize="small" />
+                      </ListItemIcon>
+                      Logout
+                    </MenuItem>
+                  </Menu>
+                </>
+              ) : (
+                <Button
+                  variant="contained"
+                  size="small"
+                  startIcon={<Login />}
+                  onClick={() => setSettingsOpen(true)}
+                >
+                  Link GitLab Account
+                </Button>
+              )}
+            </Box>
+          </Toolbar>
+        </AppBar>
+      )}
 
       {/* Side Navigation Drawer (Mobile) */}
-      <Drawer
-        variant="temporary"
-        open={mobileOpen}
-        onClose={handleDrawerToggle}
-        ModalProps={{
-          keepMounted: true, // Better open performance on mobile.
-        }}
-        sx={{
-          display: { xs: "block", md: "none" },
-          "& .MuiDrawer-paper": { boxSizing: "border-box", width: drawerWidth },
-        }}
-      >
-        {sidebarContent}
-      </Drawer>
+      {!presentationMode && (
+        <Drawer
+          variant="temporary"
+          open={mobileOpen}
+          onClose={handleDrawerToggle}
+          ModalProps={{
+            keepMounted: true, // Better open performance on mobile.
+          }}
+          sx={{
+            display: { xs: "block", md: "none" },
+            "& .MuiDrawer-paper": { boxSizing: "border-box", width: drawerWidth },
+          }}
+        >
+          {sidebarContent}
+        </Drawer>
+      )}
 
       {/* Side Navigation Drawer (Desktop) */}
-      <Drawer
-        variant="permanent"
-        sx={{
-          width: currentDrawerWidth,
-          flexShrink: 0,
-          display: { xs: "none", md: "block" },
-          transition: theme.transitions.create("width", {
-            easing: theme.transitions.easing.sharp,
-            duration: theme.transitions.duration.enteringScreen,
-          }),
-          "& .MuiDrawer-paper": {
-            boxSizing: "border-box",
+      {!presentationMode && (
+        <Drawer
+          variant="permanent"
+          sx={{
             width: currentDrawerWidth,
-            borderRight: "1px solid var(--border-color)",
+            flexShrink: 0,
+            display: { xs: "none", md: "block" },
             transition: theme.transitions.create("width", {
               easing: theme.transitions.easing.sharp,
               duration: theme.transitions.duration.enteringScreen,
             }),
-            overflowX: "hidden",
-          },
-        }}
-        open
-      >
-        {sidebarContent}
-      </Drawer>
+            "& .MuiDrawer-paper": {
+              boxSizing: "border-box",
+              width: currentDrawerWidth,
+              borderRight: "1px solid var(--border-color)",
+              transition: theme.transitions.create("width", {
+                easing: theme.transitions.easing.sharp,
+                duration: theme.transitions.duration.enteringScreen,
+              }),
+              overflowX: "hidden",
+            },
+          }}
+          open
+        >
+          {sidebarContent}
+        </Drawer>
+      )}
 
       {/* Main Content Area */}
       <Box
         component="main"
         sx={{
           flexGrow: 1,
-          p: { xs: 1.5, md: 2 },
-          mt: "64px",
-          minHeight: "calc(100vh - 64px)",
-          transition: theme.transitions.create("margin", {
+          p: presentationMode ? 0 : { xs: 1.5, md: 2 },
+          mt: presentationMode ? 0 : "64px",
+          minHeight: presentationMode ? "100vh" : "calc(100vh - 64px)",
+          transition: theme.transitions.create(["margin", "padding"], {
             easing: theme.transitions.easing.sharp,
             duration: theme.transitions.duration.enteringScreen,
           }),

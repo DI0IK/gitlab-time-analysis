@@ -703,81 +703,97 @@ async function fetchAndProcessMergeRequests(
   fullGroupPath: string,
   token?: string,
 ): Promise<string[]> {
-  const query = `
-    {
-      group(fullPath: "${fullGroupPath}") {
-        mergeRequests(first: 100) {
-          nodes {
-            id
-            title
-            state
-            webUrl
-            createdAt
-            mergedAt
-            author {
-              username
-              name
+  let finished = false;
+  let cursor: string | null = null;
+  const mrIds: string[] = [];
+
+  while (!finished) {
+    const query = `
+      {
+        group(fullPath: "${fullGroupPath}") {
+          mergeRequests(first: 100${cursor ? `, after: "${cursor}"` : ""}) {
+            nodes {
+              id
+              title
+              state
               webUrl
-              bot
-              avatarUrl
-            }
-            approvedBy {
-              nodes {
+              createdAt
+              mergedAt
+              author {
                 username
+                name
+                webUrl
+                bot
+                avatarUrl
               }
-            }
-            notes(first: 100) {
-              nodes {
-                system
-                author {
+              approvedBy {
+                nodes {
                   username
                 }
               }
+              notes(first: 100) {
+                nodes {
+                  system
+                  author {
+                    username
+                  }
+                }
+              }
+            }
+            pageInfo {
+              hasNextPage
+              endCursor
             }
           }
         }
       }
+    `;
+
+    const response = await runGitlabGraphQLQuery(query, token);
+    if (!response?.data?.group) {
+      throw new Error(`Group not found or inaccessible: ${fullGroupPath}`);
     }
-  `;
+    const nodes = response.data.group.mergeRequests?.nodes || [];
 
-  const response = await runGitlabGraphQLQuery(query, token);
-  if (!response?.data?.group) {
-    throw new Error(`Group not found or inaccessible: ${fullGroupPath}`);
-  }
-  const nodes = response.data.group.mergeRequests?.nodes || [];
-  const mrIds: string[] = [];
+    for (const node of nodes) {
+      const id = node.id;
+      const username = node.author ? registerUser(node.author) : "unknown";
 
-  for (const node of nodes) {
-    const id = node.id;
-    const username = node.author ? registerUser(node.author) : "unknown";
+      const approvedBy = (node.approvedBy?.nodes || []).map((u: any) => u.username);
+      const notesNodes = node.notes?.nodes || [];
+      const discussionAuthorsSet = new Set<string>();
+      let discussionCount = 0;
 
-    const approvedBy = (node.approvedBy?.nodes || []).map((u: any) => u.username);
-    const notesNodes = node.notes?.nodes || [];
-    const discussionAuthorsSet = new Set<string>();
-    let discussionCount = 0;
-
-    for (const note of notesNodes) {
-      if (!note.system && note.author?.username) {
-        discussionAuthorsSet.add(note.author.username);
-        discussionCount++;
+      for (const note of notesNodes) {
+        if (!note.system && note.author?.username) {
+          discussionAuthorsSet.add(note.author.username);
+          discussionCount++;
+        }
       }
+
+      const normalized: NormalizedMergeRequest = {
+        id,
+        title: node.title || "",
+        state: node.state || "",
+        webUrl: node.webUrl || "",
+        createdAt: node.createdAt,
+        mergedAt: node.mergedAt || null,
+        username,
+        approvedBy,
+        discussionAuthors: Array.from(discussionAuthorsSet),
+        discussionCount,
+      };
+
+      mergeRequestsStore.set(id, normalized);
+      mrIds.push(id);
     }
 
-    const normalized: NormalizedMergeRequest = {
-      id,
-      title: node.title || "",
-      state: node.state || "",
-      webUrl: node.webUrl || "",
-      createdAt: node.createdAt,
-      mergedAt: node.mergedAt || null,
-      username,
-      approvedBy,
-      discussionAuthors: Array.from(discussionAuthorsSet),
-      discussionCount,
-    };
-
-    mergeRequestsStore.set(id, normalized);
-    mrIds.push(id);
+    const pageInfo = response?.data?.group?.mergeRequests?.pageInfo;
+    if (pageInfo?.hasNextPage) {
+      cursor = pageInfo.endCursor;
+    } else {
+      finished = true;
+    }
   }
 
   return mrIds;

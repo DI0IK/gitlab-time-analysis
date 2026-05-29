@@ -365,7 +365,7 @@ export default function SprintOverview() {
                         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                           <Typography
                             sx={{
-                              fontSize: "0.95rem",
+                              fontSize: "1.1rem",
                               fontWeight: 600,
                               flex: 1,
                               overflow: "hidden",

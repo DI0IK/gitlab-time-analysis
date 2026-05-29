@@ -68,7 +68,7 @@ export function computeGamification(
   timelogs: GroupTimelogsResponse,
   mergeRequests: GamificationMergeRequest[] = []
 ): GamificationStats {
-  const userLogs = timelogs.filter((log) => log.username === username);
+  const userLogs = timelogs.filter((log) => log.username.toLowerCase() === username.toLowerCase());
 
   // 1. Total hours
   const totalHours = userLogs.reduce((sum, log) => sum + log.timeSpent, 0) / 3600;
@@ -137,7 +137,7 @@ export function computeGamification(
     const issueLogs = timelogs.filter((log) => log.issueUrl === issueUrl);
     if (issueLogs.length > 0) {
       const estimate = issueLogs[0].issueTimeEstimate; // seconds
-      const userIssueLogs = issueLogs.filter(log => log.username === username);
+      const userIssueLogs = issueLogs.filter(log => log.username.toLowerCase() === username.toLowerCase());
       const totalActualSpent = issueLogs.reduce((sum, log) => sum + log.timeSpent, 0);
 
       // Check for estimation efficiency
@@ -186,13 +186,14 @@ export function computeGamification(
 
   // Merge Request Computations
   const userMergedMrs = mergeRequests.filter(
-    (mr) => mr.username === username && mr.state === "merged"
+    (mr) => mr.username.toLowerCase() === username.toLowerCase() && mr.state === "merged"
   );
   const mergedMrsCount = userMergedMrs.length;
 
   const reviewedMrs = mergeRequests.filter(
-    (mr) => mr.username !== username &&
-      (mr.approvedBy.includes(username) || mr.discussionAuthors.includes(username))
+    (mr) => mr.username.toLowerCase() !== username.toLowerCase() &&
+      (mr.approvedBy.some(u => u.toLowerCase() === username.toLowerCase()) ||
+       mr.discussionAuthors.some(u => u.toLowerCase() === username.toLowerCase()))
   );
   const reviewedMrsCount = reviewedMrs.length;
 

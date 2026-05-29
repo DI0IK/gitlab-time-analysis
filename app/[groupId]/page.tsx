@@ -10,11 +10,21 @@ import {
   Tooltip,
   Typography,
   useTheme,
+  Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  Paper,
 } from "@mui/material";
 import ReportProblemIcon from "@mui/icons-material/ReportProblem";
+import TvIcon from "@mui/icons-material/Tv";
+import FullscreenExitIcon from "@mui/icons-material/FullscreenExit";
 import { useParams } from "next/navigation";
 import React from "react";
 import { useUserAuth } from "../UserAuthContext";
+import { useThemeMode } from "../ThemeContext";
 import type { GroupLabelsResponse } from "../api/group/[id]/labels/route";
 import type { GroupMembersResponse } from "../api/group/[id]/members/route";
 import type { GroupSprintsResponse } from "../api/group/[id]/sprints/route";
@@ -35,6 +45,17 @@ import UserDetailModal from "../components/UserDetailModal";
 import { GroupContext } from "../GroupContext";
 import { useUserProfile } from "../UserProfileContext";
 import { GamificationMergeRequest } from "../utils/gamification";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Legend as RechartsLegend,
+  ResponsiveContainer,
+  Tooltip as RechartsTooltip,
+} from "recharts";
+import { matchLabelToCategory } from "../utils/categoryUtils";
+import { CATEGORY_DEFINITIONS } from "../config/categories";
+import { UserAvatar } from "../components/UserAvatar";
 
 async function fetchJson(url: string, headers?: Record<string, string>) {
   const res = await fetch(url, { headers });
@@ -45,6 +66,7 @@ async function fetchJson(url: string, headers?: Record<string, string>) {
 
 export default function GroupPage() {
   const theme = useTheme();
+  const { presentationMode, setPresentationMode } = useThemeMode();
   const { groupId } = useParams();
   const groupIdStr = groupId?.toString() || "";
   const { token, loading: authLoading } = useUserAuth();
@@ -58,6 +80,32 @@ export default function GroupPage() {
   const [selectedSprint, setSelectedSprint] = React.useState<number | null>(null);
   const [showProblems, setShowProblems] = React.useState(false);
   const { profileUsername, closeProfile } = useUserProfile();
+
+  const togglePresentationMode = () => {
+    if (!presentationMode) {
+      document.documentElement.requestFullscreen().catch((err) => {
+        console.error("Error attempting to enable full-screen mode:", err);
+      });
+      setPresentationMode(true);
+    } else {
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+      }
+      setPresentationMode(false);
+    }
+  };
+
+  React.useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isFullscreen = !!document.fullscreenElement;
+      setPresentationMode(isFullscreen);
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, [setPresentationMode]);
 
   const fetchAllData = React.useCallback(async () => {
     if (authLoading) return;
@@ -140,147 +188,564 @@ export default function GroupPage() {
         }}
       >
         {/* Sticky Global Cycle Selector Bar */}
-        <Box
-          sx={{
-            position: "sticky",
-            top: 64, // below the AppShell AppBar header
-            zIndex: 10,
-            bgcolor: theme.palette.mode === "dark" ? "rgba(9, 13, 22, 0.8)" : "rgba(248, 250, 252, 0.8)",
-            backdropFilter: "blur(12px)",
-            py: 2,
-            borderBottom: "1px solid var(--border-color)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 2,
-            flexWrap: "wrap",
-          }}
-        >
-          <Box>
-            <Typography variant="h4" sx={{ fontWeight: 800 }}>
-              Group Dashboard
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Review timesheets and category distributions across weekly cycles
-            </Typography>
-          </Box>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <FormControl sx={{ minWidth: 240 }} size="small">
-              <InputLabel id="global-cycle-select-label">Weekly Cycle</InputLabel>
-              <Select
-                labelId="global-cycle-select-label"
-                value={selectedSprint ?? ""}
-                label="Weekly Cycle"
-                onChange={(e) => setSelectedSprint(Number(e.target.value))}
-                sx={{
-                  bgcolor: "background.paper",
-                  border: "1px solid var(--border-color)",
-                  borderRadius: 2,
-                }}
-              >
-                {sprints.map((sp) => (
-                  <MenuItem key={sp.sprintNumber} value={sp.sprintNumber}>
-                    {`Cycle ${sp.sprintNumber} (${new Date(
-                      sp.startDate,
-                    ).toLocaleDateString()} - ${new Date(
-                      sp.endDate,
-                    ).toLocaleDateString()})`}
-                  </MenuItem>
-                ))}
-                {timelogs
-                  .reduce((years, log) => {
-                    const year = new Date(log.spentAt).getFullYear();
-                    if (!years.includes(year)) years.push(year);
-                    return years;
-                  }, [] as number[])
-                  .sort((a, b) => b - a)
-                  .map((year) => (
-                    <MenuItem
-                      key={10000 + year}
-                      value={10000 + year}
-                    >{`Year ${year}`}</MenuItem>
+        {!presentationMode && (
+          <Box
+            sx={{
+              position: "sticky",
+              top: 64, // below the AppShell AppBar header
+              zIndex: 10,
+              bgcolor: theme.palette.mode === "dark" ? "rgba(9, 13, 22, 0.8)" : "rgba(248, 250, 252, 0.8)",
+              backdropFilter: "blur(12px)",
+              py: 2,
+              borderBottom: "1px solid var(--border-color)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 2,
+              flexWrap: "wrap",
+            }}
+          >
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 800 }}>
+                Group Dashboard
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Review timesheets and category distributions across weekly cycles
+              </Typography>
+            </Box>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <FormControl sx={{ minWidth: 240 }} size="small">
+                <InputLabel id="global-cycle-select-label">Weekly Cycle</InputLabel>
+                <Select
+                  labelId="global-cycle-select-label"
+                  value={selectedSprint ?? ""}
+                  label="Weekly Cycle"
+                  onChange={(e) => setSelectedSprint(Number(e.target.value))}
+                  sx={{
+                    bgcolor: "background.paper",
+                    border: "1px solid var(--border-color)",
+                    borderRadius: 2,
+                  }}
+                >
+                  {sprints.map((sp) => (
+                    <MenuItem key={sp.sprintNumber} value={sp.sprintNumber}>
+                      {`Cycle ${sp.sprintNumber} (${new Date(
+                        sp.startDate,
+                      ).toLocaleDateString()} - ${new Date(
+                        sp.endDate,
+                      ).toLocaleDateString()})`}
+                    </MenuItem>
                   ))}
-                <MenuItem key={1000} value={1000}>
-                  All time
-                </MenuItem>
-              </Select>
-            </FormControl>
-            <Tooltip title="Problems Board" placement="bottom">
-              <IconButton
-                id="problems-board-button"
-                aria-label="Open problems board"
-                onClick={() => setShowProblems(true)}
-                size="small"
+                  {timelogs
+                    .reduce((years, log) => {
+                      const year = new Date(log.spentAt).getFullYear();
+                      if (!years.includes(year)) years.push(year);
+                      return years;
+                    }, [] as number[])
+                    .sort((a, b) => b - a)
+                    .map((year) => (
+                      <MenuItem
+                        key={10000 + year}
+                        value={10000 + year}
+                      >{`Year ${year}`}</MenuItem>
+                    ))}
+                  <MenuItem key={1000} value={1000}>
+                    All time
+                  </MenuItem>
+                </Select>
+              </FormControl>
+              <Tooltip title="Problems Board" placement="bottom">
+                <IconButton
+                  id="problems-board-button"
+                  aria-label="Open problems board"
+                  onClick={() => setShowProblems(true)}
+                  size="small"
+                  sx={{
+                    color: "warning.main",
+                    border: "1px solid",
+                    borderColor: "warning.main",
+                    borderRadius: 1.5,
+                    p: 0.75,
+                    transition: "all 0.2s ease",
+                    "&:hover": {
+                      bgcolor: "warning.main",
+                      color: "#fff",
+                      boxShadow: "0 0 8px rgba(255,152,0,0.4)",
+                    },
+                  }}
+                >
+                  <ReportProblemIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </Box>
+          </Box>
+        )}
+
+        {presentationMode ? (
+          /* Presentation Mode Layout - Optimized for readability, forced light mode, scroll-free fit */
+          (() => {
+            const currentSprintLogs = timelogs.filter((log) => {
+              return (
+                log.sprintNumber === selectedSprint ||
+                selectedSprint === 1000 ||
+                (selectedSprint &&
+                  selectedSprint >= 10000 &&
+                  log.spentAt.startsWith((selectedSprint - 10000).toString()))
+              );
+            });
+
+            const totalCycleSeconds = currentSprintLogs.reduce((sum, log) => sum + log.timeSpent, 0);
+            const totalCycleHours = (totalCycleSeconds / 3600).toFixed(1);
+
+            // Group category data for Pie Chart
+            const categoryTotals: Record<string, number> = {};
+            currentSprintLogs.forEach((log) => {
+              let category = "Other";
+              for (const label of log.issueLabels) {
+                const catDef = matchLabelToCategory(label);
+                if (catDef) {
+                  category = catDef.label;
+                  break;
+                }
+              }
+              categoryTotals[category] = (categoryTotals[category] || 0) + log.timeSpent;
+            });
+
+            const pieData = Object.entries(categoryTotals)
+              .map(([name, value]) => ({
+                name,
+                value: +(value / 3600).toFixed(2),
+              }))
+              .filter((d) => d.value > 0);
+
+            const PIE_COLORS = ["#7C3AED", "#10B981", "#F59E0B", "#EF4444", "#3B82F6", "#EC4899", "#6B7280"];
+
+            // Group issues by total time spent with detailed metrics
+            const issuesMap: Record<
+              string,
+              {
+                title: string;
+                url: string;
+                timeSpent: number;
+                totalTimeSpent: number;
+                users: string[];
+                estimate: number;
+                labels: string[];
+              }
+            > = {};
+            currentSprintLogs.forEach((log) => {
+              if (!issuesMap[log.issueUrl]) {
+                const totalSec = timelogs
+                  .filter((t) => t.issueUrl === log.issueUrl)
+                  .reduce((sum, t) => sum + t.timeSpent, 0);
+
+                issuesMap[log.issueUrl] = {
+                  title: log.issueTitle,
+                  url: log.issueUrl,
+                  timeSpent: 0,
+                  totalTimeSpent: totalSec,
+                  users: [],
+                  estimate: log.issueTimeEstimate || 0,
+                  labels: log.issueLabels || [],
+                };
+              }
+              issuesMap[log.issueUrl].timeSpent += log.timeSpent;
+              if (log.username && !issuesMap[log.issueUrl].users.includes(log.username.toString())) {
+                issuesMap[log.issueUrl].users.push(log.username.toString());
+              }
+            });
+            const topIssues = Object.values(issuesMap)
+              .sort((a, b) => b.timeSpent - a.timeSpent)
+              .slice(0, 8); // Show top 8 issues (2 rows of 4 cards)
+
+            // Build Cycle Table Data
+            const columns = [
+              ...CATEGORY_DEFINITIONS.map((d) => ({ id: d.id, title: d.label })),
+              { id: "other", title: "Other" },
+            ];
+
+            const memberTableData: Record<string, Record<string, number>> = {};
+            const activeMembers = members.filter((m) => !m.bot);
+            
+            activeMembers.forEach((m) => {
+              memberTableData[m.id] = {};
+              columns.forEach((c) => {
+                memberTableData[m.id][c.id] = 0;
+              });
+              memberTableData[m.id]["__sum"] = 0;
+            });
+
+            currentSprintLogs.forEach((log) => {
+              const memberId = log.username || "unknown";
+              if (!memberTableData[memberId]) return;
+
+              let assignedCol = "other";
+              for (const label of log.issueLabels || []) {
+                const catDef = matchLabelToCategory(label);
+                if (catDef) {
+                  assignedCol = catDef.id;
+                  break;
+                }
+              }
+              memberTableData[memberId][assignedCol] += log.timeSpent;
+              memberTableData[memberId]["__sum"] += log.timeSpent;
+            });
+
+            // Compute column sums and only remove 'other' if empty
+            const columnSums: Record<string, number> = {};
+            columns.forEach((col) => { columnSums[col.id] = 0; });
+            Object.values(memberTableData).forEach((row) => {
+              columns.forEach((col) => {
+                columnSums[col.id] += row[col.id];
+              });
+            });
+
+            if (columnSums["other"] === 0) {
+              const otherIdx = columns.findIndex((c) => c.id === "other");
+              if (otherIdx > -1) {
+                columns.splice(otherIdx, 1);
+                delete columnSums["other"];
+              }
+            }
+            const visibleColumns = columns;
+
+            return (
+              <Box
                 sx={{
-                  color: "warning.main",
-                  border: "1px solid",
-                  borderColor: "warning.main",
-                  borderRadius: 1.5,
-                  p: 0.75,
-                  transition: "all 0.2s ease",
-                  "&:hover": {
-                    bgcolor: "warning.main",
-                    color: "#fff",
-                    boxShadow: "0 0 8px rgba(255,152,0,0.4)",
-                  },
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 3,
+                  p: 4,
+                  height: "100vh",
+                  maxHeight: "100vh",
+                  overflow: "hidden",
+                  bgcolor: "#ffffff",
+                  color: "#0f172a",
                 }}
               >
-                <ReportProblemIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          </Box>
-        </Box>
+                {/* Header Row: Title & Total Hours Callout + Exit button */}
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    borderBottom: "2px solid #e2e8f0",
+                    pb: 2,
+                    flexShrink: 0,
+                  }}
+                >
+                  <Box>
+                    <Typography variant="h3" sx={{ fontWeight: 800, color: "#1e293b" }}>
+                      Cycle {selectedSprint === 1000 ? "All Time" : selectedSprint} Overview
+                    </Typography>
+                    <Typography variant="subtitle1" sx={{ color: "#64748b", fontWeight: 500, mt: 0.5 }}>
+                      Active group performance and work breakdowns
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 3 }}>
+                    <Paper
+                      elevation={0}
+                      sx={{
+                        p: 2.5,
+                        px: 4,
+                        bgcolor: "rgba(124, 58, 237, 0.08)",
+                        border: "1px solid rgba(124, 58, 237, 0.2)",
+                        borderRadius: 3,
+                        textAlign: "center",
+                      }}
+                    >
+                      <Typography variant="body2" sx={{ fontWeight: 700, color: "primary.main", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                        Total Logged Hours
+                      </Typography>
+                      <Typography variant="h2" sx={{ fontWeight: 900, color: "primary.dark", mt: 0.5, lineHeight: 1 }}>
+                        {totalCycleHours}h
+                      </Typography>
+                    </Paper>
 
-        {/* 12-Column Responsive Dashboard Grid */}
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: { xs: "1fr", md: "repeat(12, 1fr)" },
-            gap: 3,
-          }}
-        >
-          {/* Row 1: Summary Cards (Full Width) */}
-          <Box sx={{ gridColumn: { xs: "span 12" } }}>
-            <HeaderCards />
-          </Box>
+                    <IconButton
+                      onClick={togglePresentationMode}
+                      sx={{
+                        bgcolor: "error.main",
+                        color: "#ffffff",
+                        boxShadow: 2,
+                        p: 2,
+                        borderRadius: 3,
+                        transition: "transform 0.2s ease, background-color 0.2s ease",
+                        "&:hover": {
+                          bgcolor: "error.dark",
+                          transform: "scale(1.08)",
+                        },
+                      }}
+                      title="Exit Presentation Mode"
+                    >
+                      <FullscreenExitIcon sx={{ fontSize: 28 }} />
+                    </IconButton>
+                  </Box>
+                </Box>
 
-          {/* Row 2: Heatmap (8 columns) + SprintRadar (4 columns) */}
-          <Box sx={{ gridColumn: { xs: "span 12", md: "span 8" }, height: { xs: "auto", md: 480 } }}>
-            <Heatmap />
-          </Box>
-          <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" }, height: { xs: "auto", md: 480 } }}>
-            <SprintRadar />
-          </Box>
+                {/* Main Content Layout (Split Vertically: Table/Pie on Top, Issues on Bottom) */}
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 3, flexGrow: 1, minHeight: 0 }}>
+                  
+                  {/* Top Block: Table (span 8) & Category Pie Chart (span 4) */}
+                  <Box sx={{ display: "grid", gridTemplateColumns: "repeat(12, 1fr)", gap: 3, flex: "1 1 50%", minHeight: 0 }}>
+                    {/* Cycle Table */}
+                    <Box sx={{ gridColumn: "span 8", display: "flex", flexDirection: "column", minHeight: 0 }}>
+                      <Paper
+                        elevation={0}
+                        sx={{
+                          p: 3,
+                          border: "1px solid #e2e8f0",
+                          borderRadius: 3,
+                          height: "100%",
+                          display: "flex",
+                          flexDirection: "column",
+                          minHeight: 0,
+                        }}
+                      >
+                        <Typography variant="h6" sx={{ fontWeight: 800, mb: 2, color: "#334155" }}>
+                          Team Timesheet Breakdown
+                        </Typography>
+                        <Box sx={{ flexGrow: 1, overflowY: "auto", minHeight: 0 }}>
+                          <Table size="medium" stickyHeader>
+                            <TableHead>
+                              <TableRow>
+                                <TableCell sx={{ fontWeight: 800, color: "#475569" }}>Member</TableCell>
+                                {visibleColumns.map((col) => (
+                                  <TableCell key={col.id} align="right" sx={{ fontWeight: 800, color: "#475569" }}>
+                                    {col.title}
+                                  </TableCell>
+                                ))}
+                                <TableCell align="right" sx={{ fontWeight: 800, color: "#475569" }}>Total (hrs)</TableCell>
+                              </TableRow>
+                            </TableHead>
+                            <TableBody>
+                              {activeMembers.map((member) => {
+                                const sum = (memberTableData[member.id]?.["__sum"] || 0) / 3600;
+                                return (
+                                  <TableRow key={member.id} hover>
+                                    <TableCell>
+                                      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                                        <UserAvatar member={member} size="medium" showTooltip={false} />
+                                        <Typography sx={{ fontWeight: 600, color: "#1e293b", fontSize: "0.95rem" }}>
+                                          {member.name}
+                                        </Typography>
+                                      </Box>
+                                    </TableCell>
+                                    {visibleColumns.map((col) => (
+                                      <TableCell key={col.id} align="right" sx={{ fontWeight: 600, color: "#334155" }}>
+                                        {((memberTableData[member.id]?.[col.id] || 0) / 3600).toFixed(1)}
+                                      </TableCell>
+                                    ))}
+                                    <TableCell align="right" sx={{ fontWeight: 700, color: "primary.main" }}>
+                                      {sum.toFixed(1)}
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
 
-          {/* Row 3: Cycle Overview Workspace (Full Width) */}
-          <Box sx={{ gridColumn: { xs: "span 12" } }}>
-            <SprintOverview />
-          </Box>
+                              {/* Totals row */}
+                              <TableRow sx={{ "& td": { fontWeight: "bold", bgcolor: "#f8fafc", borderTop: "2px solid #e2e8f0" } }}>
+                                <TableCell>Total</TableCell>
+                                {visibleColumns.map((col) => (
+                                  <TableCell key={col.id} align="right">
+                                    {((columnSums[col.id] || 0) / 3600).toFixed(1)}
+                                  </TableCell>
+                                ))}
+                                <TableCell align="right" sx={{ color: "primary.dark" }}>
+                                  {(totalCycleSeconds / 3600).toFixed(1)}
+                                </TableCell>
+                              </TableRow>
+                            </TableBody>
+                          </Table>
+                        </Box>
+                      </Paper>
+                    </Box>
 
-          {/* Row 4: Member Performance (6 columns + 6 columns) */}
-          <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" }, height: { xs: "auto", md: 480 } }}>
-            <TimePerMember />
-          </Box>
-          <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" }, height: { xs: "auto", md: 480 } }}>
-            <EstimateAccuracy />
-          </Box>
+                    {/* Category Pie Chart */}
+                    <Box sx={{ gridColumn: "span 4", display: "flex", flexDirection: "column", minHeight: 0 }}>
+                      <Paper
+                        elevation={0}
+                        sx={{
+                          p: 3,
+                          border: "1px solid #e2e8f0",
+                          borderRadius: 3,
+                          height: "100%",
+                          display: "flex",
+                          flexDirection: "column",
+                          minHeight: 0,
+                        }}
+                      >
+                        <Typography variant="h6" sx={{ fontWeight: 800, mb: 1, color: "#334155" }}>
+                          Category Distribution
+                        </Typography>
+                        <Box sx={{ flexGrow: 1, minHeight: 0 }}>
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie
+                                data={pieData}
+                                cx="50%"
+                                cy="50%"
+                                innerRadius="45%"
+                                outerRadius="75%"
+                                paddingAngle={3}
+                                dataKey="value"
+                              >
+                                {pieData.map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                                ))}
+                              </Pie>
+                              <RechartsTooltip formatter={(value) => `${value}h`} />
+                              <RechartsLegend verticalAlign="bottom" height={36} iconType="circle" />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </Box>
+                      </Paper>
+                    </Box>
+                  </Box>
 
-          {/* Row 5: Categories & Sprint Members (6 columns + 6 columns) */}
-          <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" }, height: { xs: "auto", md: 420 } }}>
-            <TimePerCategory />
-          </Box>
-          <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" }, height: { xs: "auto", md: 420 } }}>
-            <TimePerSprintMember />
-          </Box>
+                  {/* Bottom Block: Full-width Top Issues Breakdown */}
+                  <Box sx={{ flex: "0 0 auto", height: "300px" }}>
+                    <Paper
+                      elevation={0}
+                      sx={{
+                        p: 3,
+                        border: "1px solid #e2e8f0",
+                        borderRadius: 3,
+                        height: "100%",
+                        display: "flex",
+                        flexDirection: "column",
+                      }}
+                    >
+                      <Typography variant="h6" sx={{ fontWeight: 800, mb: 1.5, color: "#334155" }}>
+                        Top Issues Worked On
+                      </Typography>
+                      <Box sx={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gridTemplateRows: "repeat(2, 1fr)", gap: 2, flexGrow: 1 }}>
+                        {topIssues.map((issue, idx) => {
+                          const loggedHours = (issue.timeSpent / 3600).toFixed(1);
+                          const totalHours = (issue.totalTimeSpent / 3600).toFixed(1);
+                          const estimateHours = (issue.estimate / 3600).toFixed(1);
+                          const deviation = issue.estimate > 0 
+                            ? (((issue.totalTimeSpent - issue.estimate) / issue.estimate) * 100).toFixed(0)
+                            : "N/A";
 
-          {/* Row 6: Temporal Trends (6 columns + 6 columns) */}
-          <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" }, height: { xs: "auto", md: 420 } }}>
-            <TimePerWeek />
+                          return (
+                            <Box
+                              key={issue.url}
+                              sx={{
+                                display: "flex",
+                                flexDirection: "column",
+                                justifyContent: "space-between",
+                                p: 1.75,
+                                borderRadius: 2.5,
+                                bgcolor: "#f8fafc",
+                                border: "1px solid #f1f5f9",
+                              }}
+                            >
+                              {/* Top row: Rank & Title */}
+                              <Box sx={{ minWidth: 0 }}>
+                                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                  <Typography sx={{ fontWeight: 900, color: "primary.main", fontSize: "1.05rem" }}>
+                                    #{idx + 1}
+                                  </Typography>
+                                  <Typography noWrap sx={{ fontWeight: 700, color: "#1e293b", textOverflow: "ellipsis", overflow: "hidden", fontSize: "1.15rem" }} title={issue.title}>
+                                    {issue.title}
+                                  </Typography>
+                                </Box>
+                                <Typography sx={{ fontSize: "0.72rem", color: "#64748b", mt: 0.5, display: "flex", flexWrap: "wrap", gap: 1.5 }}>
+                                  <span>Cycle: <b>{loggedHours}h</b></span>
+                                  <span>Total: <b>{totalHours}h</b></span>
+                                  {issue.estimate > 0 && (
+                                    <>
+                                      <span>Est: <b>{estimateHours}h</b></span>
+                                      <span style={{ color: Math.abs(Number(deviation)) > 20 ? "#ef4444" : "#10b981" }}>Dev: <b>{deviation}%</b></span>
+                                    </>
+                                  )}
+                                </Typography>
+                              </Box>
+
+                              {/* Bottom row: Avatars of assignees/workers */}
+                              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mt: 1 }}>
+                                <Typography sx={{ fontSize: "0.7rem", color: "#94a3b8", fontWeight: 500 }}>
+                                  Contributors:
+                                </Typography>
+                                <Box sx={{ display: "flex", gap: 0.5 }}>
+                                  {issue.users.slice(0, 4).map((username) => {
+                                    const member = members.find((m) => m.id === username);
+                                    return member ? (
+                                      <UserAvatar
+                                        key={username}
+                                        member={member}
+                                        size="medium"
+                                        showTooltip={true}
+                                        sx={{ width: 28, height: 28 }}
+                                      />
+                                    ) : null;
+                                  })}
+                                </Box>
+                              </Box>
+                            </Box>
+                          );
+                        })}
+                      </Box>
+                    </Paper>
+                  </Box>
+
+                </Box>
+              </Box>
+            );
+          })()
+        ) : (
+          /* Standard Responsive Dashboard Grid */
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", md: "repeat(12, 1fr)" },
+              gap: 3,
+            }}
+          >
+            {/* Row 1: Summary Cards (Full Width) */}
+            <Box sx={{ gridColumn: { xs: "span 12" } }}>
+              <HeaderCards />
+            </Box>
+
+            {/* Row 2: Heatmap (Full Width on desktop) */}
+            <Box sx={{ gridColumn: { xs: "span 12" }, height: { xs: 360, md: 480 } }}>
+              <Heatmap />
+            </Box>
+
+            {/* Row 3: Cycle Overview Workspace (Full Width) */}
+            <Box sx={{ gridColumn: { xs: "span 12" } }}>
+              <SprintOverview />
+            </Box>
+
+            {/* Row 4: Sprint Radar + Member Performance (4 + 4 + 4 columns) */}
+            <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" }, height: { xs: "auto", md: 480 } }}>
+              <SprintRadar />
+            </Box>
+            <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" }, height: { xs: "auto", md: 480 } }}>
+              <TimePerMember />
+            </Box>
+            <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" }, height: { xs: "auto", md: 480 } }}>
+              <EstimateAccuracy />
+            </Box>
+
+            {/* Row 5: Categories & Sprint Members (6 columns + 6 columns) */}
+            <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" }, height: { xs: "auto", md: 420 } }}>
+              <TimePerCategory />
+            </Box>
+            <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" }, height: { xs: "auto", md: 420 } }}>
+              <TimePerSprintMember />
+            </Box>
+
+            {/* Row 6: Temporal Trends (6 columns + 6 columns) */}
+            <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" }, height: { xs: "auto", md: 420 } }}>
+              <TimePerWeek />
+            </Box>
+            <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" }, height: { xs: "auto", md: 420 } }}>
+              <TimePerWeekday />
+            </Box>
           </Box>
-          <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" }, height: { xs: "auto", md: 420 } }}>
-            <TimePerWeekday />
-          </Box>
-        </Box>
+        )}
       </Box>
       <StaleIndicator />
       <ProblemsModal

@@ -10,6 +10,8 @@ type ThemeContextType = {
   resolvedMode: "light" | "dark";
   colorTheme: ColorTheme;
   setColorTheme: (theme: ColorTheme) => void;
+  presentationMode: boolean;
+  setPresentationMode: (mode: boolean) => void;
 };
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -18,6 +20,7 @@ export function ThemeModeProvider({ children }: { children: React.ReactNode }) {
   const [themeMode, setThemeModeState] = useState<ThemeMode>("system");
   const [colorTheme, setColorThemeState] = useState<ColorTheme>("default");
   const [resolvedMode, setResolvedMode] = useState<"light" | "dark">("dark");
+  const [presentationMode, setPresentationMode] = useState<boolean>(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -45,6 +48,11 @@ export function ThemeModeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!mounted) return;
 
+    if (presentationMode) {
+      setResolvedMode("light");
+      return;
+    }
+
     if (themeMode === "system") {
       const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
       const handleChange = () => {
@@ -56,7 +64,7 @@ export function ThemeModeProvider({ children }: { children: React.ReactNode }) {
     } else {
       setResolvedMode(themeMode);
     }
-  }, [themeMode, mounted]);
+  }, [themeMode, presentationMode, mounted]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -71,7 +79,17 @@ export function ThemeModeProvider({ children }: { children: React.ReactNode }) {
   }, [resolvedMode, colorTheme, mounted]);
 
   return (
-    <ThemeContext.Provider value={{ themeMode, setThemeMode, resolvedMode, colorTheme, setColorTheme }}>
+    <ThemeContext.Provider
+      value={{
+        themeMode,
+        setThemeMode,
+        resolvedMode,
+        colorTheme,
+        setColorTheme,
+        presentationMode,
+        setPresentationMode,
+      }}
+    >
       {!mounted ? (
         <div style={{ visibility: "hidden" }}>{children}</div>
       ) : (

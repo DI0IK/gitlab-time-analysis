@@ -399,7 +399,7 @@ export function UserLeaderboard() {
     if (!data) return [];
     return [...data].sort((a, b) => {
       if (sortBy === "level") {
-        return (b.level || 1) - (a.level || 1);
+        return (b.xp || 0) - (a.xp || 0);
       }
       return b.totalHours - a.totalHours;
     });
