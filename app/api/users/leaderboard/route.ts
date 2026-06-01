@@ -42,6 +42,7 @@ export const GET = async (request: Request) => {
       otherSeconds: number;
     }
   > = {};
+  const bots = new Set<string>();
 
   const allTimelogs: any[] = [];
   const allMergeRequests: any[] = [];
@@ -59,6 +60,9 @@ export const GET = async (request: Request) => {
     const memberMap = new Map(
       members.map((m) => [m.id, { name: m.name, avatarUrl: m.avatarUrl }]),
     );
+    members.forEach((m) => {
+      if (m.bot) bots.add(m.id.toLowerCase());
+    });
 
     for (const log of timelogs) {
       const userId = log.username || "unknown";
@@ -109,7 +113,7 @@ export const GET = async (request: Request) => {
         color: def.color,
       }));
 
-      const gamification = computeGamification(userId, allTimelogs, allMergeRequests);
+      const gamification = computeGamification(userId, allTimelogs, allMergeRequests, bots.has(userId.toLowerCase()));
 
       return {
         userId,

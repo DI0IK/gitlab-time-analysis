@@ -10,6 +10,7 @@ export type GroupMembersResponse = {
   url: string;
   bot: boolean;
   avatarUrl: string | null;
+  verified: boolean;
 }[];
 
 export const GET = async (
