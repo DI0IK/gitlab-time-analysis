@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 import { GITLAB_GROUP_PATH } from "../../../env";
-import { runGitlabGraphQLQuery } from "../../../gitlab";
+import { apolloClient, gql } from "../../../apollo-client";
 import { CATEGORY_DEFINITIONS } from "@/app/config/categories";
 import { getMembers } from "../members/route";
 import { getTimelogs } from "../timelogs/route";
@@ -82,10 +82,18 @@ export async function GET(
   const fullPath = `${GITLAB_GROUP_PATH}/${id}`;
   let groupName = id;
   try {
-    const data = await runGitlabGraphQLQuery(`
-      { group(fullPath: "${fullPath}") { name } }
-    `);
-    groupName = data.data.group.name;
+    const data: any = (await apolloClient.query<any>({
+      query: gql`
+        query OgGroupName($fullPath: ID!) {
+          group(fullPath: $fullPath) {
+            name
+          }
+        }
+      `,
+      variables: { fullPath },
+      fetchPolicy: "no-cache",
+    })).data;
+    groupName = data.group.name;
   } catch {}
 
   return new ImageResponse(

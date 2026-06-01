@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 import { GITLAB_GROUP_PATH } from "../env";
-import { runGitlabGraphQLQuery } from "../gitlab";
+import { apolloClient, gql } from "../apollo-client";
 
 export const runtime = "nodejs";
 
@@ -16,18 +16,22 @@ export async function GET() {
 
   let groups: { name: string }[] = [];
   try {
-    const data = await runGitlabGraphQLQuery(`
-      {
-        group(fullPath: "${GITLAB_GROUP_PATH}") {
-          descendantGroups {
-            nodes {
-              name
+    const data: any = (await apolloClient.query<any>({
+      query: gql`
+        query OgDescendantGroups($fullPath: ID!) {
+          group(fullPath: $fullPath) {
+            descendantGroups {
+              nodes {
+                name
+              }
             }
           }
         }
-      }
-    `);
-    groups = data.data.group.descendantGroups.nodes;
+      `,
+      variables: { fullPath: GITLAB_GROUP_PATH },
+      fetchPolicy: "no-cache",
+    })).data;
+    groups = data.group.descendantGroups.nodes;
   } catch {}
 
   return new ImageResponse(
