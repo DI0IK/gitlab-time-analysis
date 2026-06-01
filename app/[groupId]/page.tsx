@@ -2,9 +2,12 @@
 
 import {
   Box,
+  Card,
+  CardContent,
   FormControl,
   IconButton,
   InputLabel,
+  LinearProgress,
   MenuItem,
   Select,
   Tooltip,
@@ -21,6 +24,7 @@ import {
 import ReportProblemIcon from "@mui/icons-material/ReportProblem";
 import TvIcon from "@mui/icons-material/Tv";
 import FullscreenExitIcon from "@mui/icons-material/FullscreenExit";
+import Group from "@mui/icons-material/Group";
 import { useParams } from "next/navigation";
 import React from "react";
 import { useUserAuth } from "../UserAuthContext";
@@ -44,7 +48,7 @@ import TimePerWeekday from "../components/TimePerWeekday";
 import UserDetailModal from "../components/UserDetailModal";
 import { GroupContext } from "../GroupContext";
 import { useUserProfile } from "../UserProfileContext";
-import { GamificationMergeRequest } from "../utils/gamification";
+import { GamificationMergeRequest, computeLevelInfo, computeGamification, TIER_INFO } from "../utils/gamification";
 import {
   PieChart,
   Pie,
@@ -57,11 +61,25 @@ import { matchLabelToCategory } from "../utils/categoryUtils";
 import { CATEGORY_DEFINITIONS } from "../config/categories";
 import { UserAvatar } from "../components/UserAvatar";
 
+const clientCache = new Map<string, { data: any; ts: number }>();
+const CLIENT_CACHE_TTL = 60000;
+
+function clearClientCache() {
+  clientCache.clear();
+}
+
 async function fetchJson(url: string, headers?: Record<string, string>) {
+  const cacheKey = url;
+  const cached = clientCache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < CLIENT_CACHE_TTL) {
+    return cached.data;
+  }
   const res = await fetch(url, { headers });
   const data = await res.json();
   const cacheTimestamp = Number(res.headers.get("x-cache-timestamp")) || Date.now();
-  return { data, cacheTimestamp };
+  const result = { data, cacheTimestamp };
+  clientCache.set(cacheKey, { data: result, ts: Date.now() });
+  return result;
 }
 
 export default function GroupPage() {
@@ -141,6 +159,7 @@ export default function GroupPage() {
   }, [groupIdStr, token, authLoading]);
 
   const refreshData = React.useCallback(() => {
+    clearClientCache();
     fetchAllData();
   }, [fetchAllData]);
 
@@ -149,6 +168,32 @@ export default function GroupPage() {
       fetchAllData();
     }
   }, [fetchAllData, authLoading]);
+
+  // Group-level XP: aggregate verified human members' gamification
+  // Computed off the main thread after render to avoid blocking the UI
+  const [groupLevelInfo, setGroupLevelInfo] = React.useState<{
+    totalXp: number;
+    avgXp: number;
+    memberCount: number;
+  } & ReturnType<typeof computeLevelInfo> | null>(null);
+  React.useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      if (cancelled) return;
+      const humanMembers = members.filter((m) => !m.bot && m.verified);
+      if (humanMembers.length === 0) return;
+      let totalXp = 0;
+      for (const member of humanMembers) {
+        const stats = computeGamification(member.id, timelogs, mergeRequests);
+        totalXp += stats.xp;
+      }
+      if (cancelled) return;
+      const avgXp = Math.floor(totalXp / humanMembers.length);
+      const info = computeLevelInfo(avgXp);
+      setGroupLevelInfo({ totalXp, avgXp, memberCount: humanMembers.length, ...info });
+    }, 0);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [members, timelogs, mergeRequests]);
 
   // Set default active sprint based on current date
   React.useEffect(() => {
@@ -707,6 +752,80 @@ export default function GroupPage() {
             <Box sx={{ gridColumn: { xs: "span 12" } }}>
               <HeaderCards />
             </Box>
+
+            {/* Row 1.5: Group Level Card (Full Width) */}
+            {groupLevelInfo && (
+              <Box sx={{ gridColumn: { xs: "span 12" } }}>
+                <Card
+                  sx={{
+                    background: `linear-gradient(135deg, ${groupLevelInfo.tierColor}15, rgba(255,255,255,0.01))`,
+                    border: `1px solid ${groupLevelInfo.tierColor}30`,
+                  }}
+                >
+                  <CardContent
+                    sx={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap", py: 2.5, "&:last-child": { pb: 2.5 } }}
+                  >
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                      <Box
+                        sx={{
+                          width: 52,
+                          height: 52,
+                          borderRadius: "50%",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          bgcolor: `${groupLevelInfo.tierColor}20`,
+                          border: `2px solid ${groupLevelInfo.tierColor}`,
+                        }}
+                      >
+                        <Typography sx={{ fontWeight: 900, fontSize: "1.25rem", color: groupLevelInfo.tierColor, lineHeight: 1 }}>
+                          {groupLevelInfo.level}
+                        </Typography>
+                      </Box>
+                      <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 600, color: "text.secondary", lineHeight: 1.2 }}>
+                          Group Level
+                        </Typography>
+                        <Typography sx={{ fontWeight: 800, fontSize: "1.1rem", color: groupLevelInfo.tierColor, lineHeight: 1.3 }}>
+                          {groupLevelInfo.tierLabel}
+                        </Typography>
+                      </Box>
+                    </Box>
+
+                    <Box sx={{ flexGrow: 1, minWidth: 200, maxWidth: 500 }}>
+                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.5 }}>
+                        <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                          {groupLevelInfo.totalXp.toLocaleString()} Total XP
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {Math.max(0, (groupLevelInfo.xpForNextLevel * groupLevelInfo.memberCount) - groupLevelInfo.totalXp).toLocaleString()} XP to Level {groupLevelInfo.level + 1}
+                        </Typography>
+                      </Box>
+                      <LinearProgress
+                        variant="determinate"
+                        value={groupLevelInfo.xpPercent}
+                        sx={{
+                          height: 8,
+                          borderRadius: 4,
+                          backgroundColor: "rgba(255,255,255,0.08)",
+                          "& .MuiLinearProgress-bar": {
+                            borderRadius: 4,
+                            backgroundColor: groupLevelInfo.tierColor,
+                          },
+                        }}
+                      />
+                    </Box>
+
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                      <Group sx={{ color: "text.secondary", fontSize: 20 }} />
+                      <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                        {groupLevelInfo.memberCount} members
+                      </Typography>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Box>
+            )}
 
             {/* Row 2: Heatmap (Full Width on desktop) */}
             <Box sx={{ gridColumn: { xs: "span 12" }, height: { xs: 360, md: 480 } }}>

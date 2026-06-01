@@ -130,14 +130,17 @@ export default function UserDetailModal({
     ).length;
   }, [allMergeRequestsForGamification, username]);
 
+  const isBot = member?.bot ?? false;
+
   // Gamification stats
   const stats = React.useMemo(() => {
     return computeGamification(
       username,
       allLogsForGamification.length > 0 ? allLogsForGamification : userLogs,
-      allMergeRequestsForGamification
+      allMergeRequestsForGamification,
+      isBot
     );
-  }, [username, allLogsForGamification, userLogs, allMergeRequestsForGamification]);
+  }, [username, allLogsForGamification, userLogs, allMergeRequestsForGamification, isBot]);
 
   // XP progress history per sprint
   const xpHistory = React.useMemo(() => {
@@ -768,30 +771,32 @@ export default function UserDetailModal({
                     <ListItem sx={{ py: 1.5, px: 2.5, display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border-color)" }}>
                       <ListItemText
                         primary={<Typography variant="body2" sx={{ fontWeight: 600 }}>Hours Logged XP</Typography>}
-                        secondary="15 XP per hour"
+                        secondary="20 XP per hour"
                       />
                       <Typography sx={{ fontWeight: 700, color: "text.primary" }}>{stats.xpBreakdown.hoursXp.toLocaleString()} XP</Typography>
                     </ListItem>
                     <ListItem sx={{ py: 1.5, px: 2.5, display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border-color)" }}>
                       <ListItemText
-                        primary={<Typography variant="body2" sx={{ fontWeight: 600 }}>Issues Contributed XP</Typography>}
-                        secondary="5 XP per unique issue"
+                        primary={<Typography variant="body2" sx={{ fontWeight: 600 }}>Issues Completed XP</Typography>}
+                        secondary="15 XP per estimated hour"
                       />
                       <Typography sx={{ fontWeight: 700, color: "text.primary" }}>{stats.xpBreakdown.issuesXp.toLocaleString()} XP</Typography>
                     </ListItem>
+                    {stats.xpBreakdown.blindFlightPenalty > 0 && (
+                      <ListItem sx={{ py: 1.5, px: 2.5, display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border-color)" }}>
+                        <ListItemText
+                          primary={<Typography variant="body2" sx={{ fontWeight: 600, color: "error.main" }}>Blind Flight Penalty</Typography>}
+                          secondary="-10 XP per issue closed without estimate"
+                        />
+                        <Typography sx={{ fontWeight: 700, color: "error.main" }}>-{stats.xpBreakdown.blindFlightPenalty.toLocaleString()} XP</Typography>
+                      </ListItem>
+                    )}
                     <ListItem sx={{ py: 1.5, px: 2.5, display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border-color)" }}>
                       <ListItemText
-                        primary={<Typography variant="body2" sx={{ fontWeight: 600 }}>Sprints Contributed XP</Typography>}
-                        secondary="25 XP per active sprint"
+                        primary={<Typography variant="body2" sx={{ fontWeight: 600 }}>Iterations Contributed XP</Typography>}
+                        secondary="50 XP per active sprint"
                       />
                       <Typography sx={{ fontWeight: 700, color: "text.primary" }}>{stats.xpBreakdown.sprintsXp.toLocaleString()} XP</Typography>
-                    </ListItem>
-                    <ListItem sx={{ py: 1.5, px: 2.5, display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border-color)" }}>
-                      <ListItemText
-                        primary={<Typography variant="body2" sx={{ fontWeight: 600 }}>Merge Requests Merged XP</Typography>}
-                        secondary="25 XP per merged Merge Request"
-                      />
-                      <Typography sx={{ fontWeight: 700, color: "text.primary" }}>{stats.xpBreakdown.mergeRequestsXp.toLocaleString()} XP</Typography>
                     </ListItem>
                     <ListItem sx={{ py: 1.5, px: 2.5, display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border-color)" }}>
                       <ListItemText
@@ -799,49 +804,6 @@ export default function UserDetailModal({
                         secondary="15 XP per teammate MR approved or reviewed"
                       />
                       <Typography sx={{ fontWeight: 700, color: "text.primary" }}>{stats.xpBreakdown.reviewsXp.toLocaleString()} XP</Typography>
-                    </ListItem>
-
-                    <ListItem sx={{ py: 1.5, px: 2.5, display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border-color)" }}>
-                      <ListItemText
-                        primary={<Typography variant="body2" sx={{ fontWeight: 600 }}>Perfect Week Bonus</Typography>}
-                        secondary="50 XP per sprint with 3.5h - 5.0h logged"
-                      />
-                      <Typography sx={{ fontWeight: 700, color: "text.primary" }}>{stats.xpBreakdown.perfectWeeksXp.toLocaleString()} XP</Typography>
-                    </ListItem>
-                    <ListItem sx={{ py: 1.5, px: 2.5, display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border-color)" }}>
-                      <ListItemText
-                        primary={<Typography variant="body2" sx={{ fontWeight: 600 }}>Long Week Bonus</Typography>}
-                        secondary="Logarithmic XP scaling (diminishing returns) for hours beyond the 4.0h expected target"
-                      />
-                      <Typography sx={{ fontWeight: 700, color: "text.primary" }}>{stats.xpBreakdown.longWeeksXp.toLocaleString()} XP</Typography>
-                    </ListItem>
-                    <ListItem sx={{ py: 1.5, px: 2.5, display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border-color)" }}>
-                      <ListItemText
-                        primary={<Typography variant="body2" sx={{ fontWeight: 600 }}>Speed Demon Bonus</Typography>}
-                        secondary="10 XP per issue completed within 48h of issue creation"
-                      />
-                      <Typography sx={{ fontWeight: 700, color: "text.primary" }}>{stats.xpBreakdown.speedDemonXp.toLocaleString()} XP</Typography>
-                    </ListItem>
-                    <ListItem sx={{ py: 1.5, px: 2.5, display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border-color)" }}>
-                      <ListItemText
-                        primary={<Typography variant="body2" sx={{ fontWeight: 600 }}>Heavy Lifter Bonus</Typography>}
-                        secondary="40 XP per issue completed with estimate >= 8h"
-                      />
-                      <Typography sx={{ fontWeight: 700, color: "text.primary" }}>{stats.xpBreakdown.heavyLifterXp.toLocaleString()} XP</Typography>
-                    </ListItem>
-                    <ListItem sx={{ py: 1.5, px: 2.5, display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border-color)" }}>
-                      <ListItemText
-                        primary={<Typography variant="body2" sx={{ fontWeight: 600 }}>Perfect Estimate Bonus</Typography>}
-                        secondary="15 XP per issue finished within ±5% of estimate"
-                      />
-                      <Typography sx={{ fontWeight: 700, color: "text.primary" }}>{stats.xpBreakdown.perfectEstimateXp.toLocaleString()} XP</Typography>
-                    </ListItem>
-                    <ListItem sx={{ py: 1.5, px: 2.5, display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border-color)" }}>
-                      <ListItemText
-                        primary={<Typography variant="body2" sx={{ fontWeight: 600 }}>Under Budget Bonus</Typography>}
-                        secondary="10 XP per issue finished faster than estimate"
-                      />
-                      <Typography sx={{ fontWeight: 700, color: "text.primary" }}>{stats.xpBreakdown.underBudgetXp.toLocaleString()} XP</Typography>
                     </ListItem>
                     <ListItem sx={{ py: 1.5, px: 2.5, display: "flex", justifyContent: "space-between" }}>
                       <ListItemText

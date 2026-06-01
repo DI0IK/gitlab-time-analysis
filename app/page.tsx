@@ -7,6 +7,7 @@ import {
   Card,
   CardContent,
   CardHeader,
+  Chip,
   LinearProgress,
   Link,
   Table,
@@ -248,6 +249,7 @@ function ComparisonTable({ data }: { data: GroupComparisonResponse }) {
       <TableHead>
         <TableRow>
           <TableCell sx={{ fontWeight: 700 }}>Group</TableCell>
+          <TableCell sx={{ fontWeight: 700 }}>Level</TableCell>
           <TableCell sx={{ fontWeight: 700 }}>Members</TableCell>
           <TableCell sx={{ fontWeight: 700 }}>Category split</TableCell>
           <TableCell sx={{ fontWeight: 700 }} align="right">
@@ -268,6 +270,20 @@ function ComparisonTable({ data }: { data: GroupComparisonResponse }) {
             }}
           >
             <TableCell sx={{ fontWeight: 600 }}>{group.name}</TableCell>
+            <TableCell>
+              <Chip
+                label={`Lv. ${group.groupLevel}`}
+                size="small"
+                sx={{
+                  height: 20,
+                  fontSize: "0.7rem",
+                  fontWeight: 800,
+                  backgroundColor: group.groupTierColor,
+                  color: group.groupLevel >= 10 && group.groupLevel < 30 ? "#0f172a" : "#ffffff",
+                  px: 0.5,
+                }}
+              />
+            </TableCell>
             <TableCell sx={{ maxWidth: 180 }}>
               <MemberAvatars members={group.members} />
             </TableCell>
@@ -309,9 +325,23 @@ function ComparisonCards({ data }: { data: GroupComparisonResponse }) {
           }}
         >
           <CardContent>
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 1.5 }}>
-              {group.name}
-            </Typography>
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.5 }}>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                {group.name}
+              </Typography>
+              <Chip
+                label={`Lv. ${group.groupLevel}`}
+                size="small"
+                sx={{
+                  height: 20,
+                  fontSize: "0.7rem",
+                  fontWeight: 800,
+                  backgroundColor: group.groupTierColor,
+                  color: group.groupLevel >= 10 && group.groupLevel < 30 ? "#0f172a" : "#ffffff",
+                  px: 0.5,
+                }}
+              />
+            </Box>
             <Box sx={{ mb: 1.5 }}>
               <Typography
                 variant="caption"

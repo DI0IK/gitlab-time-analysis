@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import React from "react";
 import { GITLAB_GROUP_PATH } from "../api/env";
-import { runGitlabGraphQLQuery } from "../api/gitlab";
+import { apolloClient, gql } from "../api/apollo-client";
 
 export async function generateMetadata({
   params,
@@ -13,10 +13,18 @@ export async function generateMetadata({
 
   let groupName = id;
   try {
-    const data = await runGitlabGraphQLQuery(`
-      { group(fullPath: "${fullPath}") { name } }
-    `);
-    groupName = data.data.group.name;
+    const data: any = (await apolloClient.query({
+      query: gql`
+        query MetadataGroupName($fullPath: ID!) {
+          group(fullPath: $fullPath) {
+            name
+          }
+        }
+      `,
+      variables: { fullPath },
+      fetchPolicy: "no-cache",
+    })).data;
+    if (data) groupName = data.group.name;
   } catch {}
 
   const title = `${groupName} - GitLab DHBW-SE Time Analysis`;
