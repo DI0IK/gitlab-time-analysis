@@ -36,6 +36,9 @@ export interface NormalizedMergeRequest {
   discussionAuthors: string[];
   discussionCount: number;
   headPipelineStatus: string | null;
+  sourceBranch: string;
+  targetBranch: string;
+  protectedBranches: string[];
 }
 
 export interface GroupCacheEntry {

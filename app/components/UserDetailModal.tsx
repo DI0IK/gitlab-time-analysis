@@ -19,14 +19,15 @@ import {
   LinearProgress,
   IconButton,
   CircularProgress,
+  useMediaQuery,
 } from "@mui/material";
 import { Close, OpenInNew, AccessTime, Assignment, LocalFireDepartment, CallMerge, RateReview } from "@mui/icons-material";
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as ChartTooltip } from "recharts";
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as ChartTooltip, ReferenceLine } from "recharts";
 import { CATEGORY_DEFINITIONS } from "../config/categories";
 import { matchLabelToCategory } from "../utils/categoryUtils";
 import { useTheme } from "@mui/material";
 import { useThemeMode } from "../ThemeContext";
-import { computeGamification } from "../utils/gamification";
+import { computeGamification, xpNeededForLevel } from "../utils/gamification";
 import { useUserAuth } from "../UserAuthContext";
 
 const PALETTE = [
@@ -59,6 +60,7 @@ export default function UserDetailModal({
   username,
 }: UserDetailModalProps) {
   const theme = useTheme();
+  const fullScreen = useMediaQuery(theme.breakpoints.down("sm"));
   const { colorTheme } = useThemeMode();
   const { token } = useUserAuth();
   const isDark = theme.palette.mode === "dark";
@@ -72,6 +74,7 @@ export default function UserDetailModal({
     allTimelogsForGamification: any[];
     allMergeRequestsForGamification?: any[];
     sprints: any[];
+    validatedTeammates?: string[];
   } | null>(null);
 
   // Fetch independent profile data when username changes
@@ -110,6 +113,7 @@ export default function UserDetailModal({
   const allLogsForGamification = profileData?.allTimelogsForGamification || [];
   const allMergeRequestsForGamification = profileData?.allMergeRequestsForGamification || [];
   const sprints = profileData?.sprints || [];
+  const validatedTeammates = profileData?.validatedTeammates || [];
 
   // Total hours logged (seconds to hours)
   const totalHours = React.useMemo(() => {
@@ -138,9 +142,10 @@ export default function UserDetailModal({
       username,
       allLogsForGamification.length > 0 ? allLogsForGamification : userLogs,
       allMergeRequestsForGamification,
-      isBot
+      isBot,
+      validatedTeammates
     );
-  }, [username, allLogsForGamification, userLogs, allMergeRequestsForGamification, isBot]);
+  }, [username, allLogsForGamification, userLogs, allMergeRequestsForGamification, isBot, validatedTeammates]);
 
   // XP progress history per sprint
   const xpHistory = React.useMemo(() => {
@@ -171,7 +176,9 @@ export default function UserDetailModal({
       const statsAtSprint = computeGamification(
         username,
         timelogsUpToSprint,
-        mergeRequestsUpToSprint
+        mergeRequestsUpToSprint,
+        isBot,
+        validatedTeammates
       );
       
       return {
@@ -180,19 +187,21 @@ export default function UserDetailModal({
         level: statsAtSprint.level,
       };
     });
-  }, [sprints, allLogsForGamification, userLogs, allMergeRequestsForGamification, username]);
+  }, [sprints, allLogsForGamification, userLogs, allMergeRequestsForGamification, username, isBot, validatedTeammates]);
 
   const getTierColor = (level: number) => {
     if (level < 10) return "#cd7f32"; // Bronze
     if (level < 20) return "#c0c0c0"; // Silver
     if (level < 30) return "#ffd700"; // Gold
-    return "#a855f7"; // Purple (Legend)
+    if (level < 40) return "#e5e4e2"; // Platinum
+    return "#a855f7"; // Legend
   };
 
   const getTierName = (level: number) => {
     if (level < 10) return "Bronze";
     if (level < 20) return "Silver";
     if (level < 30) return "Gold";
+    if (level < 40) return "Platinum";
     return "Legend";
   };
 
@@ -279,8 +288,31 @@ export default function UserDetailModal({
   const tooltipBorder = isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.08)";
   const tooltipTextColor = isDark ? "#f3f4f6" : "#0f172a";
 
+  const visibleThresholds = React.useMemo(() => {
+    if (!xpHistory.length) return [];
+    const maxHistoryXp = xpHistory.reduce((max, h) => Math.max(max, h.xp), 0);
+    const silverThreshold = xpNeededForLevel(10);
+    const goldThreshold = xpNeededForLevel(20);
+    const platinumThreshold = xpNeededForLevel(30);
+    const legendThreshold = xpNeededForLevel(40);
+
+    const thresholdsList = [
+      { value: silverThreshold, label: "Silver", color: "#c0c0c0" },
+      { value: goldThreshold, label: "Gold", color: "#ffd700" },
+      { value: platinumThreshold, label: "Platinum", color: "#e5e4e2" },
+      { value: legendThreshold, label: "Legend", color: "#a855f7" },
+    ];
+
+    return thresholdsList.filter((t, idx) => {
+      if (maxHistoryXp >= t.value) return true;
+      const prev = thresholdsList[idx - 1];
+      if (!prev || maxHistoryXp >= prev.value) return true;
+      return false;
+    });
+  }, [xpHistory]);
+
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+    <Dialog open={open} onClose={onClose} fullScreen={fullScreen} maxWidth="md" fullWidth>
       <DialogTitle sx={{ m: 0, p: 2, pr: 6, fontWeight: 700 }}>
         User Profile & Achievements
         <IconButton
@@ -499,7 +531,7 @@ export default function UserDetailModal({
                   </Typography>
                   <Box sx={{ width: "100%", height: 240 }}>
                     <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={xpHistory} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <LineChart data={xpHistory} margin={{ top: 10, right: 40, left: -20, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
                         <XAxis dataKey="sprint" tick={{ fill: tickColor, fontSize: 10 }} />
                         <YAxis tick={{ fill: tickColor, fontSize: 10 }} />
@@ -512,6 +544,21 @@ export default function UserDetailModal({
                             fontSize: 12,
                           }}
                         />
+                        {visibleThresholds.map((t) => (
+                          <ReferenceLine
+                            key={t.label}
+                            y={t.value}
+                            stroke={t.color}
+                            strokeDasharray="4 4"
+                            label={{
+                              value: t.label,
+                              fill: t.color,
+                              position: "right",
+                              fontSize: 9,
+                              fontWeight: "bold",
+                            }}
+                          />
+                        ))}
                         <Line
                           type="monotone"
                           dataKey="xp"
@@ -786,7 +833,7 @@ export default function UserDetailModal({
                       <ListItem sx={{ py: 1.5, px: 2.5, display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border-color)" }}>
                         <ListItemText
                           primary={<Typography variant="body2" sx={{ fontWeight: 600, color: "error.main" }}>Blind Flight Penalty</Typography>}
-                          secondary="-10 XP per issue closed without estimate"
+                          secondary="-30 XP per issue closed without estimate"
                         />
                         <Typography sx={{ fontWeight: 700, color: "error.main" }}>-{stats.xpBreakdown.blindFlightPenalty.toLocaleString()} XP</Typography>
                       </ListItem>
@@ -794,17 +841,33 @@ export default function UserDetailModal({
                     <ListItem sx={{ py: 1.5, px: 2.5, display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border-color)" }}>
                       <ListItemText
                         primary={<Typography variant="body2" sx={{ fontWeight: 600 }}>Iterations Contributed XP</Typography>}
-                        secondary="50 XP per active sprint"
+                        secondary="25 XP per active sprint"
                       />
                       <Typography sx={{ fontWeight: 700, color: "text.primary" }}>{stats.xpBreakdown.sprintsXp.toLocaleString()} XP</Typography>
                     </ListItem>
                     <ListItem sx={{ py: 1.5, px: 2.5, display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border-color)" }}>
                       <ListItemText
                         primary={<Typography variant="body2" sx={{ fontWeight: 600 }}>Teammate MRs Reviewed XP</Typography>}
-                        secondary="15 XP per teammate MR approved or reviewed"
+                        secondary="15 XP per teammate MR approved, 10 XP per MR commented (without approval)"
                       />
                       <Typography sx={{ fontWeight: 700, color: "text.primary" }}>{stats.xpBreakdown.reviewsXp.toLocaleString()} XP</Typography>
                     </ListItem>
+                    <ListItem sx={{ py: 1.5, px: 2.5, display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border-color)" }}>
+                      <ListItemText
+                        primary={<Typography variant="body2" sx={{ fontWeight: 600 }}>Authored MRs Merged XP</Typography>}
+                        secondary="50 XP per authored MR successfully merged"
+                      />
+                      <Typography sx={{ fontWeight: 700, color: "text.primary" }}>{stats.xpBreakdown.mergesXp.toLocaleString()} XP</Typography>
+                    </ListItem>
+                    {isBot && stats.xpBreakdown.botActionsXp !== undefined && (
+                      <ListItem sx={{ py: 1.5, px: 2.5, display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border-color)" }}>
+                        <ListItemText
+                          primary={<Typography variant="body2" sx={{ fontWeight: 600 }}>Bot Actions XP</Typography>}
+                          secondary="2 XP per bot action (discussions contribution on MRs)"
+                        />
+                        <Typography sx={{ fontWeight: 700, color: "text.primary" }}>{stats.xpBreakdown.botActionsXp.toLocaleString()} XP</Typography>
+                      </ListItem>
+                    )}
                     <ListItem sx={{ py: 1.5, px: 2.5, display: "flex", justifyContent: "space-between" }}>
                       <ListItemText
                         primary={<Typography variant="body2" sx={{ fontWeight: 600 }}>Unlocked Badges XP</Typography>}

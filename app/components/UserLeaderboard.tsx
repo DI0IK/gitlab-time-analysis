@@ -49,7 +49,8 @@ const getTierColor = (level: number) => {
   if (level < 10) return "#cd7f32"; // Bronze
   if (level < 20) return "#c0c0c0"; // Silver
   if (level < 30) return "#ffd700"; // Gold
-  return "#a855f7"; // Purple (Legend)
+  if (level < 40) return "#e5e4e2"; // Platinum
+  return "#a855f7"; // Legend
 };
 
 function LeaderboardRank({ rank }: { rank: number }) {

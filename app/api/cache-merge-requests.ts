@@ -29,6 +29,15 @@ const MERGE_REQUESTS_QUERY = gql`
           headPipeline {
             status
           }
+          sourceBranch
+          targetBranch
+          project {
+            branchRules(first: 20) {
+              nodes {
+                name
+              }
+            }
+          }
           notes(first: 100) {
             nodes {
               system
@@ -94,6 +103,9 @@ async function fetchAndProcessMergeRequests(
         discussionAuthors: Array.from(discussionAuthorsSet),
         discussionCount,
         headPipelineStatus: node.headPipeline?.status || null,
+        sourceBranch: node.sourceBranch || "",
+        targetBranch: node.targetBranch || "",
+        protectedBranches: (node.project?.branchRules?.nodes || []).map((br: any) => br.name || ""),
       };
 
       mergeRequestsStore.set(id, normalized);

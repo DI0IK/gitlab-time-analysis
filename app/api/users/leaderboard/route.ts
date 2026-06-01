@@ -46,6 +46,7 @@ export const GET = async (request: Request) => {
 
   const allTimelogs: any[] = [];
   const allMergeRequests: any[] = [];
+  const userTeammatesMap: Record<string, Set<string>> = {};
 
   for (const group of groups) {
     const [timelogs, members, mergeRequests] = await Promise.all([
@@ -60,6 +61,19 @@ export const GET = async (request: Request) => {
     const memberMap = new Map(
       members.map((m) => [m.id, { name: m.name, avatarUrl: m.avatarUrl }]),
     );
+    const verifiedHumanMembers = members.filter((m) => !m.bot && m.verified);
+    members.forEach((m) => {
+      const mId = m.id.toLowerCase();
+      if (!userTeammatesMap[mId]) {
+        userTeammatesMap[mId] = new Set<string>();
+      }
+      verifiedHumanMembers.forEach((vh) => {
+        if (vh.id.toLowerCase() !== mId) {
+          userTeammatesMap[mId].add(vh.id.toLowerCase());
+        }
+      });
+    });
+
     members.forEach((m) => {
       if (m.bot) bots.add(m.id.toLowerCase());
     });
@@ -113,7 +127,13 @@ export const GET = async (request: Request) => {
         color: def.color,
       }));
 
-      const gamification = computeGamification(userId, allTimelogs, allMergeRequests, bots.has(userId.toLowerCase()));
+      const gamification = computeGamification(
+        userId,
+        allTimelogs,
+        allMergeRequests,
+        bots.has(userId.toLowerCase()),
+        Array.from(userTeammatesMap[userId.toLowerCase()] || [])
+      );
 
       return {
         userId,

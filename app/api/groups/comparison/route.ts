@@ -70,12 +70,18 @@ export const GET = async (request: Request) => {
         // Compute group level from average member XP
         const humanMembers = members.filter((m) => !m.bot);
         const verifiedMembers = humanMembers.filter((m) => m.verified);
+        const verifiedMemberIds = verifiedMembers.map((m) => m.id);
         let totalXp = 0;
+        let activeCount = 0;
         for (const member of verifiedMembers) {
-          const stats = computeGamification(member.id, timelogs, mergeRequests);
-          totalXp += stats.xp;
+          const validatedTeammates = verifiedMemberIds.filter((id) => id.toLowerCase() !== member.id.toLowerCase());
+          const stats = computeGamification(member.id, timelogs, mergeRequests, false, validatedTeammates);
+          if (stats.xp > 0) {
+            totalXp += stats.xp;
+            activeCount++;
+          }
         }
-        const avgXp = verifiedMembers.length > 0 ? Math.floor(totalXp / verifiedMembers.length) : 0;
+        const avgXp = activeCount > 0 ? Math.floor(totalXp / activeCount) : 0;
         const levelInfo = computeLevelInfo(avgXp);
 
         return {

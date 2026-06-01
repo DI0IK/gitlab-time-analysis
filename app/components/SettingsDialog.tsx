@@ -18,6 +18,8 @@ import {
   Select,
   MenuItem,
   Divider,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import { Visibility, VisibilityOff, Lock, Palette } from "@mui/icons-material";
 import { useUserAuth } from "../UserAuthContext";
@@ -29,6 +31,8 @@ type SettingsDialogProps = {
 };
 
 export default function SettingsDialog({ open, onClose }: SettingsDialogProps) {
+  const theme = useTheme();
+  const fullScreen = useMediaQuery(theme.breakpoints.down("sm"));
   const { token: currentToken, login, logout } = useUserAuth();
   const { colorTheme, setColorTheme } = useThemeMode();
   
@@ -86,7 +90,7 @@ export default function SettingsDialog({ open, onClose }: SettingsDialogProps) {
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+    <Dialog open={open} onClose={onClose} fullScreen={fullScreen} maxWidth="sm" fullWidth>
       <DialogTitle sx={{ fontWeight: 700, pb: 1 }}>
         Settings
       </DialogTitle>

@@ -182,15 +182,22 @@ export default function GroupPage() {
       if (cancelled) return;
       const humanMembers = members.filter((m) => !m.bot && m.verified);
       if (humanMembers.length === 0) return;
+      const humanMemberIds = humanMembers.map((m) => m.id.toLowerCase());
       let totalXp = 0;
+      let activeCount = 0;
       for (const member of humanMembers) {
-        const stats = computeGamification(member.id, timelogs, mergeRequests);
-        totalXp += stats.xp;
+        const validatedTeammates = humanMemberIds.filter((id) => id !== member.id.toLowerCase());
+        const stats = computeGamification(member.id, timelogs, mergeRequests, false, validatedTeammates);
+        if (stats.xp > 0) {
+          totalXp += stats.xp;
+          activeCount++;
+        }
       }
       if (cancelled) return;
-      const avgXp = Math.floor(totalXp / humanMembers.length);
+      if (activeCount === 0) return;
+      const avgXp = Math.floor(totalXp / activeCount);
       const info = computeLevelInfo(avgXp);
-      setGroupLevelInfo({ totalXp, avgXp, memberCount: humanMembers.length, ...info });
+      setGroupLevelInfo({ totalXp, avgXp, memberCount: activeCount, ...info });
     }, 0);
     return () => { cancelled = true; clearTimeout(timer); };
   }, [members, timelogs, mergeRequests]);

@@ -8,7 +8,7 @@ import { GroupTimelogsResponse } from "../api/group/[id]/timelogs/route";
 // Types
 // ---------------------------------------------------------------------------
 
-export type TierName = "bronze" | "silver" | "gold" | "legend";
+export type TierName = "bronze" | "silver" | "gold" | "platinum" | "legend";
 export type BadgeTrack =
   | "endurance"
   | "velocity"
@@ -29,6 +29,9 @@ export type GamificationMergeRequest = {
   approvedBy: string[]; // array of usernames who approved
   discussionAuthors: string[]; // array of usernames who commented
   discussionCount: number;
+  sourceBranch: string;
+  targetBranch: string;
+  protectedBranches: string[];
 };
 
 export type BadgeInfo = {
@@ -59,7 +62,9 @@ export type GamificationStats = {
     blindFlightPenalty: number;
     sprintsXp: number;
     reviewsXp: number;
+    mergesXp: number;
     badgesXp: number;
+    botActionsXp?: number;
   };
   badges: BadgeInfo[];
 };
@@ -72,7 +77,7 @@ const TIER_CONFIG = [
   {
     minLevel: 1,
     maxLevel: 9,
-    xpPerLevel: 250,
+    xpPerLevel: 200,
     name: "bronze" as TierName,
     label: "Bronze",
     color: "#cd7f32",
@@ -80,7 +85,7 @@ const TIER_CONFIG = [
   {
     minLevel: 10,
     maxLevel: 19,
-    xpPerLevel: 350,
+    xpPerLevel: 300,
     name: "silver" as TierName,
     label: "Silver",
     color: "#c0c0c0",
@@ -88,15 +93,23 @@ const TIER_CONFIG = [
   {
     minLevel: 20,
     maxLevel: 29,
-    xpPerLevel: 450,
+    xpPerLevel: 400,
     name: "gold" as TierName,
     label: "Gold",
     color: "#ffd700",
   },
   {
     minLevel: 30,
+    maxLevel: 39,
+    xpPerLevel: 500,
+    name: "platinum" as TierName,
+    label: "Platinum",
+    color: "#e5e4e2",
+  },
+  {
+    minLevel: 40,
     maxLevel: Infinity,
-    xpPerLevel: 550,
+    xpPerLevel: 600,
     name: "legend" as TierName,
     label: "Legend",
     color: "#a855f7",
@@ -158,6 +171,15 @@ function computeLevelInfo(xp: number): {
     xpToNextLevel: xpToNext,
     xpPercent: Math.round(xpPercent * 100) / 100,
   };
+}
+
+function isProtectedBranch(branch: string, protectedBranches: string[]): boolean {
+  if (protectedBranches && protectedBranches.length > 0) {
+    return protectedBranches.includes(branch);
+  }
+  const protectedNames = ["main", "master", "develop", "developer", "production"];
+  const b = branch.toLowerCase();
+  return protectedNames.includes(b) || b.startsWith("release");
 }
 
 // ---------------------------------------------------------------------------
@@ -289,10 +311,10 @@ const VELOCITY_BADGES: RawBadgeDef[] = [
     id: "velocity_3",
     name: "Code Crusader",
     icon: "🥈",
-    description: "Close issues totaling 45+ estimated hours",
+    description: "Close issues totaling 40+ estimated hours",
     track: "velocity",
     xpReward: 100,
-    threshold: 45,
+    threshold: 40,
   },
   {
     id: "velocity_4",
@@ -376,10 +398,10 @@ const QUALITY_BADGES: RawBadgeDef[] = [
     id: "quality_2",
     name: "Code Guardian",
     icon: "🥈",
-    description: "Approve/Review 12 teammate MRs",
+    description: "Approve/Review 10 teammate MRs",
     track: "quality",
     xpReward: 80,
-    threshold: 12,
+    threshold: 10,
   },
   {
     id: "quality_3",
@@ -394,7 +416,7 @@ const QUALITY_BADGES: RawBadgeDef[] = [
     id: "quality_4",
     name: "The Gatekeeper",
     icon: "🦅",
-    description: "Approve/Review 30+ teammate MRs",
+    description: "Approve/Review 30 teammate MRs",
     track: "quality",
     xpReward: 250,
     threshold: 30,
@@ -461,6 +483,45 @@ const AUTOMATION_BADGES: RawBadgeDef[] = [
   },
 ];
 
+const STREAK_BADGES = [
+  {
+    id: "streak_1",
+    name: "On Fire",
+    icon: "🔥",
+    description: "Maintain a streak of 3+ consecutive active sprints",
+    track: "momentum" as BadgeTrack,
+    xpReward: 40,
+    threshold: 3,
+  },
+  {
+    id: "streak_2",
+    name: "Unstoppable",
+    icon: "⚡",
+    description: "Maintain a streak of 5+ consecutive active sprints",
+    track: "momentum" as BadgeTrack,
+    xpReward: 80,
+    threshold: 5,
+  },
+  {
+    id: "streak_3",
+    name: "Streak Legend",
+    icon: "👑",
+    description: "Maintain a streak of 8+ consecutive active sprints",
+    track: "momentum" as BadgeTrack,
+    xpReward: 150,
+    threshold: 8,
+  },
+  {
+    id: "streak_4",
+    name: "Sprint Monarch",
+    icon: "🌌",
+    description: "Maintain a streak of 15+ consecutive active sprints",
+    track: "momentum" as BadgeTrack,
+    xpReward: 300,
+    threshold: 15,
+  },
+];
+
 // ---------------------------------------------------------------------------
 // Main computation
 // ---------------------------------------------------------------------------
@@ -470,6 +531,7 @@ export function computeGamification(
   timelogs: GroupTimelogsResponse,
   mergeRequests: GamificationMergeRequest[] = [],
   isBot: boolean = false,
+  validatedTeammates: string[] = [],
 ): GamificationStats {
   const lowerUser = username.toLowerCase();
   const userLogs = timelogs.filter(
@@ -542,45 +604,136 @@ export function computeGamification(
     }
   });
 
-  const totalClosedEstimateSeconds = Array.from(userClosedIssueUrls).reduce(
-    (sum, url) => sum + closedIssueEstimates[url],
-    0,
-  );
-  const totalClosedEstimateHours = totalClosedEstimateSeconds / 3600;
-
-  // One-time badge counters
+  let totalClosedEstimateSeconds = 0;
   let sharpShooterUnlocked = false;
-  let heavyLifterUnlocked = false;
+  let maxEstimateShareHours = 0;
 
   Array.from(userClosedIssueUrls).forEach((issueUrl) => {
     const estimate = closedIssueEstimates[issueUrl];
+    if (estimate <= 0) return;
+
+    const issueLogs = timelogs.filter((l) => l.issueUrl === issueUrl);
+    const userSeconds = issueLogs
+      .filter((l) => l.username.toLowerCase() === lowerUser)
+      .reduce((sum, l) => sum + l.timeSpent, 0);
+    const totalSeconds = issueLogs.reduce((sum, l) => sum + l.timeSpent, 0);
+    if (totalSeconds <= 0) return;
+
+    const share = userSeconds / totalSeconds;
+
+    // Proportional estimate share for Velocity badges
+    totalClosedEstimateSeconds += share * estimate;
 
     // Sharp Shooter: total time spent across all users is within ±10% of estimate
-    if (estimate > 0) {
-      const totalIssueSeconds = timelogs
-        .filter((l) => l.issueUrl === issueUrl)
-        .reduce((sum, l) => sum + l.timeSpent, 0);
-      const diffPct = Math.abs(totalIssueSeconds - estimate) / estimate;
-      if (diffPct <= 0.1) sharpShooterUnlocked = true;
+    const diffPct = Math.abs(totalSeconds - estimate) / estimate;
+    if (diffPct <= 0.1) {
+      sharpShooterUnlocked = true;
     }
 
-    // Heavy Lifter: estimate >= 8 hours
-    if (estimate >= 8 * 3600) heavyLifterUnlocked = true;
+    const shareHours = (share * estimate) / 3600;
+    if (shareHours > maxEstimateShareHours) {
+      maxEstimateShareHours = shareHours;
+    }
   });
+
+  const heavyLifterUnlocked = maxEstimateShareHours >= 8;
+  const colossalLifterUnlocked = maxEstimateShareHours >= 10;
+  const titanLifterUnlocked = maxEstimateShareHours >= 12;
+
+  const totalClosedEstimateHours = totalClosedEstimateSeconds / 3600;
 
   // --------------- MR-level analysis ---------------
   const userMergedMrs = mergeRequests.filter(
-    (mr) => mr.username.toLowerCase() === lowerUser && mr.state === "merged",
+    (mr) =>
+      mr.username.toLowerCase() === lowerUser &&
+      mr.state === "merged" &&
+      isProtectedBranch(mr.targetBranch, mr.protectedBranches) &&
+      !isProtectedBranch(mr.sourceBranch, mr.protectedBranches),
   );
   const mergedMrsCount = userMergedMrs.length;
 
-  const reviewedMrs = mergeRequests.filter(
+  const approvedMrs = mergeRequests.filter(
     (mr) =>
       mr.username.toLowerCase() !== lowerUser &&
-      (mr.approvedBy.some((u) => u.toLowerCase() === lowerUser) ||
-        mr.discussionAuthors.some((u) => u.toLowerCase() === lowerUser)),
+      mr.approvedBy.some((u) => u.toLowerCase() === lowerUser),
   );
-  const reviewedMrsCount = reviewedMrs.length;
+  const approvedMrsCount = approvedMrs.length;
+
+  const commentedOnlyMrs = mergeRequests.filter(
+    (mr) =>
+      mr.username.toLowerCase() !== lowerUser &&
+      mr.discussionAuthors.some((u) => u.toLowerCase() === lowerUser) &&
+      !mr.approvedBy.some((u) => u.toLowerCase() === lowerUser),
+  );
+  const commentedOnlyMrsCount = commentedOnlyMrs.length;
+
+  const reviewedMrsCount = approvedMrsCount + commentedOnlyMrsCount;
+
+  const approvedTeammates = new Set<string>();
+  const commentedTeammates = new Set<string>();
+  approvedMrs.forEach((mr) => approvedTeammates.add(mr.username.toLowerCase()));
+  commentedOnlyMrs.forEach((mr) => commentedTeammates.add(mr.username.toLowerCase()));
+
+  const lowerTeammates = validatedTeammates
+    .map((t) => t.toLowerCase())
+    .filter((t) => t !== lowerUser);
+  const teammatesSet = new Set(lowerTeammates);
+
+  const uniqueTeammatesReviewed = new Set<string>();
+  approvedTeammates.forEach((t) => {
+    if (validatedTeammates.length === 0 || teammatesSet.has(t)) {
+      uniqueTeammatesReviewed.add(t);
+    }
+  });
+  commentedTeammates.forEach((t) => {
+    if (validatedTeammates.length === 0 || teammatesSet.has(t)) {
+      uniqueTeammatesReviewed.add(t);
+    }
+  });
+  const teammatesReviewedCount = uniqueTeammatesReviewed.size;
+
+  const otherActiveAuthors = new Set(
+    mergeRequests
+      .map((mr) => mr.username.toLowerCase())
+      .filter((u) => u !== lowerUser)
+  );
+
+  const otherActiveTeammates = validatedTeammates.length > 0
+    ? teammatesSet
+    : otherActiveAuthors;
+
+  // Full-Stack Sprint: at least 1 hour in each of the 4 categories in a single sprint
+  const sprintCategoryHours: Record<number, Record<string, number>> = {};
+  userLogs.forEach((log) => {
+    if (log.sprintNumber !== undefined && log.sprintNumber !== null) {
+      const sprintNum = log.sprintNumber;
+      if (!sprintCategoryHours[sprintNum]) {
+        sprintCategoryHours[sprintNum] = {};
+        CATEGORY_DEFINITIONS.forEach((cat) => {
+          sprintCategoryHours[sprintNum][cat.id] = 0;
+        });
+      }
+      let assigned = "";
+      for (const label of log.issueLabels || []) {
+        const cat = matchLabelToCategory(label);
+        if (cat) {
+          assigned = cat.id;
+          break;
+        }
+      }
+      if (assigned) {
+        sprintCategoryHours[sprintNum][assigned] += log.timeSpent / 3600;
+      }
+    }
+  });
+
+  const fullStackSprintUnlocked = Object.values(sprintCategoryHours).some(
+    (cats) =>
+      (cats["project-management"] || 0) >= 1 &&
+      (cats["requirements-engineering"] || 0) >= 1 &&
+      (cats["implementation"] || 0) >= 1 &&
+      (cats["architecture"] || 0) >= 1
+  );
 
   // (No synergy badge — removed per user request; the spec's 48h window
   // required review timestamps that are not available in the current data.)
@@ -607,18 +760,28 @@ export function computeGamification(
       const totalIssueXp = Math.floor((estimate / 3600) * 15);
       issuesXp += Math.floor(share * totalIssueXp);
     } else {
-      blindFlightPenalty += Math.floor(share * 10);
+      blindFlightPenalty += Math.floor(share * 30);
     }
   });
 
-  // 50 XP per active sprint
-  const sprintsXp = activeSprintNumbers.length * 50;
+  // 25 XP per active sprint
+  const sprintsXp = activeSprintNumbers.length * 25;
 
-  // 15 XP per teammate MR reviewed
-  const reviewsXp = reviewedMrsCount * 15;
+  // 15 XP per teammate MR approved, 10 XP per MR commented (no approval)
+  const reviewsXp = (approvedMrsCount * 15) + (commentedOnlyMrsCount * 10);
+
+  // 50 XP per authored MR merged
+  const mergesXp = mergedMrsCount * 50;
+
+  // Automation/Bot action XP: 2 XP per bot action (discussion count contribution on MRs)
+  const botActionsCount = mergeRequests.reduce(
+    (sum, mr) => sum + mr.discussionCount,
+    0,
+  );
+  const botActionsXp = isBot ? botActionsCount * 2 : 0;
 
   const baseXp =
-    hoursXp + issuesXp + sprintsXp + reviewsXp - blindFlightPenalty;
+    hoursXp + issuesXp + sprintsXp + reviewsXp + mergesXp + botActionsXp - blindFlightPenalty;
 
   // --------------- Badge evaluation ---------------
   const badges: BadgeInfo[] = [];
@@ -668,11 +831,16 @@ export function computeGamification(
     });
   });
 
+  // Sprint Streak
+  STREAK_BADGES.forEach((def) => {
+    badges.push({
+      ...def,
+      unlocked: longestStreak >= def.threshold,
+      progressText: `${longestStreak} / ${def.threshold} sprints`,
+    });
+  });
+
   // Automation (only meaningful for bot accounts)
-  const botActionsCount = mergeRequests.reduce(
-    (sum, mr) => sum + mr.discussionCount,
-    0,
-  );
   AUTOMATION_BADGES.forEach((def) => {
     badges.push({
       ...def,
@@ -727,10 +895,65 @@ export function computeGamification(
         "Successfully close a large issue with an estimate of 8+ hours",
       track: "one-time",
       unlocked: heavyLifterUnlocked,
-      progressText: heavyLifterUnlocked
+      progressText: `${maxEstimateShareHours.toFixed(1)} / 8 h`,
+      xpReward: 80,
+    },
+    {
+      id: "colossal_lifter",
+      name: "Colossal Lifter",
+      icon: "🏋️",
+      description:
+        "Successfully close a massive issue with an estimate of 10+ hours",
+      track: "one-time",
+      unlocked: colossalLifterUnlocked,
+      progressText: `${maxEstimateShareHours.toFixed(1)} / 10 h`,
+      xpReward: 120,
+    },
+    {
+      id: "titan_lifter",
+      name: "Titan Lifter",
+      icon: "🌋",
+      description:
+        "Successfully close a gargantuan issue with an estimate of 12+ hours",
+      track: "one-time",
+      unlocked: titanLifterUnlocked,
+      progressText: `${maxEstimateShareHours.toFixed(1)} / 12 h`,
+      xpReward: 150,
+    },
+    {
+      id: "all_rounder",
+      name: "Full-Stack Sprint",
+      icon: "🎨",
+      description:
+        "Log at least 1 hour in each of the 4 categories during a single sprint",
+      track: "one-time",
+      unlocked: fullStackSprintUnlocked,
+      progressText: fullStackSprintUnlocked
         ? "Unlocked"
-        : "Close an 8h+ estimated issue",
-      xpReward: 60,
+        : "Log 1h+ in all 4 categories in a single sprint",
+      xpReward: 100,
+    },
+    {
+      id: "team_player",
+      name: "Team Player",
+      icon: "🤝",
+      description:
+        "Review/approve merge requests for at least 3 different team members",
+      track: "one-time",
+      unlocked: otherActiveTeammates.size > 0 && teammatesReviewedCount >= Math.min(3, otherActiveTeammates.size),
+      progressText: `${teammatesReviewedCount} / ${Math.min(3, otherActiveTeammates.size)} teammates`,
+      xpReward: 50,
+    },
+    {
+      id: "community_pillar",
+      name: "Community Pillar",
+      icon: "🏛️",
+      description:
+        "Review/approve merge requests for all other active team members",
+      track: "one-time",
+      unlocked: otherActiveTeammates.size > 0 && teammatesReviewedCount >= otherActiveTeammates.size,
+      progressText: `${teammatesReviewedCount} / ${otherActiveTeammates.size} teammates`,
+      xpReward: 150,
     },
   ];
 
@@ -769,7 +992,9 @@ export function computeGamification(
       blindFlightPenalty,
       sprintsXp,
       reviewsXp,
+      mergesXp,
       badgesXp,
+      botActionsXp,
     },
     badges,
   };

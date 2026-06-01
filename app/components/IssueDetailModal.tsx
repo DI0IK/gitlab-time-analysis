@@ -21,6 +21,8 @@ import {
   Alert,
   Avatar,
   MenuItem,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import { Close, OpenInNew, Edit, Save, Label as LabelIcon } from "@mui/icons-material";
 import { GroupContext } from "../GroupContext";
@@ -41,6 +43,8 @@ export default function IssueDetailModal({
   issueUrl,
   issueTitle,
 }: IssueDetailModalProps) {
+  const theme = useTheme();
+  const fullScreen = useMediaQuery(theme.breakpoints.down("sm"));
   const { timelogs, members, labels: groupLabelsMap, refreshData } = useContext(GroupContext);
   const { token } = useUserAuth();
 
@@ -226,7 +230,7 @@ export default function IssueDetailModal({
   const progressColor = totalLogged > estimate && estimate > 0 ? "error" : "primary";
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+    <Dialog open={open} onClose={onClose} fullScreen={fullScreen} maxWidth="md" fullWidth>
       <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pb: 1 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
           <Typography variant="h6" sx={{ fontWeight: 700 }}>
@@ -554,12 +558,6 @@ export default function IssueDetailModal({
           )}
         </List>
       </DialogContent>
-
-      <DialogActions sx={{ p: 2.5 }}>
-        <Button onClick={onClose} color="primary" variant="contained">
-          Close
-        </Button>
-      </DialogActions>
     </Dialog>
   );
 }

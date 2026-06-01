@@ -18,6 +18,8 @@ export const GET = async (
     const allTimelogsForGamification: any[] = []; // needed to compute gamification rank/streak accurately if they span groups
     const allMergeRequestsForGamification: any[] = [];
 
+    const validatedTeammatesSet = new Set<string>();
+
     for (const group of groups) {
       const [timelogs, members, mergeRequests] = await Promise.all([
         getTimelogs(group.id).then((r) => r.data),
@@ -37,6 +39,11 @@ export const GET = async (
           url: foundMember.url,
           bot: foundMember.bot,
         };
+        members.forEach((m) => {
+          if (!m.bot && m.verified && m.id.toLowerCase() !== username.toLowerCase()) {
+            validatedTeammatesSet.add(m.id.toLowerCase());
+          }
+        });
       }
 
       const filteredLogs = timelogs.filter((log) => log.username.toLowerCase() === username.toLowerCase());
@@ -66,6 +73,7 @@ export const GET = async (
       allTimelogsForGamification, // to let frontend compute gamification stats for all logs
       allMergeRequestsForGamification,
       sprints,
+      validatedTeammates: Array.from(validatedTeammatesSet),
     });
   } catch (error) {
     console.error("Failed to load user profile:", error);
