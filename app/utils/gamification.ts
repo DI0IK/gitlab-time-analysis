@@ -1,5 +1,22 @@
-import { matchLabelToCategory, CATEGORY_DEFINITIONS } from "../config/categories";
+import {
+  matchLabelToCategory,
+  CATEGORY_DEFINITIONS,
+} from "../config/categories";
 import { GroupTimelogsResponse } from "../api/group/[id]/timelogs/route";
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+export type TierName = "bronze" | "silver" | "gold" | "legend";
+export type BadgeTrack =
+  | "endurance"
+  | "velocity"
+  | "shipping"
+  | "quality"
+  | "momentum"
+  | "automation"
+  | "one-time";
 
 export type GamificationMergeRequest = {
   id: string;
@@ -14,9 +31,23 @@ export type GamificationMergeRequest = {
   discussionCount: number;
 };
 
+export type BadgeInfo = {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  track: BadgeTrack;
+  unlocked: boolean;
+  progressText: string;
+  xpReward: number;
+};
+
 export type GamificationStats = {
   xp: number;
   level: number;
+  tierName: TierName;
+  tierLabel: string;
+  tierColor: string;
   xpToNextLevel: number;
   xpPercent: number;
   xpForCurrentLevel: number;
@@ -25,27 +56,113 @@ export type GamificationStats = {
   xpBreakdown: {
     hoursXp: number;
     issuesXp: number;
+    blindFlightPenalty: number;
     sprintsXp: number;
-    badgesXp: number;
-    perfectEstimateXp: number;
-    underBudgetXp: number;
-    perfectWeeksXp: number;
-    longWeeksXp: number;
-    speedDemonXp: number;
-    heavyLifterXp: number;
-    mergeRequestsXp: number;
     reviewsXp: number;
+    badgesXp: number;
   };
-  badges: {
-    id: string;
-    name: string;
-    icon: string;
-    description: string;
-    unlocked: boolean;
-    progressText: string;
-    xpReward: number;
-  }[];
+  badges: BadgeInfo[];
 };
+
+// ---------------------------------------------------------------------------
+// Tier system — piecewise linear XP per level
+// ---------------------------------------------------------------------------
+
+const TIER_CONFIG = [
+  {
+    minLevel: 1,
+    maxLevel: 9,
+    xpPerLevel: 250,
+    name: "bronze" as TierName,
+    label: "Bronze",
+    color: "#cd7f32",
+  },
+  {
+    minLevel: 10,
+    maxLevel: 19,
+    xpPerLevel: 350,
+    name: "silver" as TierName,
+    label: "Silver",
+    color: "#c0c0c0",
+  },
+  {
+    minLevel: 20,
+    maxLevel: 29,
+    xpPerLevel: 450,
+    name: "gold" as TierName,
+    label: "Gold",
+    color: "#ffd700",
+  },
+  {
+    minLevel: 30,
+    maxLevel: Infinity,
+    xpPerLevel: 550,
+    name: "legend" as TierName,
+    label: "Legend",
+    color: "#a855f7",
+  },
+];
+
+function xpNeededForLevel(level: number): number {
+  if (level <= 1) return 0;
+  let xp = 0;
+  for (let l = 1; l < level; l++) {
+    const tier =
+      TIER_CONFIG.find((t) => l >= t.minLevel && l <= t.maxLevel) ??
+      TIER_CONFIG[TIER_CONFIG.length - 1];
+    xp += tier.xpPerLevel;
+  }
+  return xp;
+}
+
+function getTier(level: number): (typeof TIER_CONFIG)[number] {
+  return (
+    TIER_CONFIG.find((t) => level >= t.minLevel && level <= t.maxLevel) ??
+    TIER_CONFIG[TIER_CONFIG.length - 1]
+  );
+}
+
+function computeLevelInfo(xp: number): {
+  level: number;
+  tierName: TierName;
+  tierLabel: string;
+  tierColor: string;
+  xpForCurrentLevel: number;
+  xpForNextLevel: number;
+  xpToNextLevel: number;
+  xpPercent: number;
+} {
+  let level = 1;
+  while (true) {
+    const nextXp = xpNeededForLevel(level + 1);
+    if (nextXp > xp) break;
+    level++;
+  }
+
+  const xpForCurrent = xpNeededForLevel(level);
+  const xpForNext = xpNeededForLevel(level + 1);
+  const xpToNext = xpForNext - xp;
+  const xpInLevel = xp - xpForCurrent;
+  const xpRange = xpForNext - xpForCurrent;
+  const xpPercent =
+    xpRange > 0 ? Math.min(100, (xpInLevel / xpRange) * 100) : 100;
+  const tier = getTier(level);
+
+  return {
+    level,
+    tierName: tier.name,
+    tierLabel: tier.label,
+    tierColor: tier.color,
+    xpForCurrentLevel: xpForCurrent,
+    xpForNextLevel: xpForNext,
+    xpToNextLevel: xpToNext,
+    xpPercent: Math.round(xpPercent * 100) / 100,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
 /** Compute the longest consecutive run in a sorted array of sprint numbers. */
 function longestConsecutiveRun(sortedSprints: number[]): number {
@@ -63,37 +180,325 @@ function longestConsecutiveRun(sortedSprints: number[]): number {
   return max;
 }
 
+// ---------------------------------------------------------------------------
+// Badge definitions
+// ---------------------------------------------------------------------------
+
+type RawBadgeDef = {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  track: BadgeTrack;
+  xpReward: number;
+  // threshold is interpreted per-track:
+  //   endurance  → totalHours
+  //   velocity   → closedEstimatedHours
+  //   shipping   → mergedMrsCount
+  //   quality    → reviewedMrsCount
+  //   momentum   → activeSprintCount
+  threshold: number;
+};
+
+const ENDURANCE_BADGES: RawBadgeDef[] = [
+  {
+    id: "endurance_1",
+    name: "Greenhorn",
+    icon: "🥉",
+    description: "Log 1+ hour total",
+    track: "endurance",
+    xpReward: 15,
+    threshold: 1,
+  },
+  {
+    id: "endurance_2",
+    name: "Apprentice",
+    icon: "🥉",
+    description: "Log 10+ hours total",
+    track: "endurance",
+    xpReward: 50,
+    threshold: 10,
+  },
+  {
+    id: "endurance_3",
+    name: "Dedicated Worker",
+    icon: "🥈",
+    description: "Log 30+ hours total",
+    track: "endurance",
+    xpReward: 100,
+    threshold: 30,
+  },
+  {
+    id: "endurance_4",
+    name: "Deep Worker",
+    icon: "🥈",
+    description: "Log 60+ hours total",
+    track: "endurance",
+    xpReward: 150,
+    threshold: 60,
+  },
+  {
+    id: "endurance_5",
+    name: "Century Club",
+    icon: "🥇",
+    description: "Log 100+ hours total",
+    track: "endurance",
+    xpReward: 200,
+    threshold: 100,
+  },
+  {
+    id: "endurance_6",
+    name: "Marathoner",
+    icon: "👑",
+    description: "Log 130+ hours total",
+    track: "endurance",
+    xpReward: 250,
+    threshold: 130,
+  },
+  {
+    id: "endurance_7",
+    name: "Apex Contributor",
+    icon: "🌌",
+    description: "Log 150+ hours total",
+    track: "endurance",
+    xpReward: 400,
+    threshold: 150,
+  },
+];
+
+const VELOCITY_BADGES: RawBadgeDef[] = [
+  {
+    id: "velocity_1",
+    name: "Task Solver",
+    icon: "🥉",
+    description: "Close issues totaling 5+ estimated hours",
+    track: "velocity",
+    xpReward: 20,
+    threshold: 5,
+  },
+  {
+    id: "velocity_2",
+    name: "Problem Solver",
+    icon: "🥈",
+    description: "Close issues totaling 20+ estimated hours",
+    track: "velocity",
+    xpReward: 50,
+    threshold: 20,
+  },
+  {
+    id: "velocity_3",
+    name: "Code Crusader",
+    icon: "🥈",
+    description: "Close issues totaling 45+ estimated hours",
+    track: "velocity",
+    xpReward: 100,
+    threshold: 45,
+  },
+  {
+    id: "velocity_4",
+    name: "Issue Sweeper",
+    icon: "🥇",
+    description: "Close issues totaling 70+ estimated hours",
+    track: "velocity",
+    xpReward: 150,
+    threshold: 70,
+  },
+  {
+    id: "velocity_5",
+    name: "Task Master",
+    icon: "🏆",
+    description: "Close issues totaling 100+ estimated hours",
+    track: "velocity",
+    xpReward: 250,
+    threshold: 100,
+  },
+  {
+    id: "velocity_6",
+    name: "Titan of Tasks",
+    icon: "🪐",
+    description: "Close issues totaling 150+ estimated hours",
+    track: "velocity",
+    xpReward: 350,
+    threshold: 150,
+  },
+];
+
+const SHIPPING_BADGES: RawBadgeDef[] = [
+  {
+    id: "shipping_1",
+    name: "Continuous Integrator",
+    icon: "🥉",
+    description: "Have 5 of your MRs merged",
+    track: "shipping",
+    xpReward: 50,
+    threshold: 5,
+  },
+  {
+    id: "shipping_2",
+    name: "Git Master",
+    icon: "🥈",
+    description: "Have 10 of your MRs merged",
+    track: "shipping",
+    xpReward: 100,
+    threshold: 10,
+  },
+  {
+    id: "shipping_3",
+    name: "Merge Maestro",
+    icon: "🥇",
+    description: "Have 20 of your MRs merged",
+    track: "shipping",
+    xpReward: 150,
+    threshold: 20,
+  },
+  {
+    id: "shipping_4",
+    name: "Deployment Deity",
+    icon: "☄️",
+    description: "Have 30+ of your MRs merged",
+    track: "shipping",
+    xpReward: 250,
+    threshold: 30,
+  },
+];
+
+const QUALITY_BADGES: RawBadgeDef[] = [
+  {
+    id: "quality_1",
+    name: "Eagle Eye",
+    icon: "🥉",
+    description: "Approve/Review 5 teammate MRs",
+    track: "quality",
+    xpReward: 40,
+    threshold: 5,
+  },
+  {
+    id: "quality_2",
+    name: "Code Guardian",
+    icon: "🥈",
+    description: "Approve/Review 12 teammate MRs",
+    track: "quality",
+    xpReward: 80,
+    threshold: 12,
+  },
+  {
+    id: "quality_3",
+    name: "Sentinel",
+    icon: "🥇",
+    description: "Approve/Review 20 teammate MRs",
+    track: "quality",
+    xpReward: 150,
+    threshold: 20,
+  },
+  {
+    id: "quality_4",
+    name: "The Gatekeeper",
+    icon: "🦅",
+    description: "Approve/Review 30+ teammate MRs",
+    track: "quality",
+    xpReward: 250,
+    threshold: 30,
+  },
+];
+
+const MOMENTUM_BADGES: RawBadgeDef[] = [
+  {
+    id: "momentum_1",
+    name: "Sprint Jogger",
+    icon: "🥉",
+    description: "Active in 2 Iterations/Milestones",
+    track: "momentum",
+    xpReward: 20,
+    threshold: 2,
+  },
+  {
+    id: "momentum_2",
+    name: "Sprint Machine",
+    icon: "🥈",
+    description: "Active in 6 Iterations/Milestones",
+    track: "momentum",
+    xpReward: 80,
+    threshold: 6,
+  },
+  {
+    id: "momentum_3",
+    name: "Sprint Overlord",
+    icon: "🥇",
+    description: "Active in 10 Iterations/Milestones",
+    track: "momentum",
+    xpReward: 150,
+    threshold: 10,
+  },
+  {
+    id: "momentum_4",
+    name: "Chronos",
+    icon: "⏳",
+    description: "Active in 15+ Iterations/Milestones",
+    track: "momentum",
+    xpReward: 300,
+    threshold: 15,
+  },
+];
+
+const AUTOMATION_BADGES: RawBadgeDef[] = [
+  {
+    id: "automation_1",
+    name: "Ghost Writer",
+    icon: "✍️",
+    description: "Bot updates 50 MR descriptions or comments",
+    track: "automation",
+    xpReward: 100,
+    threshold: 50,
+  },
+  {
+    id: "automation_2",
+    name: "Skynet",
+    icon: "🧠",
+    description: "Bot reaches 200 total automated actions",
+    track: "automation",
+    xpReward: 300,
+    threshold: 200,
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Main computation
+// ---------------------------------------------------------------------------
+
 export function computeGamification(
   username: string,
   timelogs: GroupTimelogsResponse,
-  mergeRequests: GamificationMergeRequest[] = []
+  mergeRequests: GamificationMergeRequest[] = [],
+  isBot: boolean = false,
 ): GamificationStats {
-  const userLogs = timelogs.filter((log) => log.username.toLowerCase() === username.toLowerCase());
+  const lowerUser = username.toLowerCase();
+  const userLogs = timelogs.filter(
+    (log) => log.username.toLowerCase() === lowerUser,
+  );
 
-  // 1. Total hours
-  const totalHours = userLogs.reduce((sum, log) => sum + log.timeSpent, 0) / 3600;
+  // --------------- Total hours ---------------
+  const totalHours =
+    userLogs.reduce((sum, log) => sum + log.timeSpent, 0) / 3600;
 
-  // 2. Unique issues
-  const uniqueIssues = new Set(userLogs.filter(log => log.issueUrl).map(log => log.issueUrl));
-
-  // 3. Sprint-level data
+  // --------------- Sprint / iteration data ---------------
   const sprintHoursMap: Record<number, number> = {};
   userLogs.forEach((log) => {
     if (log.sprintNumber !== undefined && log.sprintNumber !== null) {
-      sprintHoursMap[log.sprintNumber] = (sprintHoursMap[log.sprintNumber] || 0) + log.timeSpent / 3600;
+      sprintHoursMap[log.sprintNumber] =
+        (sprintHoursMap[log.sprintNumber] || 0) + log.timeSpent / 3600;
     }
   });
 
-  const activeSprints = Object.keys(sprintHoursMap).map(Number).sort((a, b) => a - b);
-  const longestStreak = longestConsecutiveRun(activeSprints);
-  const maxSprintHours = activeSprints.reduce((max, sp) => Math.max(max, sprintHoursMap[sp]), 0);
+  const activeSprintNumbers = Object.keys(sprintHoursMap)
+    .map(Number)
+    .sort((a, b) => a - b);
+  const longestStreak = longestConsecutiveRun(activeSprintNumbers);
 
-  // 4. Categories worked
+  // --------------- Categories ---------------
   const categoryHours: Record<string, number> = { other: 0 };
   CATEGORY_DEFINITIONS.forEach((cat) => {
     categoryHours[cat.id] = 0;
   });
-
   userLogs.forEach((log) => {
     let assigned = "other";
     for (const label of log.issueLabels || []) {
@@ -106,473 +511,270 @@ export function computeGamification(
     categoryHours[assigned] += log.timeSpent / 3600;
   });
 
-  const activeCategoriesCount = CATEGORY_DEFINITIONS.filter((cat) => (categoryHours[cat.id] || 0) > 0).length;
-
-  // Find max category hours & percentage
   let maxCategoryHours = 0;
   let maxCategoryName = "None";
-
   Object.entries(categoryHours).forEach(([id, hours]) => {
     if (hours > maxCategoryHours) {
       maxCategoryHours = hours;
-      if (id === "other") {
-        maxCategoryName = "Other";
-      } else {
-        const catDef = CATEGORY_DEFINITIONS.find((c) => c.id === id);
-        maxCategoryName = catDef ? catDef.label : "Other";
-      }
+      maxCategoryName =
+        id === "other"
+          ? "Other"
+          : CATEGORY_DEFINITIONS.find((c) => c.id === id)?.label || "Other";
+    }
+  });
+  const maxCategoryPercentage =
+    totalHours > 0 ? (maxCategoryHours / totalHours) * 100 : 0;
+
+  // --------------- Issue-level analysis ---------------
+  const uniqueIssueUrls = new Set<string>();
+  userLogs.forEach((log) => {
+    if (log.issueUrl) uniqueIssueUrls.add(log.issueUrl);
+  });
+
+  // Closed issues the user contributed to (for Velocity track + issuesXp + one-time badges)
+  const userClosedIssueUrls = new Set<string>();
+  const closedIssueEstimates: Record<string, number> = {}; // issueUrl -> estimate in seconds
+
+  userLogs.forEach((log) => {
+    if (log.issueUrl && log.issueState === "closed") {
+      userClosedIssueUrls.add(log.issueUrl);
+      closedIssueEstimates[log.issueUrl] = log.issueTimeEstimate || 0;
     }
   });
 
-  const maxCategoryPercentage = totalHours > 0 ? (maxCategoryHours / totalHours) * 100 : 0;
+  const totalClosedEstimateSeconds = Array.from(userClosedIssueUrls).reduce(
+    (sum, url) => sum + closedIssueEstimates[url],
+    0,
+  );
+  const totalClosedEstimateHours = totalClosedEstimateSeconds / 3600;
 
-  // 5. XP Breakdown
-  let perfectEstimateCount = 0;
-  let underBudgetCount = 0;
-  let efficientIssuesCount = 0;
-  let speedDemonCount = 0;
-  let heavyLifterCount = 0;
+  // One-time badge counters
+  let sharpShooterUnlocked = false;
+  let heavyLifterUnlocked = false;
 
-  Array.from(uniqueIssues).forEach((issueUrl) => {
-    const issueLogs = timelogs.filter((log) => log.issueUrl === issueUrl);
-    if (issueLogs.length > 0) {
-      const estimate = issueLogs[0].issueTimeEstimate; // seconds
-      const userIssueLogs = issueLogs.filter(log => log.username.toLowerCase() === username.toLowerCase());
-      const totalActualSpent = issueLogs.reduce((sum, log) => sum + log.timeSpent, 0);
+  Array.from(userClosedIssueUrls).forEach((issueUrl) => {
+    const estimate = closedIssueEstimates[issueUrl];
 
-      // Check for estimation efficiency
-      if (totalActualSpent <= estimate) {
-        efficientIssuesCount++;
-      }
-
-      if (estimate > 0) {
-        // Only closed/completed issues (estimate is set, time has been logged, we can analyze closeness)
-        const diffPercent = Math.abs(totalActualSpent - estimate) / estimate;
-        if (diffPercent <= 0.05) {
-          perfectEstimateCount++;
-        } else if (totalActualSpent < estimate) {
-          underBudgetCount++;
-        }
-      }
-
-      // Speed Demon: user's latest timelog is within 48 hours of issue creation
-      if (userIssueLogs.length > 0) {
-        const issueCreatedAtStr = (userIssueLogs[0] as any).issueCreatedAt;
-        if (issueCreatedAtStr) {
-          const creationTime = new Date(issueCreatedAtStr).getTime();
-          const spentDates = userIssueLogs.map(log => new Date(log.spentAt).getTime());
-          const maxDate = Math.max(...spentDates);
-          const diffHours = (maxDate - creationTime) / (1000 * 60 * 60);
-          // Only award if it is positive (logged after creation) and within 48 hours
-          if (diffHours >= 0 && diffHours <= 48) {
-            speedDemonCount++;
-          }
-        }
-      }
-
-      // Heavy Lifter: user completed (logged hours on) an issue with estimate >= 8h
-      if (estimate >= 8 * 3600 && userIssueLogs.length > 0) {
-        heavyLifterCount++;
-      }
+    // Sharp Shooter: total time spent across all users is within ±10% of estimate
+    if (estimate > 0) {
+      const totalIssueSeconds = timelogs
+        .filter((l) => l.issueUrl === issueUrl)
+        .reduce((sum, l) => sum + l.timeSpent, 0);
+      const diffPct = Math.abs(totalIssueSeconds - estimate) / estimate;
+      if (diffPct <= 0.1) sharpShooterUnlocked = true;
     }
+
+    // Heavy Lifter: estimate >= 8 hours
+    if (estimate >= 8 * 3600) heavyLifterUnlocked = true;
   });
 
-  // Perfect Weeks: Sprint hours between 3.5h and 5h
-  const perfectWeeksCount = Object.values(sprintHoursMap).filter((h) => h >= 3.5 && h <= 5.0).length;
-  // Long Weeks: Logarithmic XP scaling for sprints exceeding 4.0h (diminishing returns to prevent grinding).
-  const longWeeksXp = Object.values(sprintHoursMap)
-    .filter((h) => h > 4.0)
-    .reduce((sum, h) => sum + Math.floor(30 * Math.log(1 + (h - 4.0))), 0);
-
-  // Merge Request Computations
+  // --------------- MR-level analysis ---------------
   const userMergedMrs = mergeRequests.filter(
-    (mr) => mr.username.toLowerCase() === username.toLowerCase() && mr.state === "merged"
+    (mr) => mr.username.toLowerCase() === lowerUser && mr.state === "merged",
   );
   const mergedMrsCount = userMergedMrs.length;
 
   const reviewedMrs = mergeRequests.filter(
-    (mr) => mr.username.toLowerCase() !== username.toLowerCase() &&
-      (mr.approvedBy.some(u => u.toLowerCase() === username.toLowerCase()) ||
-       mr.discussionAuthors.some(u => u.toLowerCase() === username.toLowerCase()))
+    (mr) =>
+      mr.username.toLowerCase() !== lowerUser &&
+      (mr.approvedBy.some((u) => u.toLowerCase() === lowerUser) ||
+        mr.discussionAuthors.some((u) => u.toLowerCase() === lowerUser)),
   );
   const reviewedMrsCount = reviewedMrs.length;
 
-  let speedyMergerCount = 0;
-  userMergedMrs.forEach((mr) => {
-    if (mr.mergedAt) {
-      const durationHrs = (new Date(mr.mergedAt).getTime() - new Date(mr.createdAt).getTime()) / (1000 * 60 * 60);
-      if (durationHrs >= 0 && durationHrs <= 4) {
-        speedyMergerCount++;
-      }
+  // (No synergy badge — removed per user request; the spec's 48h window
+  // required review timestamps that are not available in the current data.)
+
+  // --------------- Base XP ---------------
+  // 20 XP per hour (fractional)
+  const hoursXp = Math.floor(totalHours * 20);
+
+  // 15 XP per estimated hour for closed issues, split proportionally by each user's
+  // logged time on the issue; -10 Blind Flight penalty if no estimate, also split
+  let issuesXp = 0;
+  let blindFlightPenalty = 0;
+  Array.from(userClosedIssueUrls).forEach((issueUrl) => {
+    const estimate = closedIssueEstimates[issueUrl];
+    const issueLogs = timelogs.filter((l) => l.issueUrl === issueUrl);
+    const userSeconds = issueLogs
+      .filter((l) => l.username.toLowerCase() === lowerUser)
+      .reduce((sum, l) => sum + l.timeSpent, 0);
+    const totalSeconds = issueLogs.reduce((sum, l) => sum + l.timeSpent, 0);
+    if (totalSeconds <= 0) return;
+
+    const share = userSeconds / totalSeconds;
+    if (estimate > 0) {
+      const totalIssueXp = Math.floor((estimate / 3600) * 15);
+      issuesXp += Math.floor(share * totalIssueXp);
+    } else {
+      blindFlightPenalty += Math.floor(share * 10);
     }
   });
 
-  const mergeRequestsXp = mergedMrsCount * 25;
+  // 50 XP per active sprint
+  const sprintsXp = activeSprintNumbers.length * 50;
+
+  // 15 XP per teammate MR reviewed
   const reviewsXp = reviewedMrsCount * 15;
 
-  const perfectEstimateXp = perfectEstimateCount * 15;
-  const underBudgetXp = underBudgetCount * 10;
-  const speedDemonXp = speedDemonCount * 10;
-  const heavyLifterXp = heavyLifterCount * 40;
-  const perfectWeeksXp = perfectWeeksCount * 50;
+  const baseXp =
+    hoursXp + issuesXp + sprintsXp + reviewsXp - blindFlightPenalty;
 
-  const hoursXp = Math.floor(totalHours * 15);
-  const issuesXp = uniqueIssues.size * 5;
-  const sprintsXp = activeSprints.length * 25;
-  const otherBonusesXp =
-    perfectEstimateXp +
-    underBudgetXp +
-    speedDemonXp +
-    heavyLifterXp +
-    perfectWeeksXp +
-    longWeeksXp +
-    mergeRequestsXp +
-    reviewsXp;
+  // --------------- Badge evaluation ---------------
+  const badges: BadgeInfo[] = [];
 
-  const baseHrsXp = hoursXp + issuesXp + sprintsXp + otherBonusesXp;
-  const issueCount = uniqueIssues.size;
+  // Endurance
+  ENDURANCE_BADGES.forEach((def) => {
+    badges.push({
+      ...def,
+      unlocked: totalHours >= def.threshold,
+      progressText: `${totalHours.toFixed(1)} / ${def.threshold} h`,
+    });
+  });
 
-  // Static base badges list (without level dependencies)
-  const baseBadges = [
+  // Velocity
+  VELOCITY_BADGES.forEach((def) => {
+    badges.push({
+      ...def,
+      unlocked: totalClosedEstimateHours >= def.threshold,
+      progressText: `${totalClosedEstimateHours.toFixed(1)} / ${def.threshold} estimated hours`,
+    });
+  });
+
+  // Shipping
+  SHIPPING_BADGES.forEach((def) => {
+    badges.push({
+      ...def,
+      unlocked: mergedMrsCount >= def.threshold,
+      progressText: `${mergedMrsCount} / ${def.threshold} MRs`,
+    });
+  });
+
+  // Quality
+  QUALITY_BADGES.forEach((def) => {
+    badges.push({
+      ...def,
+      unlocked: reviewedMrsCount >= def.threshold,
+      progressText: `${reviewedMrsCount} / ${def.threshold} reviews`,
+    });
+  });
+
+  // Momentum
+  MOMENTUM_BADGES.forEach((def) => {
+    badges.push({
+      ...def,
+      unlocked: activeSprintNumbers.length >= def.threshold,
+      progressText: `${activeSprintNumbers.length} / ${def.threshold} iterations`,
+    });
+  });
+
+  // Automation (only meaningful for bot accounts)
+  const botActionsCount = mergeRequests.reduce(
+    (sum, mr) => sum + mr.discussionCount,
+    0,
+  );
+  AUTOMATION_BADGES.forEach((def) => {
+    badges.push({
+      ...def,
+      unlocked: isBot ? botActionsCount >= def.threshold : false,
+      progressText: isBot
+        ? `${botActionsCount} / ${def.threshold} actions`
+        : `Bot-only badge`,
+    });
+  });
+
+  // One-time badges
+  const oneTimeBadges: BadgeInfo[] = [
     {
-      id: "hours_bronze",
-      name: "Greenhorn",
-      icon: "⏱️",
-      description: "Log at least 1 hour of work",
-      unlocked: totalHours >= 1,
-      progressText: `${totalHours.toFixed(1)} / 1 h`,
-      xpReward: 15,
-    },
-    {
-      id: "hours_silver",
-      name: "Apprentice",
-      icon: "🔨",
-      description: "Log at least 10 hours of work",
-      unlocked: totalHours >= 10,
-      progressText: `${totalHours.toFixed(1)} / 10 h`,
-      xpReward: 50,
-    },
-    {
-      id: "hours_gold",
-      name: "Dedicated Worker",
-      icon: "💪",
-      description: "Log at least 30 hours of work",
-      unlocked: totalHours >= 30,
-      progressText: `${totalHours.toFixed(1)} / 30 h`,
-      xpReward: 100,
-    },
-    {
-      id: "hours_platinum",
-      name: "Deep Worker",
-      icon: "🧠",
-      description: "Log at least 60 hours of work",
-      unlocked: totalHours >= 60,
-      progressText: `${totalHours.toFixed(1)} / 60 h`,
-      xpReward: 150,
-    },
-    {
-      id: "hours_emerald",
-      name: "Century Club",
-      icon: "💯",
-      description: "Log at least 100 hours of work",
-      unlocked: totalHours >= 100,
-      progressText: `${totalHours.toFixed(1)} / 100 h`,
-      xpReward: 200,
-    },
-    {
-      id: "hours_diamond",
-      name: "Workaholic",
-      icon: "👑",
-      description: "Log at least 150 hours of work",
-      unlocked: totalHours >= 150,
-      progressText: `${totalHours.toFixed(1)} / 150 h`,
-      xpReward: 250,
-    },
-    {
-      id: "hours_legendary",
-      name: "Absolute Legend",
-      icon: "🌌",
-      description: "Log at least 250 hours of work",
-      unlocked: totalHours >= 250,
-      progressText: `${totalHours.toFixed(1)} / 250 h`,
-      xpReward: 500,
-    },
-    {
-      id: "first_issue",
+      id: "first_steps",
       name: "First Steps",
-      icon: "📌",
-      description: "Contribute to your first issue",
-      unlocked: issueCount >= 1,
-      progressText: `${issueCount} / 1 issue`,
+      icon: "🌱",
+      description: "Close your very first GitLab issue",
+      track: "one-time",
+      unlocked: userClosedIssueUrls.size >= 1,
+      progressText:
+        userClosedIssueUrls.size >= 1 ? "Unlocked" : "Close your first issue",
       xpReward: 10,
     },
     {
-      id: "issue_bronze",
-      name: "Task Solver",
-      icon: "🎯",
-      description: "Contribute to at least 5 unique issues",
-      unlocked: issueCount >= 5,
-      progressText: `${issueCount} / 5 issues`,
-      xpReward: 25,
-    },
-    {
-      id: "issue_silver",
-      name: "Problem Solver",
-      icon: "🔍",
-      description: "Contribute to at least 12 unique issues",
-      unlocked: issueCount >= 12,
-      progressText: `${issueCount} / 12 issues`,
-      xpReward: 50,
-    },
-    {
-      id: "issue_gold",
-      name: "Issue Sweeper",
-      icon: "⚡",
-      description: "Contribute to at least 20 unique issues",
-      unlocked: issueCount >= 20,
-      progressText: `${issueCount} / 20 issues`,
-      xpReward: 75,
-    },
-    {
-      id: "issue_platinum",
-      name: "Code Crusader",
-      icon: "🛡️",
-      description: "Contribute to at least 35 unique issues",
-      unlocked: issueCount >= 35,
-      progressText: `${issueCount} / 35 issues`,
-      xpReward: 150,
-    },
-    {
-      id: "issue_diamond",
-      name: "Task Master",
-      icon: "🏆",
-      description: "Contribute to at least 50 unique issues",
-      unlocked: issueCount >= 50,
-      progressText: `${issueCount} / 50 issues`,
-      xpReward: 250,
-    },
-    {
-      id: "streak_bronze",
-      name: "Sprint Jogger",
-      icon: "👟",
-      description: "Log hours in 2 or more consecutive sprints",
-      unlocked: longestStreak >= 2,
-      progressText: `${longestStreak} / 2 consecutive`,
-      xpReward: 20,
-    },
-    {
-      id: "streak_silver",
-      name: "Sprint Runner",
-      icon: "🚀",
-      description: "Log hours in 4 or more consecutive sprints",
-      unlocked: longestStreak >= 4,
-      progressText: `${longestStreak} / 4 consecutive`,
-      xpReward: 50,
-    },
-    {
-      id: "streak_gold",
-      name: "Sprint Machine",
-      icon: "🔥",
-      description: "Log hours in 6 or more consecutive sprints",
-      unlocked: longestStreak >= 6,
-      progressText: `${longestStreak} / 6 consecutive`,
-      xpReward: 100,
-    },
-    {
-      id: "streak_platinum",
-      name: "Consistent Contributor",
-      icon: "📅",
-      description: "Log hours in 8 or more consecutive sprints",
-      unlocked: longestStreak >= 8,
-      progressText: `${longestStreak} / 8 consecutive`,
-      xpReward: 150,
-    },
-    {
-      id: "streak_diamond",
-      name: "Sprint Overlord",
-      icon: "👾",
-      description: "Log hours in 10 or more consecutive sprints",
-      unlocked: longestStreak >= 10,
-      progressText: `${longestStreak} / 10 consecutive`,
-      xpReward: 250,
-    },
-    {
-      id: "specialist",
-      name: "Specialist",
-      icon: "🔬",
-      description: "More than 50% of your logged time is in one category",
-      unlocked: maxCategoryPercentage >= 50,
-      progressText: totalHours > 0 ? `${maxCategoryPercentage.toFixed(0)}% / 50% (${maxCategoryName})` : "0% / 50%",
-      xpReward: 50,
-    },
-    {
-      id: "efficient_bronze",
-      name: "Efficient Estimator",
-      icon: "✅",
-      description: "Complete 2+ issues within their time estimate",
-      unlocked: efficientIssuesCount >= 2,
-      progressText: `${efficientIssuesCount} / 2 issues`,
-      xpReward: 50,
-    },
-    {
-      id: "efficient_silver",
-      name: "Perfect Precision",
-      icon: "🎯",
-      description: "Complete 5+ issues within their time estimate",
-      unlocked: efficientIssuesCount >= 5,
-      progressText: `${efficientIssuesCount} / 5 issues`,
-      xpReward: 100,
-    },
-    {
-      id: "big_sprint_bronze",
-      name: "Sprint Burst",
-      icon: "⚡",
-      description: "Log at least 8 hours in any single sprint",
-      unlocked: maxSprintHours >= 8,
-      progressText: `${maxSprintHours.toFixed(1)} / 8 h`,
-      xpReward: 75,
-    },
-    {
-      id: "big_sprint_silver",
-      name: "Workhorse Week",
-      icon: "🌟",
-      description: "Log at least 15 hours in any single sprint",
-      unlocked: maxSprintHours >= 15,
-      progressText: `${maxSprintHours.toFixed(1)} / 15 h`,
-      xpReward: 150,
-    },
-    {
-      id: "mr_bronze",
+      id: "pr_pioneer",
       name: "PR Pioneer",
-      icon: "🌱",
-      description: "Merge your first Merge Request",
+      icon: "🚀",
+      description: "Have your very first authored MR successfully merged",
+      track: "one-time",
       unlocked: mergedMrsCount >= 1,
-      progressText: `${mergedMrsCount} / 1 MR`,
+      progressText: mergedMrsCount >= 1 ? "Unlocked" : "Merge your first MR",
       xpReward: 20,
     },
     {
-      id: "mr_silver",
-      name: "Continuous Integrator",
-      icon: "🚀",
-      description: "Merge at least 5 Merge Requests",
-      unlocked: mergedMrsCount >= 5,
-      progressText: `${mergedMrsCount} / 5 MRs`,
+      id: "sharp_shooter",
+      name: "Sharp Shooter",
+      icon: "🎯",
+      description:
+        "Close an issue where the logged time is within ±10% of the estimate",
+      track: "one-time",
+      unlocked: sharpShooterUnlocked,
+      progressText: sharpShooterUnlocked
+        ? "Unlocked"
+        : "Close an issue within ±10% of estimate",
       xpReward: 50,
     },
     {
-      id: "mr_gold",
-      name: "Git Master",
-      icon: "🥇",
-      description: "Merge at least 15 Merge Requests",
-      unlocked: mergedMrsCount >= 15,
-      progressText: `${mergedMrsCount} / 15 MRs`,
-      xpReward: 100,
-    },
-    {
-      id: "reviewer_bronze",
-      name: "Gatekeeper",
-      icon: "🦅",
-      description: "Approve or review your first teammate's Merge Request",
-      unlocked: reviewedMrsCount >= 1,
-      progressText: `${reviewedMrsCount} / 1 MR`,
-      xpReward: 15,
-    },
-    {
-      id: "reviewer_silver",
-      name: "Eagle Eye",
-      icon: "👁️",
-      description: "Approve or review at least 5 teammate Merge Requests",
-      unlocked: reviewedMrsCount >= 5,
-      progressText: `${reviewedMrsCount} / 5 MRs`,
-      xpReward: 50,
-    },
-    {
-      id: "reviewer_gold",
-      name: "Code Guardian",
-      icon: "🛡️",
-      description: "Approve or review at least 12 teammate Merge Requests",
-      unlocked: reviewedMrsCount >= 12,
-      progressText: `${reviewedMrsCount} / 12 MRs`,
-      xpReward: 100,
-    },
-    {
-      id: "speedy_merger",
-      name: "Fast Track",
-      icon: "🏎️",
-      description: "Merge an MR within 4 hours of creation",
-      unlocked: speedyMergerCount >= 1,
-      progressText: speedyMergerCount >= 1 ? "Unlocked" : "0 / 1",
-      xpReward: 30,
+      id: "heavy_lifter",
+      name: "Heavy Lifter",
+      icon: "💪",
+      description:
+        "Successfully close a large issue with an estimate of 8+ hours",
+      track: "one-time",
+      unlocked: heavyLifterUnlocked,
+      progressText: heavyLifterUnlocked
+        ? "Unlocked"
+        : "Close an 8h+ estimated issue",
+      xpReward: 60,
     },
   ];
 
-  const XP_PER_LEVEL_FACTOR = 12.5;
+  badges.push(...oneTimeBadges);
 
-  // Calculate preliminary level to determine "Ultimate Rank" badge status
-  const preliminaryBadgesXp = baseBadges
+  // --------------- Total XP and level ---------------
+  const badgesXp = badges
     .filter((b) => b.unlocked)
     .reduce((sum, b) => sum + b.xpReward, 0);
-  const preliminaryXp = baseHrsXp + preliminaryBadgesXp;
-  const preliminaryLevel = Math.min(100, Math.floor(Math.sqrt(preliminaryXp / XP_PER_LEVEL_FACTOR)) + 1);
+  const totalXp = baseXp + badgesXp;
+  const levelInfo = computeLevelInfo(totalXp);
 
-  // Ultimate Rank Badge
-  const levelBadge = {
-    id: "gamification_level_tier",
-    name: "Legendary Status",
-    icon: "👑",
-    description: "Reach level 30 or higher",
-    unlocked: preliminaryLevel >= 30,
-    progressText: `Lv. ${preliminaryLevel} / 30`,
-    xpReward: 200,
-  };
-
-  const badgesList = [...baseBadges, levelBadge];
-
-  // Final calculations
-  const badgesXp = badgesList
-    .filter((b) => b.unlocked)
-    .reduce((sum, b) => sum + b.xpReward, 0);
-
-  const xp = baseHrsXp + badgesXp;
-  const level = Math.min(100, Math.floor(Math.sqrt(xp / XP_PER_LEVEL_FACTOR)) + 1);
-
-  // Sync the levelBadge with final level
-  levelBadge.progressText = `Lv. ${level} / 30`;
-  levelBadge.unlocked = level >= 30;
-
-  const xpForCurrentLevel = (level - 1) ** 2 * XP_PER_LEVEL_FACTOR;
-  const xpForNextLevel = level ** 2 * XP_PER_LEVEL_FACTOR;
-  const xpToNextLevel = level >= 100 ? 0 : xpForNextLevel - xp;
-  const xpPercent =
-    level >= 100
-      ? 100
-      : Math.min(
-        100,
-        ((xp - xpForCurrentLevel) / (xpForNextLevel - xpForCurrentLevel)) * 100,
-      );
+  // --------------- Legacy fields for backward compat ---------------
+  const maxSprintHours = activeSprintNumbers.reduce(
+    (max, sp) => Math.max(max, sprintHoursMap[sp]),
+    0,
+  );
+  const activeCategoriesCount = CATEGORY_DEFINITIONS.filter(
+    (cat) => (categoryHours[cat.id] || 0) > 0,
+  ).length;
 
   return {
-    xp,
-    level,
-    xpToNextLevel,
-    xpPercent,
-    xpForCurrentLevel,
-    xpForNextLevel,
+    xp: totalXp,
+    level: levelInfo.level,
+    tierName: levelInfo.tierName,
+    tierLabel: levelInfo.tierLabel,
+    tierColor: levelInfo.tierColor,
+    xpToNextLevel: levelInfo.xpToNextLevel,
+    xpPercent: levelInfo.xpPercent,
+    xpForCurrentLevel: levelInfo.xpForCurrentLevel,
+    xpForNextLevel: levelInfo.xpForNextLevel,
     longestStreak,
     xpBreakdown: {
       hoursXp,
       issuesXp,
+      blindFlightPenalty,
       sprintsXp,
-      badgesXp,
-      perfectEstimateXp,
-      underBudgetXp,
-      perfectWeeksXp,
-      longWeeksXp,
-      speedDemonXp,
-      heavyLifterXp,
-      mergeRequestsXp,
       reviewsXp,
+      badgesXp,
     },
-    badges: badgesList,
+    badges,
   };
 }
+
+// Re-export constants for use by other modules (e.g., tier colors in UI)
+export const TIER_INFO = TIER_CONFIG;
+export { xpNeededForLevel, computeLevelInfo };
