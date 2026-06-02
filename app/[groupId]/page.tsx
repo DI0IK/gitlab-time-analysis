@@ -407,12 +407,23 @@ export default function GroupPage() {
               }
             });
             const topIssues = Object.values(issuesMap)
-              .sort((a, b) => b.timeSpent - a.timeSpent)
-              .slice(0, 8); // Show top 8 issues (2 rows of 4 cards)
+              .sort((a, b) => b.timeSpent - a.timeSpent);
+
+            // Filter MRs to the current sprint by date range
+            const sprintMRs = mergeRequests.filter((mr) => {
+              if (selectedSprint === 1000) return true;
+              const date = mr.mergedAt || mr.createdAt;
+              if (selectedSprint && selectedSprint >= 10000) {
+                return date.startsWith((selectedSprint - 10000).toString());
+              }
+              const sprint = sprints.find((sp) => sp.sprintNumber === selectedSprint);
+              if (!sprint) return true;
+              return date >= sprint.startDate && date <= sprint.endDate + "T23:59:59";
+            });
 
             // Build Cycle Table Data
             const columns = [
-              ...CATEGORY_DEFINITIONS.map((d) => ({ id: d.id, title: d.label })),
+              ...CATEGORY_DEFINITIONS.map((d) => ({ id: d.id, title: d.shortLabel })),
               { id: "other", title: "Other" },
             ];
 
@@ -539,7 +550,7 @@ export default function GroupPage() {
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 3, flexGrow: 1, minHeight: 0 }}>
                   
                   {/* Top Block: Table (span 8) & Category Pie Chart (span 4) */}
-                  <Box sx={{ display: "grid", gridTemplateColumns: "repeat(12, 1fr)", gap: 3, flex: "1 1 50%", minHeight: 0 }}>
+                  <Box sx={{ display: "grid", gridTemplateColumns: "repeat(12, 1fr)", gap: 3, flex: "0 0 280px" }}>
                     {/* Cycle Table */}
                     <Box sx={{ gridColumn: "span 8", display: "flex", flexDirection: "column", minHeight: 0 }}>
                       <Paper
@@ -577,7 +588,7 @@ export default function GroupPage() {
                                   <TableRow key={member.id} hover>
                                     <TableCell>
                                       <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                                        <UserAvatar member={member} size="medium" showTooltip={false} />
+                                        <UserAvatar member={member} size="small" showTooltip={false} />
                                         <Typography sx={{ fontWeight: 600, color: "#1e293b", fontSize: "0.95rem" }}>
                                           {member.name}
                                         </Typography>
@@ -655,28 +666,34 @@ export default function GroupPage() {
                     </Box>
                   </Box>
 
-                  {/* Bottom Block: Full-width Top Issues Breakdown */}
-                  <Box sx={{ flex: "0 0 auto", height: "300px" }}>
+                  {/* Bottom Block: Issues (left) + Merge Requests (right) */}
+                  <Box sx={{ flex: "1 1 0", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 3, minHeight: 0 }}>
+
+                    {/* LEFT: Top Issues Scrollable List */}
                     <Paper
                       elevation={0}
                       sx={{
                         p: 3,
                         border: "1px solid #e2e8f0",
                         borderRadius: 3,
-                        height: "100%",
                         display: "flex",
                         flexDirection: "column",
+                        minHeight: 0,
+                        overflow: "hidden",
                       }}
                     >
-                      <Typography variant="h6" sx={{ fontWeight: 800, mb: 1.5, color: "#334155" }}>
+                      <Typography variant="h6" sx={{ fontWeight: 800, mb: 1.5, color: "#334155", flexShrink: 0 }}>
                         Top Issues Worked On
+                        <Typography component="span" variant="body2" sx={{ ml: 1, color: "#94a3b8", fontWeight: 500 }}>
+                          ({topIssues.length})
+                        </Typography>
                       </Typography>
-                      <Box sx={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gridTemplateRows: "repeat(2, 1fr)", gap: 2, flexGrow: 1 }}>
+                      <Box sx={{ overflowY: "auto", flexGrow: 1, minHeight: 0, display: "flex", flexDirection: "column", gap: 1 }}>
                         {topIssues.map((issue, idx) => {
                           const loggedHours = (issue.timeSpent / 3600).toFixed(1);
                           const totalHours = (issue.totalTimeSpent / 3600).toFixed(1);
                           const estimateHours = (issue.estimate / 3600).toFixed(1);
-                          const deviation = issue.estimate > 0 
+                          const deviation = issue.estimate > 0
                             ? (((issue.totalTimeSpent - issue.estimate) / issue.estimate) * 100).toFixed(0)
                             : "N/A";
 
@@ -685,61 +702,239 @@ export default function GroupPage() {
                               key={issue.url}
                               sx={{
                                 display: "flex",
-                                flexDirection: "column",
-                                justifyContent: "space-between",
-                                p: 1.75,
-                                borderRadius: 2.5,
+                                alignItems: "center",
+                                gap: 1.5,
+                                p: 1.25,
+                                pr: 1.5,
+                                borderRadius: 2,
                                 bgcolor: "#f8fafc",
                                 border: "1px solid #f1f5f9",
+                                minWidth: 0,
+                                flexShrink: 0,
                               }}
                             >
-                              {/* Top row: Rank & Title */}
-                              <Box sx={{ minWidth: 0 }}>
-                                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                                  <Typography sx={{ fontWeight: 900, color: "primary.main", fontSize: "1.05rem" }}>
-                                    #{idx + 1}
+                              {/* Rank badge */}
+                              <Typography
+                                sx={{
+                                  fontWeight: 900,
+                                  color: "primary.main",
+                                  fontSize: "0.85rem",
+                                  minWidth: 28,
+                                  textAlign: "center",
+                                  flexShrink: 0,
+                                }}
+                              >
+                                #{idx + 1}
+                              </Typography>
+
+                              {/* Title + meta */}
+                              <Box sx={{ flex: 1, minWidth: 0 }}>
+                                <Typography
+                                  noWrap
+                                  title={issue.title}
+                                  sx={{
+                                    fontWeight: 700,
+                                    color: "#1e293b",
+                                    fontSize: "0.9rem",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {issue.title}
+                                </Typography>
+                                <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", mt: 0.25 }}>
+                                  <Typography component="span" sx={{ fontSize: "0.7rem", color: "#64748b" }}>
+                                    Cycle: <b>{loggedHours}h</b>
                                   </Typography>
-                                  <Typography noWrap sx={{ fontWeight: 700, color: "#1e293b", textOverflow: "ellipsis", overflow: "hidden", fontSize: "1.15rem" }} title={issue.title}>
-                                    {issue.title}
+                                  <Typography component="span" sx={{ fontSize: "0.7rem", color: "#64748b" }}>
+                                    Total: <b>{totalHours}h</b>
                                   </Typography>
-                                </Box>
-                                <Typography sx={{ fontSize: "0.72rem", color: "#64748b", mt: 0.5, display: "flex", flexWrap: "wrap", gap: 1.5 }}>
-                                  <span>Cycle: <b>{loggedHours}h</b></span>
-                                  <span>Total: <b>{totalHours}h</b></span>
                                   {issue.estimate > 0 && (
                                     <>
-                                      <span>Est: <b>{estimateHours}h</b></span>
-                                      <span style={{ color: Math.abs(Number(deviation)) > 20 ? "#ef4444" : "#10b981" }}>Dev: <b>{deviation}%</b></span>
+                                      <Typography component="span" sx={{ fontSize: "0.7rem", color: "#64748b" }}>
+                                        Est: <b>{estimateHours}h</b>
+                                      </Typography>
+                                      <Typography
+                                        component="span"
+                                        sx={{
+                                          fontSize: "0.7rem",
+                                          fontWeight: 700,
+                                          color: Math.abs(Number(deviation)) > 20 ? "#ef4444" : "#10b981",
+                                        }}
+                                      >
+                                        Dev: {deviation}%
+                                      </Typography>
                                     </>
                                   )}
-                                </Typography>
+                                </Box>
                               </Box>
 
-                              {/* Bottom row: Avatars of assignees/workers */}
-                              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mt: 1 }}>
-                                <Typography sx={{ fontSize: "0.7rem", color: "#94a3b8", fontWeight: 500 }}>
-                                  Contributors:
-                                </Typography>
-                                <Box sx={{ display: "flex", gap: 0.5 }}>
-                                  {issue.users.slice(0, 4).map((username) => {
-                                    const member = members.find((m) => m.id === username);
-                                    return member ? (
-                                      <UserAvatar
-                                        key={username}
-                                        member={member}
-                                        size="medium"
-                                        showTooltip={true}
-                                        sx={{ width: 28, height: 28 }}
-                                      />
-                                    ) : null;
-                                  })}
-                                </Box>
+                              {/* Contributor avatars */}
+                              <Box sx={{ display: "flex", gap: 0.4, flexShrink: 0 }}>
+                                {issue.users.slice(0, 3).map((username) => {
+                                  const member = members.find((m) => m.id === username);
+                                  return member ? (
+                                    <UserAvatar
+                                      key={username}
+                                      member={member}
+                                      size="medium"
+                                      showTooltip={true}
+                                      sx={{ width: 26, height: 26 }}
+                                    />
+                                  ) : null;
+                                })}
                               </Box>
                             </Box>
                           );
                         })}
                       </Box>
                     </Paper>
+
+                    {/* RIGHT: Merge Requests Scrollable List */}
+                    <Paper
+                      elevation={0}
+                      sx={{
+                        p: 3,
+                        border: "1px solid #e2e8f0",
+                        borderRadius: 3,
+                        display: "flex",
+                        flexDirection: "column",
+                        minHeight: 0,
+                        overflow: "hidden",
+                      }}
+                    >
+                      <Typography variant="h6" sx={{ fontWeight: 800, mb: 1.5, color: "#334155", flexShrink: 0 }}>
+                        Merge Requests
+                        <Typography component="span" variant="body2" sx={{ ml: 1, color: "#94a3b8", fontWeight: 500 }}>
+                          ({sprintMRs.length})
+                        </Typography>
+                      </Typography>
+                      <Box sx={{ overflowY: "auto", flexGrow: 1, minHeight: 0, display: "flex", flexDirection: "column", gap: 1 }}>
+                        {sprintMRs.length === 0 ? (
+                          <Typography sx={{ color: "#94a3b8", fontSize: "0.85rem", textAlign: "center", mt: 4 }}>
+                            No merge requests for this period
+                          </Typography>
+                        ) : (
+                          sprintMRs.map((mr) => {
+                            const stateColor =
+                              mr.state === "merged" ? "#7C3AED"
+                              : mr.state === "opened" ? "#10B981"
+                              : "#94a3b8";
+                            const stateLabel =
+                              mr.state === "merged" ? "Merged"
+                              : mr.state === "opened" ? "Open"
+                              : "Closed";
+                            const author = members.find((m) => m.id === mr.username);
+
+                            return (
+                              <Box
+                                key={mr.id}
+                                sx={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 1.5,
+                                  p: 1.25,
+                                  pr: 1.5,
+                                  borderRadius: 2,
+                                  bgcolor: "#f8fafc",
+                                  border: "1px solid #f1f5f9",
+                                  borderLeft: `3px solid ${stateColor}`,
+                                  minWidth: 0,
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {/* Author avatar */}
+                                {author && (
+                                  <UserAvatar
+                                    member={author}
+                                    size="medium"
+                                    showTooltip={true}
+                                    sx={{ width: 26, height: 26, flexShrink: 0 }}
+                                  />
+                                )}
+
+                                {/* Title + meta */}
+                                <Box sx={{ flex: 1, minWidth: 0 }}>
+                                  <Typography
+                                    noWrap
+                                    title={mr.title}
+                                    sx={{
+                                      fontWeight: 700,
+                                      color: "#1e293b",
+                                      fontSize: "0.9rem",
+                                      overflow: "hidden",
+                                      textOverflow: "ellipsis",
+                                      whiteSpace: "nowrap",
+                                    }}
+                                  >
+                                    {mr.title}
+                                  </Typography>
+                                  <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", alignItems: "center", mt: 0.25 }}>
+                                    <Typography
+                                      component="span"
+                                      sx={{
+                                        fontSize: "0.68rem",
+                                        fontWeight: 700,
+                                        color: stateColor,
+                                        textTransform: "uppercase",
+                                        letterSpacing: "0.05em",
+                                      }}
+                                    >
+                                      {stateLabel}
+                                    </Typography>
+                                    <Typography
+                                      component="span"
+                                      noWrap
+                                      sx={{
+                                        fontSize: "0.68rem",
+                                        color: "#64748b",
+                                        overflow: "hidden",
+                                        textOverflow: "ellipsis",
+                                        maxWidth: 140,
+                                      }}
+                                      title={`${mr.sourceBranch} → ${mr.targetBranch}`}
+                                    >
+                                      {mr.sourceBranch} → {mr.targetBranch}
+                                    </Typography>
+                                    {(mr.additions != null || mr.deletions != null) && (
+                                      <Typography component="span" sx={{ fontSize: "0.68rem", color: "#64748b" }}>
+                                        {mr.additions != null && (
+                                          <span style={{ color: "#10b981", fontWeight: 700 }}>+{mr.additions}</span>
+                                        )}
+                                        {mr.additions != null && mr.deletions != null && " "}
+                                        {mr.deletions != null && (
+                                          <span style={{ color: "#ef4444", fontWeight: 700 }}>-{mr.deletions}</span>
+                                        )}
+                                      </Typography>
+                                    )}
+                                  </Box>
+                                </Box>
+
+                                {/* Approval count badge */}
+                                {mr.approvedBy.length > 0 && (
+                                  <Box
+                                    sx={{
+                                      flexShrink: 0,
+                                      px: 1,
+                                      py: 0.25,
+                                      borderRadius: 1,
+                                      bgcolor: "rgba(124, 58, 237, 0.08)",
+                                      border: "1px solid rgba(124, 58, 237, 0.2)",
+                                    }}
+                                  >
+                                    <Typography sx={{ fontSize: "0.68rem", fontWeight: 700, color: "#7C3AED" }}>
+                                      ✓ {mr.approvedBy.length}
+                                    </Typography>
+                                  </Box>
+                                )}
+                              </Box>
+                            );
+                          })
+                        )}
+                      </Box>
+                    </Paper>
+
                   </Box>
 
                 </Box>
