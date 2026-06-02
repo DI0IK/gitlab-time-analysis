@@ -253,6 +253,12 @@ export default function UserDetailModal({
     return Object.values(issuesMap).sort((a, b) => b.hours - a.hours);
   }, [userLogs]);
 
+  const userMergeRequests = React.useMemo(() => {
+    return allMergeRequestsForGamification.filter(
+      (mr) => mr.username.toLowerCase() === username.toLowerCase()
+    );
+  }, [allMergeRequestsForGamification, username]);
+
   // Group by sprint
   const sprintSummary = React.useMemo(() => {
     const sprintsMap: Record<number, number> = {};
@@ -638,65 +644,136 @@ export default function UserDetailModal({
                           No sprint timelogs recorded
                         </Typography>
                       )}
-                    </Box>
                   </Box>
+                  </Box>
+                  {/* Right Column: Top Issues & Merge Requests */}
+                  <Box sx={{ minWidth: 0, flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 2, textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.05em", color: "text.secondary" }}>
+                        Issues Contributed To
+                      </Typography>
 
-                  {/* Right Column: Top Issues */}
-                  <Box sx={{ minWidth: 0, flex: 1 }}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 2, textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.05em", color: "text.secondary" }}>
-                      Issues Contributed To
-                    </Typography>
+                      <List disablePadding sx={{ pr: 1 }}>
+                        {issueSummary.map((issue, idx) => (
+                          <React.Fragment key={issue.url}>
+                            <ListItem
+                              sx={{
+                                px: 0,
+                                py: 1.5,
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                gap: 2,
+                              }}
+                            >
+                              <Box sx={{ minWidth: 0, flex: 1 }}>
+                                <Typography
+                                  variant="body2"
+                                  sx={{
+                                    fontWeight: 600,
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                    display: "block",
+                                    cursor: "pointer",
+                                    "&:hover": { color: "primary.light" }
+                                  }}
+                                  component="a"
+                                  href={issue.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  title={issue.title}
+                                >
+                                  {issue.title}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                                  Rank #{idx + 1}
+                                </Typography>
+                              </Box>
+                              <Typography variant="body2" sx={{ fontWeight: 700, color: "primary.light", flexShrink: 0 }}>
+                                {issue.hours.toFixed(1)}h
+                              </Typography>
+                            </ListItem>
+                            {idx < issueSummary.length - 1 && <Divider component="li" sx={{ opacity: 0.5 }} />}
+                          </React.Fragment>
+                        ))}
+                        {issueSummary.length === 0 && (
+                          <Typography variant="body2" color="text.secondary" sx={{ fontStyle: "italic", py: 4, textAlign: "center" }}>
+                            No issues recorded
+                          </Typography>
+                        )}
+                      </List>
+                    </Box>
 
-                    <List disablePadding sx={{ pr: 1 }}>
-                      {issueSummary.map((issue, idx) => (
-                        <React.Fragment key={issue.url}>
-                          <ListItem
-                            sx={{
-                              px: 0,
-                              py: 1.5,
-                              display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "center",
-                              gap: 2,
-                            }}
-                          >
-                            <Box sx={{ minWidth: 0, flex: 1 }}>
-                              <Typography
-                                variant="body2"
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 2, textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.05em", color: "text.secondary" }}>
+                        Merge Requests Authored
+                      </Typography>
+
+                      <List disablePadding sx={{ pr: 1 }}>
+                        {userMergeRequests.map((mr, idx) => {
+                          let stateColor = "text.secondary";
+                          const stateLower = mr.state.toLowerCase();
+                          if (stateLower === "opened") stateColor = "info.main";
+                          else if (stateLower === "merged") stateColor = "success.main";
+                          else if (stateLower === "closed") stateColor = "error.main";
+
+                          return (
+                            <React.Fragment key={mr.webUrl}>
+                              <ListItem
                                 sx={{
-                                  fontWeight: 600,
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                  whiteSpace: "nowrap",
-                                  display: "block",
-                                  cursor: "pointer",
-                                  "&:hover": { color: "primary.light" }
+                                  px: 0,
+                                  py: 1.5,
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  alignItems: "center",
+                                  gap: 2,
                                 }}
-                                component="a"
-                                href={issue.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                title={issue.title}
                               >
-                                {issue.title}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-                                Rank #{idx + 1}
-                              </Typography>
-                            </Box>
-                            <Typography variant="body2" sx={{ fontWeight: 700, color: "primary.light", flexShrink: 0 }}>
-                              {issue.hours.toFixed(1)}h
-                            </Typography>
-                          </ListItem>
-                          {idx < issueSummary.length - 1 && <Divider component="li" sx={{ opacity: 0.5 }} />}
-                        </React.Fragment>
-                      ))}
-                      {issueSummary.length === 0 && (
-                        <Typography variant="body2" color="text.secondary" sx={{ fontStyle: "italic", py: 4, textAlign: "center" }}>
-                          No issues recorded
-                        </Typography>
-                      )}
-                    </List>
+                                <Box sx={{ minWidth: 0, flex: 1 }}>
+                                  <Typography
+                                    variant="body2"
+                                    sx={{
+                                      fontWeight: 600,
+                                      overflow: "hidden",
+                                      textOverflow: "ellipsis",
+                                      whiteSpace: "nowrap",
+                                      display: "block",
+                                      cursor: "pointer",
+                                      "&:hover": { color: "primary.light" }
+                                    }}
+                                    component="a"
+                                    href={mr.webUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    title={mr.title}
+                                  >
+                                    {mr.title}
+                                  </Typography>
+                                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 0.5 }}>
+                                    <Typography variant="caption" sx={{ color: stateColor, fontWeight: 700, textTransform: "uppercase", fontSize: "0.65rem" }}>
+                                      {mr.state}
+                                    </Typography>
+                                    {mr.additions !== undefined && mr.deletions !== undefined && mr.additions !== null && mr.deletions !== null && (
+                                      <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                                        <span style={{ color: "#2da44e" }}>+{mr.additions}</span>{" "}
+                                        <span style={{ color: "#cf222e" }}>-{mr.deletions}</span>
+                                      </Typography>
+                                    )}
+                                  </Box>
+                                </Box>
+                              </ListItem>
+                              {idx < userMergeRequests.length - 1 && <Divider component="li" sx={{ opacity: 0.5 }} />}
+                            </React.Fragment>
+                          );
+                        })}
+                        {userMergeRequests.length === 0 && (
+                          <Typography variant="body2" color="text.secondary" sx={{ fontStyle: "italic", py: 4, textAlign: "center" }}>
+                            No merge requests recorded
+                          </Typography>
+                        )}
+                      </List>
+                    </Box>
                   </Box>
                 </Box>
               </Box>

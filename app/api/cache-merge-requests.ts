@@ -1,6 +1,6 @@
 import { apolloClient, gql } from "./apollo-client";
 import { CACHE_TTL_MS, groupCaches, getOrCreateGroupCache, getCacheKey, mergeRequestsStore, registerUser, cleanupOrphanedEntities } from "./cache-core";
-import type { NormalizedMergeRequest } from "./cache-types";
+import type { NormalizedMergeRequest, MergeRequestComment } from "./cache-types";
 import { GITLAB_GROUP_PATH } from "./env";
 
 const MERGE_REQUESTS_QUERY = gql`
