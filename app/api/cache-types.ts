@@ -24,6 +24,18 @@ export interface NormalizedTimelog {
   sprintNumber?: number;
 }
 
+export interface MergeRequestComment {
+  id: string;
+  body: string;
+  createdAt: string;
+  system: boolean;
+  author: {
+    username: string;
+    name: string;
+    avatarUrl: string | null;
+  };
+}
+
 export interface NormalizedMergeRequest {
   id: string;
   title: string;
@@ -39,6 +51,10 @@ export interface NormalizedMergeRequest {
   sourceBranch: string;
   targetBranch: string;
   protectedBranches: string[];
+  description: string | null;
+  additions: number | null;
+  deletions: number | null;
+  discussions: MergeRequestComment[];
 }
 
 export interface GroupCacheEntry {

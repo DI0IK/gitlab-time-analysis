@@ -31,6 +31,11 @@ const MERGE_REQUESTS_QUERY = gql`
           }
           sourceBranch
           targetBranch
+          description
+          diffStatsSummary {
+            additions
+            deletions
+          }
           project {
             branchRules(first: 20) {
               nodes {
@@ -40,9 +45,14 @@ const MERGE_REQUESTS_QUERY = gql`
           }
           notes(first: 100) {
             nodes {
+              id
+              body
+              createdAt
               system
               author {
                 username
+                name
+                avatarUrl
               }
             }
           }
@@ -83,11 +93,25 @@ async function fetchAndProcessMergeRequests(
       const notesNodes = node.notes?.nodes || [];
       const discussionAuthorsSet = new Set<string>();
       let discussionCount = 0;
+      const discussions: MergeRequestComment[] = [];
 
       for (const note of notesNodes) {
-        if (!note.system && note.author?.username) {
-          discussionAuthorsSet.add(note.author.username);
-          discussionCount++;
+        if (note.author?.username) {
+          discussions.push({
+            id: note.id,
+            body: note.body || "",
+            createdAt: note.createdAt,
+            system: !!note.system,
+            author: {
+              username: note.author.username,
+              name: note.author.name || "",
+              avatarUrl: note.author.avatarUrl || null,
+            },
+          });
+          if (!note.system) {
+            discussionAuthorsSet.add(note.author.username);
+            discussionCount++;
+          }
         }
       }
 
@@ -106,6 +130,10 @@ async function fetchAndProcessMergeRequests(
         sourceBranch: node.sourceBranch || "",
         targetBranch: node.targetBranch || "",
         protectedBranches: (node.project?.branchRules?.nodes || []).map((br: any) => br.name || ""),
+        description: node.description || null,
+        additions: node.diffStatsSummary ? node.diffStatsSummary.additions : null,
+        deletions: node.diffStatsSummary ? node.diffStatsSummary.deletions : null,
+        discussions,
       };
 
       mergeRequestsStore.set(id, normalized);

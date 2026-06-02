@@ -18,6 +18,18 @@ export type BadgeTrack =
   | "automation"
   | "one-time";
 
+export interface MergeRequestComment {
+  id: string;
+  body: string;
+  createdAt: string;
+  system: boolean;
+  author: {
+    username: string;
+    name: string;
+    avatarUrl: string | null;
+  };
+}
+
 export type GamificationMergeRequest = {
   id: string;
   title: string;
@@ -32,6 +44,10 @@ export type GamificationMergeRequest = {
   sourceBranch: string;
   targetBranch: string;
   protectedBranches: string[];
+  description?: string | null;
+  additions?: number | null;
+  deletions?: number | null;
+  discussions?: MergeRequestComment[];
 };
 
 export type BadgeInfo = {

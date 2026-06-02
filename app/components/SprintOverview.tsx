@@ -22,6 +22,7 @@ import {
   AccordionDetails,
   useMediaQuery,
   useTheme,
+  Chip,
 } from "@mui/material";
 import { GroupTimelogsResponse } from "../api/group/[id]/timelogs/route";
 import { matchLabelToCategory } from "../utils/categoryUtils";
@@ -31,6 +32,7 @@ import { UserAvatar } from "./UserAvatar";
 import ShareIcon from "@mui/icons-material/Share";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import IssueDetailModal from "./IssueDetailModal";
+import MergeRequestDetailModal from "./MergeRequestDetailModal";
 import { useUserProfile } from "../UserProfileContext";
 
 
@@ -43,6 +45,7 @@ export default function SprintOverview() {
     groupId,
     selectedSprint,
     setSelectedSprint,
+    mergeRequests,
   } = React.useContext(GroupContext);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -50,6 +53,7 @@ export default function SprintOverview() {
 
   const [selectedIssueUrl, setSelectedIssueUrl] = React.useState<string | null>(null);
   const [selectedIssueTitle, setSelectedIssueTitle] = React.useState<string>("");
+  const [selectedMrUrl, setSelectedMrUrl] = React.useState<string | null>(null);
   const { openProfile } = useUserProfile();
 
   const categoryColumns = [
@@ -171,6 +175,24 @@ export default function SprintOverview() {
     });
     return issuesMap;
   }, [timelogs, selectedSprint]);
+
+  const sprintMergeRequests = React.useMemo(() => {
+    if (selectedSprint === null) return [];
+    if (selectedSprint === 1000) {
+      return mergeRequests;
+    }
+    const currentSprint = sprints.find((s) => s.sprintNumber === selectedSprint);
+    if (!currentSprint) return [];
+
+    const cycleStart = currentSprint.startDate;
+    const cycleEnd = currentSprint.endDate;
+
+    return mergeRequests.filter((mr) => {
+      const created = mr.createdAt.slice(0, 10);
+      const merged = mr.mergedAt ? mr.mergedAt.slice(0, 10) : null;
+      return created <= cycleEnd && (merged === null || merged >= cycleStart);
+    });
+  }, [mergeRequests, sprints, selectedSprint]);
 
   return (
     <Card>
@@ -508,6 +530,144 @@ export default function SprintOverview() {
             </Box>
           </AccordionDetails>
         </Accordion>
+
+        <Accordion sx={{ mt: 2 }}>
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            aria-controls="panel3-content"
+            id="panel3-header"
+          >
+            <Typography component="span">Merge Requests</Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 0 }}>
+              {selectedSprint !== null ? (
+                sprintMergeRequests.map((mr) => {
+                  const authorMember = members.find((m) => m.id === mr.username);
+                  const stateLower = mr.state.toLowerCase();
+                  
+                  let stateColor = "text.secondary";
+                  if (stateLower === "opened") stateColor = "info.main";
+                  else if (stateLower === "merged") stateColor = "success.main";
+                  else if (stateLower === "closed") stateColor = "error.main";
+
+                  return (
+                    <Card
+                      key={mr.webUrl}
+                      onClick={() => {
+                        setSelectedMrUrl(mr.webUrl);
+                      }}
+                      sx={{
+                        mb: 1,
+                        p: 1.5,
+                        cursor: "pointer",
+                        borderLeft: `4px solid ${
+                          stateLower === "opened"
+                            ? theme.palette.info.main
+                            : stateLower === "merged"
+                            ? theme.palette.success.main
+                            : theme.palette.error.main
+                        }`,
+                        transition: "all 0.2s ease",
+                        "&:hover": {
+                          boxShadow: 2,
+                          transform: "translateY(-2px)",
+                          backgroundColor: theme.palette.mode === "dark" ? "rgba(255, 255, 255, 0.02)" : "rgba(0, 0, 0, 0.01)",
+                        },
+                      }}
+                    >
+                      <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                          <Typography
+                            sx={{
+                              fontSize: "1.1rem",
+                              fontWeight: 600,
+                              flex: 1,
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {mr.title}
+                          </Typography>
+                          {authorMember && (
+                            <UserAvatar
+                              member={authorMember}
+                              size="small"
+                              showTooltip={true}
+                              sx={{ width: 20, height: 20 }}
+                            />
+                          )}
+                        </Box>
+
+                        <Box
+                          sx={{
+                            display: "grid",
+                            gridTemplateColumns: "1fr 1fr 1fr",
+                            gap: 1,
+                            fontSize: "0.8rem",
+                            color: "text.primary",
+                            opacity: 0.85,
+                          }}
+                        >
+                          <Box>
+                            <span style={{ color: theme.palette.text.secondary, opacity: 0.8, fontSize: "0.7rem" }}>State</span>
+                            <div style={{ fontWeight: 700, color: stateColor }}>
+                              {mr.state.toUpperCase()}
+                            </div>
+                          </Box>
+                          <Box>
+                            <span style={{ color: theme.palette.text.secondary, opacity: 0.8, fontSize: "0.7rem" }}>Target Branch</span>
+                            <div style={{ fontWeight: 600 }}>
+                              {mr.targetBranch}
+                            </div>
+                          </Box>
+                          <Box>
+                            <span style={{ color: theme.palette.text.secondary, opacity: 0.8, fontSize: "0.7rem" }}>Approvals</span>
+                            <div style={{ fontWeight: 600 }}>
+                              {mr.approvedBy.length}
+                            </div>
+                          </Box>
+                        </Box>
+
+                        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
+                          <Typography sx={{ fontSize: "0.75rem", color: "text.secondary" }}>
+                            Created: {new Date(mr.createdAt).toLocaleDateString()}
+                          </Typography>
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                            {mr.additions !== undefined && mr.deletions !== undefined && mr.additions !== null && mr.deletions !== null && (
+                              <Typography sx={{ fontSize: "0.75rem", fontWeight: 600, mr: 1 }}>
+                                <span style={{ color: "#2da44e" }}>+{mr.additions}</span>{" "}
+                                <span style={{ color: "#cf222e" }}>-{mr.deletions}</span>
+                              </Typography>
+                            )}
+                            {mr.discussionCount > 0 && (
+                              <Chip
+                                label={`${mr.discussionCount} comments`}
+                                size="small"
+                                variant="outlined"
+                                sx={{ fontSize: "0.7rem", height: 20 }}
+                              />
+                            )}
+                          </Box>
+                        </Box>
+                      </Box>
+                    </Card>
+                  );
+                })
+              ) : (
+                <Box sx={{ p: 2, textAlign: "center", color: "text.secondary" }}>
+                  No cycle selected
+                </Box>
+              )}
+              {selectedSprint !== null && sprintMergeRequests.length === 0 && (
+                <Box sx={{ p: 2, textAlign: "center", color: "text.secondary" }}>
+                  No merge requests found for this cycle
+                </Box>
+              )}
+            </Box>
+          </AccordionDetails>
+        </Accordion>
       </CardContent>
       {selectedIssueUrl && (
         <IssueDetailModal
@@ -515,6 +675,13 @@ export default function SprintOverview() {
           onClose={() => setSelectedIssueUrl(null)}
           issueUrl={selectedIssueUrl}
           issueTitle={selectedIssueTitle}
+        />
+      )}
+      {selectedMrUrl && (
+        <MergeRequestDetailModal
+          open={!!selectedMrUrl}
+          onClose={() => setSelectedMrUrl(null)}
+          mrUrl={selectedMrUrl}
         />
       )}
     </Card>
