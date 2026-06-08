@@ -36,9 +36,19 @@ export type GroupComparisonItem = {
   groupTierName: string;
   groupTierColor: string;
   groupAvgXp: number;
+  codeChurnBusFactor: number;
+  peakHeroRelianceIndex: number;
+  effortMultiplier: number;
+  effortGap: number;
+  coefficientOfVariation: number;
+  reviewCoverage: number;
+  groupWorkWeeks: number;
+  groupMeanHours: number;
 };
 
-export type GroupComparisonResponse = GroupComparisonItem[];
+export type GroupComparisonResponse = {
+  groups: GroupComparisonItem[];
+};
 
 function chunk<T>(arr: T[], size: number): T[][] {
   const result: T[][] = [];
@@ -51,7 +61,7 @@ function chunk<T>(arr: T[], size: number): T[][] {
 export const GET = async (request: Request) => {
   const { data: groups } = await getDescendantGroups();
 
-  const comparisonData: GroupComparisonResponse = [];
+  const comparisonData: GroupComparisonItem[] = [];
 
   for (const batch of chunk(groups, 2)) {
     const results = await Promise.allSettled(
@@ -67,15 +77,39 @@ export const GET = async (request: Request) => {
         const { categories, otherHours, otherLabels, totalHours } =
           computeCategorySummary(timelogs, labels);
 
-        // Compute group level from average member XP
-        const humanMembers = members.filter((m) => !m.bot);
-        const verifiedMembers = humanMembers.filter((m) => m.verified);
+        const verifiedMembers = members.filter((m) => !m.bot && m.verified);
         const verifiedMemberIds = verifiedMembers.map((m) => m.id);
+
+        // Compute per-user stats
+        const userHours: Record<string, number> = {};
+        const userChurn: Record<string, number> = {};
+        const userLevel: Record<string, number> = {};
+
+        for (const log of timelogs) {
+          const uid = log.username?.toString() || "unknown";
+          const uidLower = uid.toLowerCase();
+          const member = verifiedMembers.find((m) => m.id.toLowerCase() === uidLower);
+          if (member) {
+            userHours[uidLower] = (userHours[uidLower] || 0) + log.timeSpent;
+          }
+        }
+
+        for (const mr of mergeRequests) {
+          const uid = mr.username?.toLowerCase() || "unknown";
+          const member = verifiedMembers.find((m) => m.id.toLowerCase() === uid);
+          if (member) {
+            userChurn[uid] = (userChurn[uid] || 0) + (mr.additions || 0) + (mr.deletions || 0);
+          }
+        }
+
+        // Group level from average member XP
         let totalXp = 0;
         let activeCount = 0;
         for (const member of verifiedMembers) {
           const validatedTeammates = verifiedMemberIds.filter((id) => id.toLowerCase() !== member.id.toLowerCase());
           const stats = computeGamification(member.id, timelogs, mergeRequests, false, validatedTeammates);
+          userLevel[member.id.toLowerCase()] = stats.level;
+          userHours[member.id.toLowerCase()] = userHours[member.id.toLowerCase()] || 0;
           if (stats.xp > 0) {
             totalXp += stats.xp;
             activeCount++;
@@ -83,6 +117,46 @@ export const GET = async (request: Request) => {
         }
         const avgXp = activeCount > 0 ? Math.floor(totalXp / activeCount) : 0;
         const levelInfo = computeLevelInfo(avgXp);
+
+        // Code Churn Bus Factor
+        const totalChurn = Object.values(userChurn).reduce((a, b) => a + b, 0);
+        const churnShares = Object.values(userChurn).map((c) => totalChurn > 0 ? (c / totalChurn) * 100 : 0);
+        const codeChurnBusFactor = churnShares.length > 0 ? Math.max(...churnShares) : 0;
+
+        // Peak Hero Reliance Index
+        const totalGroupHours = Object.values(userHours).reduce((a, b) => a + b, 0);
+        const hourShares = Object.values(userHours)
+          .filter((h) => h > 0)
+          .map((h) => totalGroupHours > 0 ? (h / totalGroupHours) * 100 : 0);
+        const peakHeroRelianceIndex = hourShares.length > 0 ? Math.max(...hourShares) : 0;
+
+        // Effort dispersion stats
+        const hourValues = Object.values(userHours).filter((h) => h > 0).sort((a, b) => a - b);
+        const minH = hourValues.length > 0 ? hourValues[0] : 0;
+        const maxH = hourValues.length > 0 ? hourValues[hourValues.length - 1] : 0;
+        const effortMultiplier = minH > 0 ? maxH / minH : 0;
+        const effortGap = (maxH - minH) / 3600;
+        const meanH = hourValues.length > 0 ? hourValues.reduce((a, b) => a + b, 0) / hourValues.length : 0;
+        const variance = hourValues.length > 1
+          ? hourValues.reduce((acc, v) => acc + (v - meanH) ** 2, 0) / hourValues.length
+          : 0;
+        const stdDev = Math.sqrt(variance);
+        const coefficientOfVariation = meanH > 0 ? stdDev / meanH : 0;
+
+// Review Coverage: % of merged MRs (by verified members) with ≥1 peer review
+        let reviewedCount = 0;
+        let mergedCount = 0;
+        const verifiedIdsLower = new Set(verifiedMembers.map((m) => m.id.toLowerCase()));
+        for (const mr of mergeRequests) {
+          if (mr.state !== "merged") continue;
+          const author = mr.username?.toLowerCase();
+          if (!author || !verifiedIdsLower.has(author)) continue;
+          mergedCount++;
+          const hasReview = [...(mr.approvedBy || []), ...(mr.discussionAuthors || [])]
+            .some((r) => r.toLowerCase() !== author && verifiedIdsLower.has(r.toLowerCase()));
+          if (hasReview) reviewedCount++;
+        }
+        const reviewCoverage = mergedCount > 0 ? (reviewedCount / mergedCount) * 100 : 0;
 
         return {
           id: group.id,
@@ -109,6 +183,14 @@ export const GET = async (request: Request) => {
           groupTierName: levelInfo.tierLabel,
           groupTierColor: levelInfo.tierColor,
           groupAvgXp: avgXp,
+          codeChurnBusFactor: +codeChurnBusFactor.toFixed(1),
+          peakHeroRelianceIndex: +peakHeroRelianceIndex.toFixed(1),
+          effortMultiplier: +effortMultiplier.toFixed(1),
+          effortGap: +effortGap.toFixed(1),
+          coefficientOfVariation: +coefficientOfVariation.toFixed(3),
+          reviewCoverage: +reviewCoverage.toFixed(1),
+          groupWorkWeeks: +(totalHours / 40).toFixed(1),
+          groupMeanHours: +(totalHours / Math.max(verifiedMembers.length, 1)).toFixed(1),
         };
       }),
     );
@@ -122,5 +204,7 @@ export const GET = async (request: Request) => {
     }
   }
 
-  return NextResponse.json(comparisonData);
+  return NextResponse.json({
+    groups: comparisonData,
+  });
 };

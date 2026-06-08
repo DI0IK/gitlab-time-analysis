@@ -23,12 +23,17 @@ const DAYS = [
 ];
 
 export default function TimePerWeekday() {
-  const { timelogs } = React.useContext(GroupContext);
+  const { timelogs, members } = React.useContext(GroupContext);
   const theme = useTheme();
+
+  const verifiedMemberIds = new Set(
+    members.filter((m) => !m.bot && m.verified).map((m) => m.id.toLowerCase())
+  );
 
   const dayTotals = DAYS.map(() => 0);
 
   timelogs.forEach((log) => {
+    if (!verifiedMemberIds.has(log.username?.toString().toLowerCase() || "")) return;
     const date = new Date(log.spentAt);
     const day = date.getDay();
     const idx = day === 0 ? 6 : day - 1;

@@ -22,7 +22,7 @@ export default function TimePerWeek() {
   const { sprints, timelogs, members } = React.useContext(GroupContext);
   const theme = useTheme();
   const isSmall = useMediaQuery(theme.breakpoints.down("sm"));
-  const nonBotMembers = members.filter((m) => !m.bot);
+  const nonBotMembers = members.filter((m) => !m.bot && m.verified);
 
   const inSprint = (
     log: (typeof timelogs)[number],

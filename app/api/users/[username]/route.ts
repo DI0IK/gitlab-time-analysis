@@ -19,6 +19,7 @@ export const GET = async (
     const allMergeRequestsForGamification: any[] = [];
 
     const validatedTeammatesSet = new Set<string>();
+    let userGroupTotalSeconds = 0;
 
     for (const group of groups) {
       const [timelogs, members, mergeRequests] = await Promise.all([
@@ -44,6 +45,13 @@ export const GET = async (
             validatedTeammatesSet.add(m.id.toLowerCase());
           }
         });
+        // Compute group total hours for share calculation
+        if (userGroupTotalSeconds === 0) {
+          const humanMemberIds = members.filter((m) => !m.bot).map((m) => m.id.toLowerCase());
+          userGroupTotalSeconds = timelogs
+            .filter((log) => humanMemberIds.includes(log.username?.toLowerCase() || ""))
+            .reduce((sum, log) => sum + log.timeSpent, 0);
+        }
       }
 
       const filteredLogs = timelogs.filter((log) => log.username.toLowerCase() === username.toLowerCase());
@@ -67,13 +75,19 @@ export const GET = async (
 
     const sprints = generateSprints();
 
+    const userTotalSeconds = userTimelogs.reduce((sum, log) => sum + log.timeSpent, 0);
+    const groupSharePercent = userGroupTotalSeconds > 0
+      ? +((userTotalSeconds / userGroupTotalSeconds) * 100).toFixed(1)
+      : 0;
+
     return NextResponse.json({
       member: userMemberInfo,
       timelogs: userTimelogs,
-      allTimelogsForGamification, // to let frontend compute gamification stats for all logs
+      allTimelogsForGamification,
       allMergeRequestsForGamification,
       sprints,
       validatedTeammates: Array.from(validatedTeammatesSet),
+      groupSharePercent,
     });
   } catch (error) {
     console.error("Failed to load user profile:", error);

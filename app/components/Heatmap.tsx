@@ -161,7 +161,7 @@ export default function Heatmap() {
       title="Heatmap"
       options={[
         ...members
-          .filter((m) => !m.bot)
+          .filter((m) => !m.bot && m.verified)
           .map((m) => ({ label: m.name, value: m.id, member: m })),
         { value: "all", label: "All Members" },
       ]}

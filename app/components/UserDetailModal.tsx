@@ -21,7 +21,7 @@ import {
   CircularProgress,
   useMediaQuery,
 } from "@mui/material";
-import { Close, OpenInNew, AccessTime, Assignment, LocalFireDepartment, CallMerge, RateReview } from "@mui/icons-material";
+import { Close, OpenInNew, AccessTime, Assignment, LocalFireDepartment, CallMerge, RateReview, Group } from "@mui/icons-material";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as ChartTooltip, ReferenceLine } from "recharts";
 import { CATEGORY_DEFINITIONS } from "../config/categories";
 import { matchLabelToCategory } from "../utils/categoryUtils";
@@ -75,6 +75,7 @@ export default function UserDetailModal({
     allMergeRequestsForGamification?: any[];
     sprints: any[];
     validatedTeammates?: string[];
+    groupSharePercent?: number;
   } | null>(null);
 
   // Fetch independent profile data when username changes
@@ -193,7 +194,6 @@ export default function UserDetailModal({
     if (level < 10) return "#cd7f32"; // Bronze
     if (level < 20) return "#c0c0c0"; // Silver
     if (level < 30) return "#ffd700"; // Gold
-    if (level < 40) return "#e5e4e2"; // Platinum
     return "#a855f7"; // Legend
   };
 
@@ -201,7 +201,6 @@ export default function UserDetailModal({
     if (level < 10) return "Bronze";
     if (level < 20) return "Silver";
     if (level < 30) return "Gold";
-    if (level < 40) return "Platinum";
     return "Legend";
   };
 
@@ -299,13 +298,11 @@ export default function UserDetailModal({
     const maxHistoryXp = xpHistory.reduce((max, h) => Math.max(max, h.xp), 0);
     const silverThreshold = xpNeededForLevel(10);
     const goldThreshold = xpNeededForLevel(20);
-    const platinumThreshold = xpNeededForLevel(30);
-    const legendThreshold = xpNeededForLevel(40);
+    const legendThreshold = xpNeededForLevel(30);
 
     const thresholdsList = [
       { value: silverThreshold, label: "Silver", color: "#c0c0c0" },
       { value: goldThreshold, label: "Gold", color: "#ffd700" },
-      { value: platinumThreshold, label: "Platinum", color: "#e5e4e2" },
       { value: legendThreshold, label: "Legend", color: "#a855f7" },
     ];
 
@@ -469,7 +466,7 @@ export default function UserDetailModal({
               /* Tab 1: Overview */
               <Box>
                 {/* Highlight Stats */}
-                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", sm: "repeat(5, 1fr)" }, gap: 2, mb: 4 }}>
+                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", sm: "repeat(4, 1fr)", md: "repeat(8, 1fr)" }, gap: 2, mb: 4 }}>
                   <Card variant="outlined" sx={{ p: 1, backgroundColor: "rgba(255,255,255,0.01)" }}>
                     <CardContent sx={{ py: 1.5, "&:last-child": { pb: 1.5 } }}>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5, color: "primary.light" }}>
@@ -526,6 +523,55 @@ export default function UserDetailModal({
                       </Box>
                       <Typography variant="h4" sx={{ fontWeight: 800 }}>
                         {reviewedMrsCount}
+                      </Typography>
+                    </CardContent>
+                  </Card>
+
+                  {/* Individual Work Weeks */}
+                  <Card variant="outlined" sx={{ p: 1, backgroundColor: "rgba(255,255,255,0.01)" }}>
+                    <CardContent sx={{ py: 1.5, "&:last-child": { pb: 1.5 } }}>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5, color: "text.secondary" }}>
+                        <AccessTime fontSize="small" />
+                        <Typography variant="caption" sx={{ fontWeight: 600 }}>Work Weeks</Typography>
+                      </Box>
+                      <Typography variant="h4" sx={{ fontWeight: 800 }}>
+                        {(totalHours / 40).toFixed(1)}
+                      </Typography>
+                    </CardContent>
+                  </Card>
+
+                  {/* Progression Efficiency / Pacing */}
+                  {(() => {
+                    const pacing = stats.level > 0 ? totalHours / stats.level : 0;
+                    const pacingColor = pacing <= 3.5 ? "#22c55e" : pacing <= 5.0 ? "#f59e0b" : "#ef4444";
+                    const pacingLabel = pacing <= 3.5 ? "Efficient" : pacing <= 5.0 ? "Average" : "Grinder";
+                    return (
+                      <Card variant="outlined" sx={{ p: 1, backgroundColor: "rgba(255,255,255,0.01)" }}>
+                        <CardContent sx={{ py: 1.5, "&:last-child": { pb: 1.5 } }}>
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5, color: "text.secondary" }}>
+                            <AccessTime fontSize="small" />
+                            <Typography variant="caption" sx={{ fontWeight: 600 }}>Pacing</Typography>
+                          </Box>
+                          <Typography variant="h4" sx={{ fontWeight: 800, color: pacingColor }}>
+                            {pacing.toFixed(1)}
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: pacingColor, fontWeight: 700, fontSize: "0.6rem", display: "block" }}>
+                            {pacingLabel}
+                          </Typography>
+                        </CardContent>
+                      </Card>
+                    );
+                  })()}
+
+                  {/* Group % Share */}
+                  <Card variant="outlined" sx={{ p: 1, backgroundColor: "rgba(255,255,255,0.01)" }}>
+                    <CardContent sx={{ py: 1.5, "&:last-child": { pb: 1.5 } }}>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5, color: "text.secondary" }}>
+                        <Group fontSize="small" />
+                        <Typography variant="caption" sx={{ fontWeight: 600 }}>Group Share</Typography>
+                      </Box>
+                      <Typography variant="h4" sx={{ fontWeight: 800 }}>
+                        {profileData?.groupSharePercent != null ? `${profileData.groupSharePercent}%` : "—"}
                       </Typography>
                     </CardContent>
                   </Card>

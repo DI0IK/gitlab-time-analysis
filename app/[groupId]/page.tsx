@@ -412,13 +412,20 @@ export default function GroupPage() {
             // Filter MRs to the current sprint by date range
             const sprintMRs = mergeRequests.filter((mr) => {
               if (selectedSprint === 1000) return true;
-              const date = mr.mergedAt || mr.createdAt;
+              const created = mr.createdAt.slice(0, 10);
+              const merged = mr.mergedAt ? mr.mergedAt.slice(0, 10) : null;
+              const closed = mr.closedAt ? mr.closedAt.slice(0, 10) : null;
               if (selectedSprint && selectedSprint >= 10000) {
-                return date.startsWith((selectedSprint - 10000).toString());
+                const yearStr = (selectedSprint - 10000).toString();
+                return mr.createdAt.startsWith(yearStr) || 
+                       (mr.mergedAt && mr.mergedAt.startsWith(yearStr)) ||
+                       (mr.closedAt && mr.closedAt.startsWith(yearStr));
               }
               const sprint = sprints.find((sp) => sp.sprintNumber === selectedSprint);
               if (!sprint) return true;
-              return date >= sprint.startDate && date <= sprint.endDate + "T23:59:59";
+              return created <= sprint.endDate && 
+                     (merged === null || merged >= sprint.startDate) && 
+                     (closed === null || closed >= sprint.startDate);
             });
 
             // Build Cycle Table Data
@@ -428,7 +435,7 @@ export default function GroupPage() {
             ];
 
             const memberTableData: Record<string, Record<string, number>> = {};
-            const activeMembers = members.filter((m) => !m.bot);
+            const activeMembers = members.filter((m) => !m.bot && m.verified);
             
             activeMembers.forEach((m) => {
               memberTableData[m.id] = {};

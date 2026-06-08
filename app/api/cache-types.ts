@@ -43,6 +43,7 @@ export interface NormalizedMergeRequest {
   webUrl: string;
   createdAt: string;
   mergedAt: string | null;
+  closedAt: string | null;
   username: string;
   approvedBy: string[];
   discussionAuthors: string[];

@@ -27,9 +27,14 @@ import { matchLabelToCategory } from "../utils/categoryUtils";
 import { CATEGORY_DEFINITIONS } from "../config/categories";
 
 export default function SprintRadar() {
-  const { sprints, timelogs, selectedSprint, setSelectedSprint } = React.useContext(GroupContext);
+  const { sprints, timelogs, members, selectedSprint, setSelectedSprint } = React.useContext(GroupContext);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
+  const verifiedMemberIds = React.useMemo(
+    () => new Set(members.filter((m) => !m.bot && m.verified).map((m) => m.id.toLowerCase())),
+    [members],
+  );
 
   const inSelectedSprint = (log: (typeof timelogs)[number]) =>
     log.sprintNumber === selectedSprint ||
@@ -39,7 +44,7 @@ export default function SprintRadar() {
       log.spentAt.startsWith((selectedSprint - 10000).toString()));
 
   const filteredLogs = selectedSprint
-    ? timelogs.filter(inSelectedSprint)
+    ? timelogs.filter((log) => inSelectedSprint(log) && verifiedMemberIds.has(log.username?.toString().toLowerCase() || ""))
     : [];
 
   // Build category totals

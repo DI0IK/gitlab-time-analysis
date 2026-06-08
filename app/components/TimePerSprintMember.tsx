@@ -36,7 +36,7 @@ export default function TimePerSprintMember() {
       title="Hours per cycle per member"
       options={[
         ...members
-          .filter((m) => !m.bot)
+          .filter((m) => !m.bot && m.verified)
           .map((m) => ({ label: m.name, value: m.id, member: m })),
         { value: "all", label: "All Members" },
       ]}
@@ -46,7 +46,7 @@ export default function TimePerSprintMember() {
       {(selected, { sprints, timelogs }) => {
         const filteredMembers =
           selected === "all"
-            ? members.filter((m) => !m.bot)
+            ? members.filter((m) => !m.bot && m.verified)
             : members.filter((m) => m.id === selected);
 
         if (filteredMembers.length === 0 || sprints.length === 0) {

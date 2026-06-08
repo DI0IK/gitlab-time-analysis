@@ -37,7 +37,7 @@ export default function TimePerMember() {
   const isSmall = useMediaQuery(theme.breakpoints.down("sm"));
   const isDark = theme.palette.mode === "dark";
 
-  const nonBotMembers = members.filter((m) => !m.bot);
+  const nonBotMembers = members.filter((m) => !m.bot && m.verified);
 
   const allCategories = [
     ...CATEGORY_DEFINITIONS.map((d, idx) => ({

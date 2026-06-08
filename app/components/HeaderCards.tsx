@@ -7,6 +7,7 @@ import {
   Box,
   AvatarGroup,
   Tooltip,
+  Typography,
 } from "@mui/material";
 import { UserAvatar } from "./UserAvatar";
 import { matchLabelToCategory } from "../utils/categoryUtils";
@@ -58,6 +59,7 @@ export default function HeaderCards() {
     (total, log) => total + log.timeSpent,
     0,
   );
+  const totalHours = totalTimeSpent / 3600;
 
   const todayStr = new Date().toISOString().slice(0, 10);
 
@@ -89,8 +91,41 @@ export default function HeaderCards() {
     return getTopCategoryForSprint(currentSprint, timelogs);
   }, [currentSprint, timelogs]);
 
-  const humanMembers = members.filter((m) => !m.bot);
+  const humanMembers = members.filter((m) => !m.bot && m.verified);
   const botMembers = members.filter((m) => m.bot);
+
+  const workWeeks = totalHours / 40;
+  const meanHours = humanMembers.length > 0 ? totalHours / humanMembers.length : 0;
+
+  // Effort dispersion stats (same as comparison table)
+  const effortStats = React.useMemo(() => {
+    const userHoursArr: number[] = [];
+    for (const log of timelogs) {
+      const uid = log.username?.toString() || "unknown";
+      const uidLower = uid.toLowerCase();
+      const member = humanMembers.find((m) => m.id.toLowerCase() === uidLower);
+      if (member) {
+        const idx = humanMembers.findIndex((m) => m.id.toLowerCase() === uidLower);
+        userHoursArr[idx] = (userHoursArr[idx] || 0) + log.timeSpent;
+      }
+    }
+    const vals = userHoursArr.filter((h) => h > 0).sort((a, b) => a - b);
+    const minH = vals.length > 0 ? vals[0] / 3600 : 0;
+    const maxH = vals.length > 0 ? vals[vals.length - 1] / 3600 : 0;
+    const effortMultiplier = minH > 0 ? maxH / minH : 0;
+    const effortGap = maxH - minH;
+    const mean = vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length / 3600 : 0;
+    const variance = vals.length > 1
+      ? vals.reduce((acc, v) => acc + ((v / 3600) - mean) ** 2, 0) / vals.length
+      : 0;
+    const stdDev = Math.sqrt(variance);
+    const coefficientOfVariation = mean > 0 ? stdDev / mean : 0;
+    return { effortMultiplier, effortGap, coefficientOfVariation };
+  }, [timelogs, humanMembers]);
+
+  const effColor = effortStats.effortMultiplier > 2.5 ? "#ef4444" : effortStats.effortMultiplier > 1.5 ? "#f59e0b" : "#22c55e";
+  const gapColor = effortStats.effortGap > 40 ? "#ef4444" : effortStats.effortGap > 20 ? "#f59e0b" : "#22c55e";
+  const cvColor = effortStats.coefficientOfVariation > 0.5 ? "#ef4444" : effortStats.coefficientOfVariation > 0.25 ? "#f59e0b" : "#22c55e";
 
   return (
     <Card>
@@ -98,7 +133,7 @@ export default function HeaderCards() {
       <CardContent
         sx={{
           display: "grid",
-          gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+          gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "1fr 1fr 1fr" },
           gap: 2,
         }}
       >
@@ -169,6 +204,7 @@ export default function HeaderCards() {
             </Box>
           </CardContent>
         </Card>
+
         <Card variant="outlined" sx={{ p: 1, m: 0 }}>
           <CardHeader title="Total Cycles" />
           <CardContent
@@ -177,38 +213,101 @@ export default function HeaderCards() {
             {totalSprints}
           </CardContent>
         </Card>
+
         <Card variant="outlined" sx={{ p: 1, m: 0 }}>
-          <CardHeader title="Total Time Spent" />
-          <CardContent
-            sx={{ textAlign: "right", fontWeight: "bold", fontSize: 18 }}
-          >
-            {(totalTimeSpent / 3600).toFixed(2)} hours
+          <CardHeader title="Total Time" />
+          <CardContent sx={{ textAlign: "right" }}>
+            <Typography sx={{ fontWeight: 800, fontSize: 22, lineHeight: 1.1 }}>
+              {totalHours.toFixed(0)}h
+            </Typography>
           </CardContent>
         </Card>
+
         <Card variant="outlined" sx={{ p: 1, m: 0 }}>
-          <CardHeader title="Time Spent per Cycle" />
-          <CardContent
-            sx={{ textAlign: "right", fontWeight: "bold", fontSize: 18 }}
-          >
-            {totalSprints > 0
-              ? (totalTimeSpent / 3600 / totalSprints).toFixed(2) + " hours"
-              : "N/A"}
+          <CardHeader title="Averages" />
+          <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 } }}>
+            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0.5 }}>
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.6rem", fontWeight: 600, display: "block" }}>
+                  Mean
+                </Typography>
+                <Typography sx={{ fontWeight: 800, fontSize: "0.95rem", lineHeight: 1.2 }}>
+                  {meanHours.toFixed(1)}h
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.6rem", fontWeight: 600, display: "block" }}>
+                  Weeks
+                </Typography>
+                <Typography sx={{ fontWeight: 800, fontSize: "0.95rem", lineHeight: 1.2 }}>
+                  {workWeeks.toFixed(1)}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.6rem", fontWeight: 600, display: "block" }}>
+                  /Cycle
+                </Typography>
+                <Typography sx={{ fontWeight: 800, fontSize: "0.95rem", lineHeight: 1.2 }}>
+                  {totalSprints > 0 ? `${(totalHours / totalSprints).toFixed(0)}h` : "N/A"}
+                </Typography>
+              </Box>
+            </Box>
           </CardContent>
         </Card>
+
         <Card variant="outlined" sx={{ p: 1, m: 0 }}>
-          <CardHeader title="Focus Last Cycle" />
-          <CardContent
-            sx={{ textAlign: "right", fontWeight: "bold", fontSize: 18 }}
-          >
-            {focusLastSprint || "N/A"}
+          <CardHeader title="Effort Dispersion" />
+          <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 } }}>
+            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0.5 }}>
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.6rem", fontWeight: 600, display: "block" }}>
+                  Effort
+                </Typography>
+                <Typography sx={{ fontWeight: 800, fontSize: "0.95rem", lineHeight: 1.2, color: effColor }}>
+                  {effortStats.effortMultiplier.toFixed(1)}×
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.6rem", fontWeight: 600, display: "block" }}>
+                  Δ h
+                </Typography>
+                <Typography sx={{ fontWeight: 800, fontSize: "0.95rem", lineHeight: 1.2, color: gapColor }}>
+                  {effortStats.effortGap.toFixed(1)}h
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.6rem", fontWeight: 600, display: "block" }}>
+                  CV
+                </Typography>
+                <Typography sx={{ fontWeight: 800, fontSize: "0.95rem", lineHeight: 1.2, color: cvColor }}>
+                  {effortStats.coefficientOfVariation.toFixed(2)}
+                </Typography>
+              </Box>
+            </Box>
           </CardContent>
         </Card>
+
         <Card variant="outlined" sx={{ p: 1, m: 0 }}>
-          <CardHeader title="Focus This Cycle" />
-          <CardContent
-            sx={{ textAlign: "right", fontWeight: "bold", fontSize: 18 }}
-          >
-            {focusThisSprint || "N/A"}
+          <CardHeader title="Focus" />
+          <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 } }}>
+            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.65rem", fontWeight: 600, display: "block" }}>
+                  Last Cycle
+                </Typography>
+                <Typography sx={{ fontWeight: 800, fontSize: "1rem", lineHeight: 1.2 }}>
+                  {focusLastSprint || "N/A"}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.65rem", fontWeight: 600, display: "block" }}>
+                  This Cycle
+                </Typography>
+                <Typography sx={{ fontWeight: 800, fontSize: "1rem", lineHeight: 1.2 }}>
+                  {focusThisSprint || "N/A"}
+                </Typography>
+              </Box>
+            </Box>
           </CardContent>
         </Card>
       </CardContent>

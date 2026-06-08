@@ -37,6 +37,7 @@ export type GamificationMergeRequest = {
   webUrl: string;
   createdAt: string;
   mergedAt: string | null;
+  closedAt: string | null;
   username: string; // author username
   approvedBy: string[]; // array of usernames who approved
   discussionAuthors: string[]; // array of usernames who commented
@@ -116,16 +117,8 @@ const TIER_CONFIG = [
   },
   {
     minLevel: 30,
-    maxLevel: 39,
-    xpPerLevel: 500,
-    name: "platinum" as TierName,
-    label: "Platinum",
-    color: "#e5e4e2",
-  },
-  {
-    minLevel: 40,
     maxLevel: Infinity,
-    xpPerLevel: 600,
+    xpPerLevel: 500,
     name: "legend" as TierName,
     label: "Legend",
     color: "#a855f7",

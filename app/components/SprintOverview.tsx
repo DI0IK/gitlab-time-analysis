@@ -65,7 +65,7 @@ export default function SprintOverview() {
   const tableData: Record<string, Record<string, number>> = {};
 
   members
-    .filter((m) => !m.bot)
+    .filter((m) => !m.bot && m.verified)
     .forEach((m) => {
       tableData[m.id] = {};
       categoryColumns.forEach((c) => {
@@ -190,7 +190,10 @@ export default function SprintOverview() {
     return mergeRequests.filter((mr) => {
       const created = mr.createdAt.slice(0, 10);
       const merged = mr.mergedAt ? mr.mergedAt.slice(0, 10) : null;
-      return created <= cycleEnd && (merged === null || merged >= cycleStart);
+      const closed = mr.closedAt ? mr.closedAt.slice(0, 10) : null;
+      return created <= cycleEnd && 
+             (merged === null || merged >= cycleStart) && 
+             (closed === null || closed >= cycleStart);
     });
   }, [mergeRequests, sprints, selectedSprint]);
 

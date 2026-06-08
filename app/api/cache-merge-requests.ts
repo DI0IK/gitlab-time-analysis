@@ -14,6 +14,7 @@ const MERGE_REQUESTS_QUERY = gql`
           webUrl
           createdAt
           mergedAt
+          closedAt
           author {
             username
             name
@@ -122,6 +123,7 @@ async function fetchAndProcessMergeRequests(
         webUrl: node.webUrl || "",
         createdAt: node.createdAt,
         mergedAt: node.mergedAt || null,
+        closedAt: node.closedAt || null,
         username,
         approvedBy,
         discussionAuthors: Array.from(discussionAuthorsSet),
