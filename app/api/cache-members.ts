@@ -141,7 +141,12 @@ async function fetchAndProcessMembers(
     }
   }
 
-  const verified = new Set(directUsernames);
+  const verified = new Set<string>();
+  for (const u of directUsernames) {
+    if (timelogUsernames.has(u)) {
+      verified.add(u);
+    }
+  }
   for (const u of inheritedUsernames) {
     verified.add(u);
   }
