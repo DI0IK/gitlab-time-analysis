@@ -466,7 +466,7 @@ export default function UserDetailModal({
               /* Tab 1: Overview */
               <Box>
                 {/* Highlight Stats */}
-                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", sm: "repeat(4, 1fr)", md: "repeat(8, 1fr)" }, gap: 2, mb: 4 }}>
+                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", sm: "repeat(4, 1fr)", md: "repeat(4, 1fr)" }, gap: 2, mb: 4 }}>
                   <Card variant="outlined" sx={{ p: 1, backgroundColor: "rgba(255,255,255,0.01)" }}>
                     <CardContent sx={{ py: 1.5, "&:last-child": { pb: 1.5 } }}>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5, color: "primary.light" }}>
