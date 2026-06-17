@@ -202,6 +202,63 @@ export default function GroupPage() {
     return () => { cancelled = true; clearTimeout(timer); };
   }, [members, timelogs, mergeRequests]);
 
+  const hasParsedQuery = React.useRef(false);
+
+  // Sync state with URL search params
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    if (!hasParsedQuery.current) {
+      // 1. Initial load: parse from URL
+      const params = new URLSearchParams(window.location.search);
+      const sprintStr = params.get("sprintNumber");
+      const presentationStr = params.get("presentation");
+
+      if (sprintStr) {
+        const sprintNum = parseInt(sprintStr, 10);
+        if (!isNaN(sprintNum)) {
+          setSelectedSprint(sprintNum);
+        }
+      }
+
+      if (presentationStr === "true") {
+        setPresentationMode(true);
+      }
+
+      hasParsedQuery.current = true;
+    } else {
+      // 2. Subsequent updates: sync back to URL
+      const params = new URLSearchParams(window.location.search);
+      let changed = false;
+
+      if (selectedSprint !== null) {
+        if (params.get("sprintNumber") !== selectedSprint.toString()) {
+          params.set("sprintNumber", selectedSprint.toString());
+          changed = true;
+        }
+      } else if (params.has("sprintNumber")) {
+        params.delete("sprintNumber");
+        changed = true;
+      }
+
+      if (presentationMode) {
+        if (params.get("presentation") !== "true") {
+          params.set("presentation", "true");
+          changed = true;
+        }
+      } else if (params.has("presentation")) {
+        params.delete("presentation");
+        changed = true;
+      }
+
+      if (changed) {
+        const newSearch = params.toString();
+        const newUrl = `${window.location.pathname}${newSearch ? "?" + newSearch : ""}`;
+        window.history.replaceState(null, "", newUrl);
+      }
+    }
+  }, [selectedSprint, presentationMode, setPresentationMode]);
+
   // Set default active sprint based on current date
   React.useEffect(() => {
     if (sprints.length && selectedSprint === null) {
@@ -417,15 +474,15 @@ export default function GroupPage() {
               const closed = mr.closedAt ? mr.closedAt.slice(0, 10) : null;
               if (selectedSprint && selectedSprint >= 10000) {
                 const yearStr = (selectedSprint - 10000).toString();
-                return mr.createdAt.startsWith(yearStr) || 
-                       (mr.mergedAt && mr.mergedAt.startsWith(yearStr)) ||
-                       (mr.closedAt && mr.closedAt.startsWith(yearStr));
+                return mr.createdAt.startsWith(yearStr) ||
+                  (mr.mergedAt && mr.mergedAt.startsWith(yearStr)) ||
+                  (mr.closedAt && mr.closedAt.startsWith(yearStr));
               }
               const sprint = sprints.find((sp) => sp.sprintNumber === selectedSprint);
               if (!sprint) return true;
-              return created <= sprint.endDate && 
-                     (merged === null || merged >= sprint.startDate) && 
-                     (closed === null || closed >= sprint.startDate);
+              return created <= sprint.endDate &&
+                (merged === null || merged >= sprint.startDate) &&
+                (closed === null || closed >= sprint.startDate);
             });
 
             // Build Cycle Table Data
@@ -436,7 +493,7 @@ export default function GroupPage() {
 
             const memberTableData: Record<string, Record<string, number>> = {};
             const activeMembers = members.filter((m) => !m.bot && m.verified);
-            
+
             activeMembers.forEach((m) => {
               memberTableData[m.id] = {};
               columns.forEach((c) => {
@@ -555,7 +612,7 @@ export default function GroupPage() {
 
                 {/* Main Content Layout (Split Vertically: Table/Pie on Top, Issues on Bottom) */}
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 3, flexGrow: 1, minHeight: 0 }}>
-                  
+
                   {/* Top Block: Table (span 8) & Category Pie Chart (span 4) */}
                   <Box sx={{ display: "grid", gridTemplateColumns: "repeat(12, 1fr)", gap: 3, flex: "0 0 280px" }}>
                     {/* Cycle Table */}
@@ -826,12 +883,12 @@ export default function GroupPage() {
                           sprintMRs.map((mr) => {
                             const stateColor =
                               mr.state === "merged" ? "#7C3AED"
-                              : mr.state === "opened" ? "#10B981"
-                              : "#94a3b8";
+                                : mr.state === "opened" ? "#10B981"
+                                  : "#94a3b8";
                             const stateLabel =
                               mr.state === "merged" ? "Merged"
-                              : mr.state === "opened" ? "Open"
-                              : "Closed";
+                                : mr.state === "opened" ? "Open"
+                                  : "Closed";
                             const author = members.find((m) => m.id === mr.username);
 
                             return (
