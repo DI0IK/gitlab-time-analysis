@@ -541,8 +541,8 @@ export default function GroupPage() {
                 sx={{
                   display: "flex",
                   flexDirection: "column",
-                  gap: 3,
-                  p: 4,
+                  gap: 2,
+                  p: 2.5,
                   height: "100vh",
                   maxHeight: "100vh",
                   overflow: "hidden",
@@ -557,34 +557,34 @@ export default function GroupPage() {
                     justifyContent: "space-between",
                     alignItems: "center",
                     borderBottom: "2px solid #e2e8f0",
-                    pb: 2,
+                    pb: 1.5,
                     flexShrink: 0,
                   }}
                 >
                   <Box>
-                    <Typography variant="h3" sx={{ fontWeight: 800, color: "#1e293b" }}>
+                    <Typography variant="h4" sx={{ fontWeight: 800, color: "#1e293b" }}>
                       Cycle {selectedSprint === 1000 ? "All Time" : selectedSprint} Overview
                     </Typography>
-                    <Typography variant="subtitle1" sx={{ color: "#64748b", fontWeight: 500, mt: 0.5 }}>
+                    <Typography variant="body2" sx={{ color: "#64748b", fontWeight: 500, mt: 0.25 }}>
                       Active group performance and work breakdowns
                     </Typography>
                   </Box>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 3 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                     <Paper
                       elevation={0}
                       sx={{
-                        p: 2.5,
-                        px: 4,
+                        p: 1.5,
+                        px: 3,
                         bgcolor: "rgba(124, 58, 237, 0.08)",
                         border: "1px solid rgba(124, 58, 237, 0.2)",
-                        borderRadius: 3,
+                        borderRadius: 2.5,
                         textAlign: "center",
                       }}
                     >
-                      <Typography variant="body2" sx={{ fontWeight: 700, color: "primary.main", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                      <Typography variant="caption" sx={{ fontWeight: 700, color: "primary.main", textTransform: "uppercase", letterSpacing: "0.08em", display: "block" }}>
                         Total Logged Hours
                       </Typography>
-                      <Typography variant="h2" sx={{ fontWeight: 900, color: "primary.dark", mt: 0.5, lineHeight: 1 }}>
+                      <Typography variant="h4" sx={{ fontWeight: 900, color: "primary.dark", mt: 0.25, lineHeight: 1 }}>
                         {totalCycleHours}h
                       </Typography>
                     </Paper>
@@ -595,8 +595,8 @@ export default function GroupPage() {
                         bgcolor: "error.main",
                         color: "#ffffff",
                         boxShadow: 2,
-                        p: 2,
-                        borderRadius: 3,
+                        p: 1.5,
+                        borderRadius: 2.5,
                         transition: "transform 0.2s ease, background-color 0.2s ease",
                         "&:hover": {
                           bgcolor: "error.dark",
@@ -605,35 +605,35 @@ export default function GroupPage() {
                       }}
                       title="Exit Presentation Mode"
                     >
-                      <FullscreenExitIcon sx={{ fontSize: 28 }} />
+                      <FullscreenExitIcon sx={{ fontSize: 24 }} />
                     </IconButton>
                   </Box>
                 </Box>
 
                 {/* Main Content Layout (Split Vertically: Table/Pie on Top, Issues on Bottom) */}
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 3, flexGrow: 1, minHeight: 0 }}>
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 2, flexGrow: 1, minHeight: 0 }}>
 
                   {/* Top Block: Table (span 8) & Category Pie Chart (span 4) */}
-                  <Box sx={{ display: "grid", gridTemplateColumns: "repeat(12, 1fr)", gap: 3, flex: "0 0 280px" }}>
+                  <Box sx={{ display: "grid", gridTemplateColumns: "repeat(12, 1fr)", gap: 2, flex: "0 0 250px" }}>
                     {/* Cycle Table */}
                     <Box sx={{ gridColumn: "span 8", display: "flex", flexDirection: "column", minHeight: 0 }}>
                       <Paper
                         elevation={0}
                         sx={{
-                          p: 3,
+                          p: 2,
                           border: "1px solid #e2e8f0",
-                          borderRadius: 3,
+                          borderRadius: 2.5,
                           height: "100%",
                           display: "flex",
                           flexDirection: "column",
                           minHeight: 0,
                         }}
                       >
-                        <Typography variant="h6" sx={{ fontWeight: 800, mb: 2, color: "#334155" }}>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 1, color: "#334155" }}>
                           Team Timesheet Breakdown
                         </Typography>
                         <Box sx={{ flexGrow: 1, overflowY: "auto", minHeight: 0 }}>
-                          <Table size="medium" stickyHeader>
+                          <Table size="small" stickyHeader>
                             <TableHead>
                               <TableRow>
                                 <TableCell sx={{ fontWeight: 800, color: "#475569" }}>Member</TableCell>
@@ -693,16 +693,16 @@ export default function GroupPage() {
                       <Paper
                         elevation={0}
                         sx={{
-                          p: 3,
+                          p: 2,
                           border: "1px solid #e2e8f0",
-                          borderRadius: 3,
+                          borderRadius: 2.5,
                           height: "100%",
                           display: "flex",
                           flexDirection: "column",
                           minHeight: 0,
                         }}
                       >
-                        <Typography variant="h6" sx={{ fontWeight: 800, mb: 1, color: "#334155" }}>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 0.5, color: "#334155" }}>
                           Category Distribution
                         </Typography>
                         <Box sx={{ flexGrow: 1, minHeight: 0 }}>
@@ -731,22 +731,22 @@ export default function GroupPage() {
                   </Box>
 
                   {/* Bottom Block: Issues (left) + Merge Requests (right) */}
-                  <Box sx={{ flex: "1 1 0", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 3, minHeight: 0 }}>
+                  <Box sx={{ flex: "1 1 0", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2, minHeight: 0 }}>
 
                     {/* LEFT: Top Issues Scrollable List */}
                     <Paper
                       elevation={0}
                       sx={{
-                        p: 3,
+                        p: 2,
                         border: "1px solid #e2e8f0",
-                        borderRadius: 3,
+                        borderRadius: 2.5,
                         display: "flex",
                         flexDirection: "column",
                         minHeight: 0,
                         overflow: "hidden",
                       }}
                     >
-                      <Typography variant="h6" sx={{ fontWeight: 800, mb: 1.5, color: "#334155", flexShrink: 0 }}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 1, color: "#334155", flexShrink: 0 }}>
                         Top Issues Worked On
                         <Typography component="span" variant="body2" sx={{ ml: 1, color: "#94a3b8", fontWeight: 500 }}>
                           ({topIssues.length})
@@ -859,16 +859,16 @@ export default function GroupPage() {
                     <Paper
                       elevation={0}
                       sx={{
-                        p: 3,
+                        p: 2,
                         border: "1px solid #e2e8f0",
-                        borderRadius: 3,
+                        borderRadius: 2.5,
                         display: "flex",
                         flexDirection: "column",
                         minHeight: 0,
                         overflow: "hidden",
                       }}
                     >
-                      <Typography variant="h6" sx={{ fontWeight: 800, mb: 1.5, color: "#334155", flexShrink: 0 }}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 1, color: "#334155", flexShrink: 0 }}>
                         Merge Requests
                         <Typography component="span" variant="body2" sx={{ ml: 1, color: "#94a3b8", fontWeight: 500 }}>
                           ({sprintMRs.length})
