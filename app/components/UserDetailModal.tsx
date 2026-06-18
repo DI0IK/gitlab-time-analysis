@@ -157,10 +157,16 @@ export default function UserDetailModal({
     return sprints.map((sp) => {
       const sprintEndDate = new Date(new Date(sp.endDate).setHours(23, 59, 59, 999));
       
-      // Filter timelogs up to this sprint's end date
-      const timelogsUpToSprint = logs.filter(
-        (log) => new Date(log.spentAt) <= sprintEndDate
-      );
+      // Filter & adjust timelogs up to this sprint's end date
+      const timelogsUpToSprint = logs
+        .filter((log) => new Date(log.spentAt) <= sprintEndDate)
+        .map((log) => {
+          const wasClosedBeforeSprint = log.issueClosedAt && new Date(log.issueClosedAt) <= sprintEndDate;
+          return {
+            ...log,
+            issueState: wasClosedBeforeSprint ? "closed" : "opened",
+          };
+        });
       
       // Filter & adjust merge requests up to this sprint's end date
       const mergeRequestsUpToSprint = allMergeRequestsForGamification

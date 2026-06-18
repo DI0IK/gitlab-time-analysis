@@ -13,6 +13,7 @@ export interface NormalizedIssue {
   timeEstimate: number;
   labels: string[];
   createdAt: string;
+  closedAt: string | null;
 }
 
 export interface NormalizedTimelog {

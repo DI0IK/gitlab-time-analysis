@@ -48,7 +48,7 @@ import TimePerWeekday from "../components/TimePerWeekday";
 import UserDetailModal from "../components/UserDetailModal";
 import { GroupContext } from "../GroupContext";
 import { useUserProfile } from "../UserProfileContext";
-import { GamificationMergeRequest, computeLevelInfo, computeGamification, TIER_INFO } from "../utils/gamification";
+import { GamificationMergeRequest, computeLevelInfo, computeGamification, TIER_INFO, xpNeededForLevel } from "../utils/gamification";
 import {
   PieChart,
   Pie,
@@ -56,6 +56,13 @@ import {
   Legend as RechartsLegend,
   ResponsiveContainer,
   Tooltip as RechartsTooltip,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  ReferenceLine,
+  Tooltip as ChartTooltip,
 } from "recharts";
 import { matchLabelToCategory } from "../utils/categoryUtils";
 import { CATEGORY_DEFINITIONS } from "../config/categories";
@@ -202,7 +209,80 @@ export default function GroupPage() {
     return () => { cancelled = true; clearTimeout(timer); };
   }, [members, timelogs, mergeRequests]);
 
+  // Group XP history per sprint
+  const [groupXpHistory, setGroupXpHistory] = React.useState<{ sprint: string; xp: number; totalXp: number; memberCount: number }[]>([]);
+  React.useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      if (cancelled || !sprints.length || !timelogs.length) return;
+      const humanMembers = members.filter((m) => !m.bot && m.verified);
+      if (humanMembers.length === 0) return;
+      const humanMemberIds = humanMembers.map((m) => m.id.toLowerCase());
+
+      const history = sprints.map((sp) => {
+        const sprintEndDate = new Date(new Date(sp.endDate).setHours(23, 59, 59, 999));
+
+        const timelogsUpToSprint = timelogs
+          .filter((log) => new Date(log.spentAt) <= sprintEndDate)
+          .map((log) => {
+            const wasClosedBeforeSprint = log.issueClosedAt && new Date(log.issueClosedAt) <= sprintEndDate;
+            return { ...log, issueState: wasClosedBeforeSprint ? "closed" : "opened" };
+          });
+
+        const mergeRequestsUpToSprint = mergeRequests
+          .filter((mr) => new Date(mr.createdAt) <= sprintEndDate)
+          .map((mr) => {
+            const isMergedBeforeSprint = mr.mergedAt && new Date(mr.mergedAt) <= sprintEndDate;
+            return { ...mr, state: isMergedBeforeSprint ? "merged" : "opened", mergedAt: isMergedBeforeSprint ? mr.mergedAt : null };
+          });
+
+        let totalXp = 0;
+        let activeCount = 0;
+        for (const member of humanMembers) {
+          const validatedTeammates = humanMemberIds.filter((id) => id !== member.id.toLowerCase());
+          const stats = computeGamification(member.id, timelogsUpToSprint, mergeRequestsUpToSprint, false, validatedTeammates);
+          if (stats.xp > 0) {
+            totalXp += stats.xp;
+            activeCount++;
+          }
+        }
+        return {
+          sprint: `Sprint ${sp.sprintNumber}`,
+          xp: activeCount > 0 ? Math.floor(totalXp / activeCount) : 0,
+          totalXp,
+          memberCount: activeCount,
+        };
+      }).filter((entry) => entry.xp > 0);
+
+      if (cancelled) return;
+      setGroupXpHistory(history);
+    }, 0);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [sprints, timelogs, mergeRequests, members]);
+
   const hasParsedQuery = React.useRef(false);
+
+  const isDark = theme.palette.mode === "dark";
+  const groupTierColor = groupLevelInfo?.tierColor ?? "#cd7f32";
+
+  const visibleThresholds = React.useMemo(() => {
+    if (!groupXpHistory.length) return [];
+    const maxHistoryXp = groupXpHistory.reduce((max, h) => Math.max(max, h.xp), 0);
+    const silverThreshold = xpNeededForLevel(10);
+    const goldThreshold = xpNeededForLevel(20);
+    const legendThreshold = xpNeededForLevel(30);
+    const list = [
+      { value: silverThreshold, label: "Silver", color: "#c0c0c0" },
+      { value: goldThreshold, label: "Gold", color: "#ffd700" },
+      { value: legendThreshold, label: "Legend", color: "#a855f7" },
+    ];
+    return list.filter((t, i) => {
+      if (maxHistoryXp >= t.value) return true;
+      const prev = list[i - 1];
+      if (!prev || maxHistoryXp >= prev.value) return true;
+      return false;
+    });
+  }, [groupXpHistory]);
 
   // Sync state with URL search params
   React.useEffect(() => {
@@ -1129,6 +1209,42 @@ export default function GroupPage() {
             <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" }, height: { xs: "auto", md: 420 } }}>
               <TimePerWeekday />
             </Box>
+
+            {/* Row 7: Group XP History */}
+            {groupXpHistory.length > 0 && (
+              <Box sx={{ gridColumn: { xs: "span 12" }, height: { xs: "auto", md: 400 } }}>
+                <Card variant="outlined" sx={{ height: "100%" }}>
+                  <CardContent sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 2, textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.05em", color: "text.secondary" }}>
+                      Group Average XP Over Sprints
+                    </Typography>
+                    <Box sx={{ flex: 1, minHeight: 0 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={groupXpHistory} margin={{ top: 10, right: 40, left: -20, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+                          <XAxis dataKey="sprint" tick={{ fill: isDark ? "rgba(255,255,255,0.75)" : "rgba(15,23,42,0.75)", fontSize: 10 }} />
+                          <YAxis tick={{ fill: isDark ? "rgba(255,255,255,0.75)" : "rgba(15,23,42,0.75)", fontSize: 10 }} />
+                          <ChartTooltip
+                            contentStyle={{
+                              backgroundColor: isDark ? "rgba(17,24,39,0.95)" : "rgba(255,255,255,0.95)",
+                              border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}`,
+                              borderRadius: 8,
+                              color: isDark ? "#f3f4f6" : "#0f172a",
+                              fontSize: 12,
+                            }}
+                            formatter={(value) => `${Number(value).toLocaleString()} XP`}
+                          />
+                          {visibleThresholds.map((t) => (
+                            <ReferenceLine key={t.label} y={t.value} stroke={t.color} strokeDasharray="4 4" label={{ value: t.label, fill: t.color, position: "right", fontSize: 9, fontWeight: "bold" }} />
+                          ))}
+                          <Line type="monotone" dataKey="xp" stroke={groupTierColor} strokeWidth={3} activeDot={{ r: 6 }} name="Avg XP" />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Box>
+            )}
           </Box>
         )}
       </Box>

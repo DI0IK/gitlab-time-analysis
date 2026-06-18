@@ -31,6 +31,7 @@ const TIMELOGS_QUERY = gql`
             timeEstimate
             title
             createdAt
+            closedAt
             labels {
               nodes {
                 title
@@ -134,6 +135,7 @@ export async function getTimelogs(groupId: string, token?: string) {
           issueState: issue?.state || "",
           issueTimeEstimate: issue?.timeEstimate || 0,
           issueCreatedAt: issue?.createdAt || "",
+          issueClosedAt: issue?.closedAt || null,
           spentAt: log.spentAt,
           timeSpent: log.timeSpent,
           username: log.username,

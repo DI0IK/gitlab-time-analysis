@@ -11,6 +11,8 @@ export type GroupTimelogsResponse = {
   issueTitle: string;
   issueState: string;
   issueTimeEstimate: number;
+  issueCreatedAt: string;
+  issueClosedAt: string | null;
   spentAt: string;
   timeSpent: number;
   username: string;

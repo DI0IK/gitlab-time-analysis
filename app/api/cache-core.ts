@@ -87,6 +87,7 @@ export function registerIssue(issueNode: any): string {
     timeEstimate: issueNode.timeEstimate || 0,
     labels,
     createdAt: issueNode.createdAt || new Date().toISOString(),
+    closedAt: issueNode.closedAt || null,
   });
   return webUrl;
 }
