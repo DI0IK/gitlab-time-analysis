@@ -39,7 +39,7 @@ Each group page combines several views:
 
 Users and groups earn XP and level up based on timelogs and merge request activity:
 
-- **Levels and tiers** — Bronze (1–9), Silver (10–19), Gold (20–29), Platinum (30–49), Legend (50+).
+- **Levels and tiers** — Bronze (1–9), Silver (10–19), Gold (20–29), Legend (30+).
 - **Badge tracks** — endurance, velocity, shipping, quality, momentum, automation, one-time.
 - **Group-level XP** aggregates all member XP and computes a group tier.
 - Levels and XP are displayed on the home page comparison table, user leaderboard, and per-user detail modals.
