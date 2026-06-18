@@ -52,5 +52,3 @@ export function matchLabelToCategory(
   return null;
 }
 
-/** Category ids that have real usage data — useful for ordering. */
-export const CATEGORY_IDS = CATEGORY_DEFINITIONS.map((d) => d.id);

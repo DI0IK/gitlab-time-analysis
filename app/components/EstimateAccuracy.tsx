@@ -30,7 +30,6 @@ import { GroupContext } from "../GroupContext";
 import { matchLabelToCategory } from "../utils/categoryUtils";
 import { CATEGORY_DEFINITIONS } from "../config/categories";
 import { useThemeMode } from "../ThemeContext";
-// import { getCategoryColor } from "../utils/themeColors"; // removed dynamic color handling
 
 const PALETTE = [
   "#8884d8",

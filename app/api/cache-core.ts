@@ -216,17 +216,6 @@ export function cleanupOrphanedEntities() {
   }
 }
 
-// Diagnostic helpers
-export function getCacheStats() {
-  return {
-    usersCount: usersStore.size,
-    issuesCount: issuesStore.size,
-    timelogsCount: timelogsStore.size,
-    groupCachesCount: groupCaches.size,
-    descendantGroupsCachesCount: descendantGroupsCache.size,
-  };
-}
-
 export function invalidateCache() {
   groupCaches.clear();
   timelogsStore.clear();

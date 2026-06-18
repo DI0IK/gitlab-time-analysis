@@ -34,30 +34,4 @@ export function getColorFromHash(str: string): string {
   return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
 }
 
-/**
- * Extract username from GitLab URL
- * @example getGitLabUsername("https://gitlab.com/john-doe") => "john-doe"
- */
-export function getGitLabUsername(gitlabUrl: string): string {
-  try {
-    const url = new URL(gitlabUrl);
-    return url.pathname.split("/").filter(Boolean)[0] || "user";
-  } catch {
-    return "user";
-  }
-}
 
-/**
- * Get GitLab avatar URL from user profile URL
- * Supports both gitlab.com and self-hosted GitLab instances
- * @example getGitLabAvatarUrl("https://gitlab.com/john-doe") => "https://gitlab.com/api/v4/users/john-doe/avatar"
- */
-export function getGitLabAvatarUrl(gitlabUrl: string): string {
-  try {
-    const url = new URL(gitlabUrl);
-    const username = url.pathname.split("/").filter(Boolean)[0];
-    return `${url.origin}/api/v4/users/${username}/avatar`;
-  } catch {
-    return "";
-  }
-}

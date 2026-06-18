@@ -8,7 +8,6 @@ export type {
 
 export {
   CACHE_TTL_MS,
-  getCacheStats,
   invalidateCache,
 } from "./cache-core";
 
