@@ -53,6 +53,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { groupId } = useParams();
+  const currentGroupId = Array.isArray(groupId) ? groupId.join("/") : (groupId?.toString() || "");
   const { user, logout, token, loading } = useUserAuth();
   const { themeMode, setThemeMode, presentationMode, setPresentationMode } = useThemeMode();
   const { openProfile, profileUsername, closeProfile } = useUserProfile();
@@ -226,73 +227,125 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
       <Box sx={{ flexGrow: 1, overflowY: "auto", px: 1.5, py: collapsed ? 2 : 0 }}>
         <List>
-          {groups.map((group) => {
-            const isSelected = groupId === group.id;
-            const initials = group.name.slice(0, 2).toUpperCase();
-            
-            const groupItem = (
-              <ListItemButton
-                component={Link}
-                href={`/${group.id}`}
-                selected={isSelected}
-                sx={{
-                  borderRadius: 2,
-                  mb: 0.5,
-                  justifyContent: collapsed ? "center" : "flex-start",
-                  minHeight: 48,
-                  px: collapsed ? 1 : 2,
-                  "&.Mui-selected": {
-                    bgcolor: "rgba(124, 58, 237, 0.15)",
-                    color: "primary.light",
-                    "& .MuiListItemIcon-root": { color: "primary.light" },
-                    "&:hover": { bgcolor: "rgba(124, 58, 237, 0.2)" },
-                  },
-                }}
-              >
-                <ListItemIcon sx={{ minWidth: collapsed ? "auto" : 40, justifyContent: "center" }}>
-                  {collapsed ? (
-                    <Avatar 
-                      sx={{ 
-                        width: 28, 
-                        height: 28, 
-                        fontSize: "0.75rem", 
-                        fontWeight: 700,
-                        bgcolor: isSelected ? "primary.main" : "rgba(124, 58, 237, 0.15)",
-                        color: isSelected ? "primary.contrastText" : "primary.main",
-                        border: isSelected ? "none" : "1px solid rgba(124, 58, 237, 0.2)"
-                      }}
-                    >
-                      {initials}
-                    </Avatar>
-                  ) : (
-                    <Group sx={{ fontSize: 20, color: isSelected ? "primary.light" : "text.secondary" }} />
-                  )}
-                </ListItemIcon>
-                {!collapsed && (
-                  <ListItemText
-                    primary={group.name}
-                    primaryTypographyProps={{
-                      fontSize: "0.85rem",
-                      fontWeight: isSelected ? 600 : 500,
-                      noWrap: true,
-                    }}
-                  />
-                )}
-              </ListItemButton>
-            );
+          {(() => {
+            const topLevelGroups = groups.filter((g) => !g.parentId || g.level === 1);
+            return topLevelGroups.map((group) => {
+              const isSelected = currentGroupId === group.id;
+              const initials = group.name.slice(0, 2).toUpperCase();
+              const childSubgroups = groups.filter((g) => g.parentId === group.id);
 
-            return (
-              <ListItem key={group.id} disablePadding>
-                {collapsed ? (
-                  <Tooltip title={group.name} placement="right" arrow>
-                    {groupItem}
-                  </Tooltip>
-                ) : (
-                  groupItem
-                )}
-              </ListItem>
-            );
-          })}
+              const groupItem = (
+                <ListItemButton
+                  component={Link}
+                  href={`/${group.id}`}
+                  selected={isSelected}
+                  sx={{
+                    borderRadius: 2,
+                    mb: 0.5,
+                    justifyContent: collapsed ? "center" : "flex-start",
+                    minHeight: 44,
+                    px: collapsed ? 1 : 2,
+                    "&.Mui-selected": {
+                      bgcolor: "rgba(124, 58, 237, 0.15)",
+                      color: "primary.light",
+                      "& .MuiListItemIcon-root": { color: "primary.light" },
+                      "&:hover": { bgcolor: "rgba(124, 58, 237, 0.2)" },
+                    },
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: collapsed ? "auto" : 36, justifyContent: "center" }}>
+                    {collapsed ? (
+                      <Avatar
+                        sx={{
+                          width: 28,
+                          height: 28,
+                          fontSize: "0.75rem",
+                          fontWeight: 700,
+                          bgcolor: isSelected ? "primary.main" : "rgba(124, 58, 237, 0.15)",
+                          color: isSelected ? "primary.contrastText" : "primary.main",
+                          border: isSelected ? "none" : "1px solid rgba(124, 58, 237, 0.2)",
+                        }}
+                      >
+                        {initials}
+                      </Avatar>
+                    ) : (
+                      <Group sx={{ fontSize: 20, color: isSelected ? "primary.light" : "text.secondary" }} />
+                    )}
+                  </ListItemIcon>
+                  {!collapsed && (
+                    <ListItemText
+                      primary={group.name}
+                      primaryTypographyProps={{
+                        fontSize: "0.85rem",
+                        fontWeight: isSelected ? 600 : 500,
+                        noWrap: true,
+                      }}
+                    />
+                  )}
+                </ListItemButton>
+              );
+
+              return (
+                <React.Fragment key={group.id}>
+                  <ListItem disablePadding>
+                    {collapsed ? (
+                      <Tooltip title={group.name} placement="right" arrow>
+                        {groupItem}
+                      </Tooltip>
+                    ) : (
+                      groupItem
+                    )}
+                  </ListItem>
+
+                  {/* Render child subgroups when sidebar is not collapsed */}
+                  {!collapsed &&
+                    childSubgroups.map((sub) => {
+                      const isSubSelected = currentGroupId === sub.id;
+                      return (
+                        <ListItem key={sub.id} disablePadding sx={{ pl: 3 }}>
+                          <ListItemButton
+                            component={Link}
+                            href={`/${sub.id}`}
+                            selected={isSubSelected}
+                            sx={{
+                              borderRadius: 1.5,
+                              mb: 0.5,
+                              minHeight: 34,
+                              py: 0.5,
+                              px: 1.5,
+                              "&.Mui-selected": {
+                                bgcolor: "rgba(124, 58, 237, 0.12)",
+                                color: "primary.light",
+                                "&:hover": { bgcolor: "rgba(124, 58, 237, 0.18)" },
+                              },
+                            }}
+                          >
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                mr: 1,
+                                color: isSubSelected ? "primary.light" : "text.secondary",
+                                fontWeight: 700,
+                              }}
+                            >
+                              ↳
+                            </Typography>
+                            <ListItemText
+                              primary={sub.name}
+                              primaryTypographyProps={{
+                                fontSize: "0.8rem",
+                                fontWeight: isSubSelected ? 700 : 400,
+                                noWrap: true,
+                              }}
+                            />
+                          </ListItemButton>
+                        </ListItem>
+                      );
+                    })}
+                </React.Fragment>
+              );
+            });
+          })()}
           {groups.length === 0 && !groupsLoading && !collapsed && (
             <Typography variant="body2" sx={{ px: 2, py: 1, color: "text.secondary", fontStyle: "italic", fontSize: "0.8rem" }}>
               No groups found

@@ -4,10 +4,13 @@ import {
   Avatar,
   AvatarGroup,
   Box,
+  Button,
   Card,
   CardContent,
   CardHeader,
   Chip,
+  Collapse,
+  IconButton,
   LinearProgress,
   Link,
   Table,
@@ -21,6 +24,9 @@ import {
   useMediaQuery,
   useTheme,
 } from "@mui/material";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
+import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import NextLink from "next/link";
 import { useRouter } from "next/navigation";
 import { CATEGORY_DEFINITIONS } from "./config/categories";
@@ -311,9 +317,10 @@ function MemberAvatars({
     name: string;
     avatarUrl: string | null;
     bot: boolean;
+    verified?: boolean;
   }[];
 }) {
-  const humanMembers = members.filter((m) => !m.bot);
+  const humanMembers = members.filter((m) => !m.bot && m.verified !== false);
   if (humanMembers.length === 0)
     return (
       <Typography variant="caption" color="text.secondary">
@@ -390,260 +397,527 @@ function CategoryLegend() {
 }
 
 function ComparisonTable({ data }: { data: GroupComparisonItem[] }) {
-  const maxTotalHours = Math.max(...data.map((g) => g.totalHours), 0);
+  // data contains top-level groups; calculate maxTotalHours across all groups including subgroups for consistent scale
+  const allGroups = data.flatMap((g) => [g, ...(g.subgroups || [])]);
+  const maxTotalHours = Math.max(...allGroups.map((g) => g.totalHours), 0);
   const router = useRouter();
+
+  // Expanded state for tree rows
+  const [expandedGroups, setExpandedGroups] = React.useState<Record<string, boolean>>({});
+
+  const toggleGroup = (groupId: string) => {
+    setExpandedGroups((prev) => ({
+      ...prev,
+      [groupId]: !prev[groupId],
+    }));
+  };
+
+  const hasAnySubgroups = data.some((g) => g.subgroups && g.subgroups.length > 0);
+  const allExpanded = hasAnySubgroups && data.filter((g) => g.subgroups && g.subgroups.length > 0).every((g) => expandedGroups[g.id]);
+
+  const toggleAll = () => {
+    if (allExpanded) {
+      setExpandedGroups({});
+    } else {
+      const next: Record<string, boolean> = {};
+      data.forEach((g) => {
+        if (g.subgroups && g.subgroups.length > 0) next[g.id] = true;
+      });
+      setExpandedGroups(next);
+    }
+  };
+
   return (
-    <Table size="small">
-      <TableHead>
-        <TableRow>
-          <TableCell sx={{ fontWeight: 700 }}>Group</TableCell>
-          <TableCell sx={{ fontWeight: 700 }}>Level</TableCell>
-          <TableCell sx={{ fontWeight: 700 }}>Members</TableCell>
-          <TableCell sx={{ fontWeight: 700 }}>Category split</TableCell>
-          <TableCell sx={{ fontWeight: 700 }} align="right">
-            Hours
-          </TableCell>
-          <TableCell sx={{ fontWeight: 700 }} align="right">
-            Wks
-          </TableCell>
-          <TableCell sx={{ fontWeight: 700 }} align="right">
-            Avg h
-          </TableCell>
-          <TableCell sx={{ fontWeight: 700 }}>Effort</TableCell>
-          <TableCell sx={{ fontWeight: 700 }}>Δ h</TableCell>
-          <TableCell sx={{ fontWeight: 700 }}>CV</TableCell>
-          <TableCell sx={{ fontWeight: 700, minWidth: 80 }}>Reviews</TableCell>
-        </TableRow>
-      </TableHead>
-      <TableBody>
-        {data.map((group) => (
-          <TableRow
-            key={group.id}
-            onClick={() => router.push(`/${group.id}`)}
-            sx={{
-              cursor: "pointer",
-              "&:hover": { backgroundColor: "rgba(255,255,255,0.04)" },
-              "&:last-child td": { borderBottom: 0 },
-              "& td": { textDecoration: "none" },
-            }}
+    <>
+      {hasAnySubgroups && (
+        <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 1.5 }}>
+          <Button
+            size="small"
+            variant="text"
+            onClick={toggleAll}
+            sx={{ fontSize: "0.75rem", textTransform: "none" }}
           >
-            <TableCell sx={{ fontWeight: 600 }}>{group.name}</TableCell>
-            <TableCell>
-              <Chip
-                label={`Lv. ${group.groupLevel}`}
-                size="small"
-                sx={{
-                  height: 20,
-                  fontSize: "0.7rem",
-                  fontWeight: 800,
-                  backgroundColor: group.groupTierColor,
-                  color: group.groupLevel >= 10 && group.groupLevel < 30 ? "#0f172a" : "#ffffff",
-                  px: 0.5,
-                }}
-              />
-            </TableCell>
-            <TableCell sx={{ maxWidth: 180 }}>
-              <MemberAvatars members={group.members} />
-            </TableCell>
-            <TableCell sx={{ minWidth: 250 }}>
-              <StackedBar
-                segments={group.categoryBreakdown}
-                otherHours={group.otherHours}
-                otherLabels={group.otherLabels}
-                totalHours={group.totalHours}
-                maxTotalHours={maxTotalHours}
-              />
-            </TableCell>
-            <TableCell
-              align="right"
-              sx={{ fontWeight: 600, whiteSpace: "nowrap" }}
-            >
-              {group.totalHours.toFixed(0)}h
-            </TableCell>
-            <TableCell align="right" sx={{ fontWeight: 500, color: "text.secondary", fontSize: "0.85rem" }}>
-              {group.groupWorkWeeks}
-            </TableCell>
-            <TableCell align="right" sx={{ fontWeight: 500, color: "text.secondary", fontSize: "0.85rem" }}>
-              {group.groupMeanHours.toFixed(0)}
-            </TableCell>
-            <TableCell>
-              <EffortMultChip value={group.effortMultiplier} />
-            </TableCell>
-            <TableCell>
-              <DeltaChip value={group.effortGap} />
-            </TableCell>
-            <TableCell>
-              <CvChip value={group.coefficientOfVariation} />
-            </TableCell>
-            <TableCell sx={{ minWidth: 80 }}>
-              <ReviewCovChip value={group.reviewCoverage} />
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-      {data.length > 0 && (
-        <TableFooter>
-          <TableRow sx={{ "& td": { borderTop: "2px solid rgba(255,255,255,0.15)" } }}>
-            <TableCell sx={{ fontWeight: 700 }}>All groups</TableCell>
-            <TableCell>
-              {(() => {
-                const avgLevel = data.reduce((s, g) => s + g.groupLevel, 0) / data.length;
-                const tierColor =
-                  avgLevel < 10 ? "#cd7f32" :
-                    avgLevel < 20 ? "#c0c0c0" :
-                      avgLevel < 30 ? "#ffd700" : "#a855f7";
-                return (
-                  <Chip
-                    label={`Lv. ${avgLevel.toFixed(1)}`}
-                    size="small"
-                    sx={{
-                      height: 20,
-                      fontSize: "0.7rem",
-                      fontWeight: 800,
-                      backgroundColor: tierColor,
-                      color: avgLevel >= 10 && avgLevel < 30 ? "#0f172a" : "#ffffff",
-                      px: 0.5,
-                    }}
-                  />
-                );
-              })()}
-            </TableCell>
-            <TableCell />
-            <TableCell />
-            <TableCell align="right" sx={{ fontWeight: 800, whiteSpace: "nowrap" }}>
-              {data.reduce((s, g) => s + g.totalHours, 0).toFixed(0)}h
-            </TableCell>
-            <TableCell align="right" sx={{ fontWeight: 700, color: "text.secondary", fontSize: "0.85rem" }}>
-              {data.reduce((s, g) => s + g.groupWorkWeeks, 0).toFixed(1)}
-            </TableCell>
-            <TableCell align="right" sx={{ fontWeight: 700, color: "text.secondary", fontSize: "0.85rem" }}>
-              {(data.reduce((s, g) => s + g.totalHours, 0) / Math.max(data.reduce((s, g) => s + g.members.length, 0), 1)).toFixed(0)}
-            </TableCell>
-            <TableCell />
-            <TableCell />
-            <TableCell />
-            <TableCell sx={{ minWidth: 80 }}>
-              <ReviewCovChip value={data.reduce((s, g) => s + g.reviewCoverage, 0) / data.length} />
-            </TableCell>
-          </TableRow>
-        </TableFooter>
+            {allExpanded ? "Collapse All Subgroups" : "Expand All Subgroups"}
+          </Button>
+        </Box>
       )}
-    </Table>
+      <Table size="small">
+        <TableHead>
+          <TableRow>
+            <TableCell sx={{ fontWeight: 700 }}>Group</TableCell>
+            <TableCell sx={{ fontWeight: 700 }}>Level</TableCell>
+            <TableCell sx={{ fontWeight: 700 }}>Members</TableCell>
+            <TableCell sx={{ fontWeight: 700 }}>Category split</TableCell>
+            <TableCell sx={{ fontWeight: 700 }} align="right">
+              Hours
+            </TableCell>
+            <TableCell sx={{ fontWeight: 700 }} align="right">
+              Wks
+            </TableCell>
+            <TableCell sx={{ fontWeight: 700 }} align="right">
+              Avg h
+            </TableCell>
+            <TableCell sx={{ fontWeight: 700 }}>Effort</TableCell>
+            <TableCell sx={{ fontWeight: 700 }}>Δ h</TableCell>
+            <TableCell sx={{ fontWeight: 700 }}>CV</TableCell>
+            <TableCell sx={{ fontWeight: 700, minWidth: 80 }}>Reviews</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {data.map((group) => {
+            const hasSub = group.subgroups && group.subgroups.length > 0;
+            const isExpanded = !!expandedGroups[group.id];
+
+            return (
+              <React.Fragment key={group.id}>
+                <TableRow
+                  onClick={() => router.push(`/${group.id}`)}
+                  sx={{
+                    cursor: "pointer",
+                    "&:hover": { backgroundColor: "rgba(255,255,255,0.04)" },
+                    "&:last-child td": { borderBottom: hasSub && isExpanded ? "1px solid rgba(255,255,255,0.08)" : 0 },
+                    "& td": { textDecoration: "none" },
+                  }}
+                >
+                  <TableCell sx={{ fontWeight: 600 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                      {hasSub ? (
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleGroup(group.id);
+                          }}
+                          sx={{ p: 0.5, color: "text.secondary" }}
+                        >
+                          {isExpanded ? (
+                            <KeyboardArrowDownIcon fontSize="small" />
+                          ) : (
+                            <KeyboardArrowRightIcon fontSize="small" />
+                          )}
+                        </IconButton>
+                      ) : (
+                        <Box sx={{ width: 28 }} />
+                      )}
+                      <Box>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                          <span>{group.name}</span>
+                          {hasSub && (
+                            <Chip
+                              label={`${group.subgroups!.length} sub`}
+                              size="small"
+                              sx={{
+                                height: 18,
+                                fontSize: "0.62rem",
+                                fontWeight: 700,
+                                bgcolor: "primary.dark",
+                                color: "primary.contrastText",
+                                px: 0.2,
+                              }}
+                            />
+                          )}
+                        </Box>
+                      </Box>
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      label={`Lv. ${group.groupLevel}`}
+                      size="small"
+                      sx={{
+                        height: 20,
+                        fontSize: "0.7rem",
+                        fontWeight: 800,
+                        backgroundColor: group.groupTierColor,
+                        color: group.groupLevel >= 10 && group.groupLevel < 30 ? "#0f172a" : "#ffffff",
+                        px: 0.5,
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell sx={{ maxWidth: 180 }}>
+                    <MemberAvatars members={group.members} />
+                  </TableCell>
+                  <TableCell sx={{ minWidth: 250 }}>
+                    <StackedBar
+                      segments={group.categoryBreakdown}
+                      otherHours={group.otherHours}
+                      otherLabels={group.otherLabels}
+                      totalHours={group.totalHours}
+                      maxTotalHours={maxTotalHours}
+                    />
+                  </TableCell>
+                  <TableCell
+                    align="right"
+                    sx={{ fontWeight: 600, whiteSpace: "nowrap" }}
+                  >
+                    {group.totalHours.toFixed(0)}h
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 500, color: "text.secondary", fontSize: "0.85rem" }}>
+                    {group.groupWorkWeeks}
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 500, color: "text.secondary", fontSize: "0.85rem" }}>
+                    {group.groupMeanHours.toFixed(0)}
+                  </TableCell>
+                  <TableCell>
+                    <EffortMultChip value={group.effortMultiplier} />
+                  </TableCell>
+                  <TableCell>
+                    <DeltaChip value={group.effortGap} />
+                  </TableCell>
+                  <TableCell>
+                    <CvChip value={group.coefficientOfVariation} />
+                  </TableCell>
+                  <TableCell sx={{ minWidth: 80 }}>
+                    <ReviewCovChip value={group.reviewCoverage} />
+                  </TableCell>
+                </TableRow>
+
+                {/* Subgroup nested rows */}
+                {hasSub &&
+                  isExpanded &&
+                  group.subgroups!.map((sub) => (
+                    <TableRow
+                      key={sub.id}
+                      onClick={() => router.push(`/${sub.id}`)}
+                      sx={{
+                        cursor: "pointer",
+                        bgcolor: "rgba(124, 58, 237, 0.04)",
+                        "&:hover": { backgroundColor: "rgba(124, 58, 237, 0.09)" },
+                        "& td": { borderBottom: "1px dashed rgba(255,255,255,0.06)", py: 1 },
+                      }}
+                    >
+                      <TableCell sx={{ fontWeight: 500, pl: 4.5 }}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                          <Typography variant="caption" sx={{ color: "primary.light", fontWeight: 700 }}>
+                            ↳
+                          </Typography>
+                          <Box>
+                            <Typography variant="body2" sx={{ fontWeight: 600, fontSize: "0.85rem" }}>
+                              {sub.name}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={`Lv. ${sub.groupLevel}`}
+                          size="small"
+                          sx={{
+                            height: 18,
+                            fontSize: "0.65rem",
+                            fontWeight: 700,
+                            backgroundColor: sub.groupTierColor,
+                            color: sub.groupLevel >= 10 && sub.groupLevel < 30 ? "#0f172a" : "#ffffff",
+                            px: 0.3,
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell sx={{ maxWidth: 180 }}>
+                        <MemberAvatars members={sub.members} />
+                      </TableCell>
+                      <TableCell sx={{ minWidth: 250 }}>
+                        <StackedBar
+                          segments={sub.categoryBreakdown}
+                          otherHours={sub.otherHours}
+                          otherLabels={sub.otherLabels}
+                          totalHours={sub.totalHours}
+                          maxTotalHours={maxTotalHours}
+                        />
+                      </TableCell>
+                      <TableCell
+                        align="right"
+                        sx={{ fontWeight: 600, whiteSpace: "nowrap", fontSize: "0.85rem" }}
+                      >
+                        {sub.totalHours.toFixed(0)}h
+                      </TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 500, color: "text.secondary", fontSize: "0.8rem" }}>
+                        {sub.groupWorkWeeks}
+                      </TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 500, color: "text.secondary", fontSize: "0.8rem" }}>
+                        {sub.groupMeanHours.toFixed(0)}
+                      </TableCell>
+                      <TableCell>
+                        <EffortMultChip value={sub.effortMultiplier} />
+                      </TableCell>
+                      <TableCell>
+                        <DeltaChip value={sub.effortGap} />
+                      </TableCell>
+                      <TableCell>
+                        <CvChip value={sub.coefficientOfVariation} />
+                      </TableCell>
+                      <TableCell sx={{ minWidth: 80 }}>
+                        <ReviewCovChip value={sub.reviewCoverage} />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+              </React.Fragment>
+            );
+          })}
+        </TableBody>
+        {data.length > 0 && (
+          <TableFooter>
+            <TableRow sx={{ "& td": { borderTop: "2px solid rgba(255,255,255,0.15)" } }}>
+              <TableCell sx={{ fontWeight: 700 }}>All groups</TableCell>
+              <TableCell>
+                {(() => {
+                  const avgLevel = data.reduce((s, g) => s + g.groupLevel, 0) / data.length;
+                  const tierColor =
+                    avgLevel < 10 ? "#cd7f32" :
+                      avgLevel < 20 ? "#c0c0c0" :
+                        avgLevel < 30 ? "#ffd700" : "#a855f7";
+                  return (
+                    <Chip
+                      label={`Lv. ${avgLevel.toFixed(1)}`}
+                      size="small"
+                      sx={{
+                        height: 20,
+                        fontSize: "0.7rem",
+                        fontWeight: 800,
+                        backgroundColor: tierColor,
+                        color: avgLevel >= 10 && avgLevel < 30 ? "#0f172a" : "#ffffff",
+                        px: 0.5,
+                      }}
+                    />
+                  );
+                })()}
+              </TableCell>
+              <TableCell />
+              <TableCell />
+              <TableCell align="right" sx={{ fontWeight: 800, whiteSpace: "nowrap" }}>
+                {data.reduce((s, g) => s + g.totalHours, 0).toFixed(0)}h
+              </TableCell>
+              <TableCell align="right" sx={{ fontWeight: 700, color: "text.secondary", fontSize: "0.85rem" }}>
+                {data.reduce((s, g) => s + g.groupWorkWeeks, 0).toFixed(1)}
+              </TableCell>
+              <TableCell align="right" sx={{ fontWeight: 700, color: "text.secondary", fontSize: "0.85rem" }}>
+                {(data.reduce((s, g) => s + g.totalHours, 0) / Math.max(data.reduce((s, g) => s + g.members.length, 0), 1)).toFixed(0)}
+              </TableCell>
+              <TableCell />
+              <TableCell />
+              <TableCell />
+              <TableCell sx={{ minWidth: 80 }}>
+                <ReviewCovChip value={data.reduce((s, g) => s + g.reviewCoverage, 0) / data.length} />
+              </TableCell>
+            </TableRow>
+          </TableFooter>
+        )}
+      </Table>
+    </>
   );
 }
 
 function ComparisonCards({ data }: { data: GroupComparisonItem[] }) {
-  const maxTotalHours = Math.max(...data.map((g) => g.totalHours), 0);
+  const allGroups = data.flatMap((g) => [g, ...(g.subgroups || [])]);
+  const maxTotalHours = Math.max(...allGroups.map((g) => g.totalHours), 0);
+  const [expandedCards, setExpandedCards] = React.useState<Record<string, boolean>>({});
+
+  const toggleCard = (id: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setExpandedCards((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-      {data.map((group) => (
-        <Card
-          key={group.id}
-          component={NextLink}
-          href={`/${group.id}`}
-          sx={{
-            textDecoration: "none",
-            transition: "all 0.2s ease",
-            "&:hover": { transform: "translateY(-2px)", boxShadow: 4 },
-          }}
-        >
-          <CardContent>
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.5 }}>
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                {group.name}
-              </Typography>
-              <Box sx={{ display: "flex", gap: 0.5 }}>
-                <Chip
-                  label={`Lv. ${group.groupLevel}`}
-                  size="small"
-                  sx={{
-                    height: 20,
-                    fontSize: "0.7rem",
-                    fontWeight: 800,
-                    backgroundColor: group.groupTierColor,
-                    color: group.groupLevel >= 10 && group.groupLevel < 30 ? "#0f172a" : "#ffffff",
-                    px: 0.5,
-                  }}
-                />
-              </Box>
-            </Box>
-            <Box sx={{ mb: 1.5 }}>
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{ display: "block", mb: 0.5 }}
+      {data.map((group) => {
+        const hasSub = group.subgroups && group.subgroups.length > 0;
+        const isExpanded = !!expandedCards[group.id];
+
+        return (
+          <Card
+            key={group.id}
+            sx={{
+              transition: "all 0.2s ease",
+              "&:hover": { transform: "translateY(-2px)", boxShadow: 4 },
+            }}
+          >
+            <CardContent>
+              <Box
+                component={NextLink}
+                href={`/${group.id}`}
+                sx={{ textDecoration: "none", color: "inherit", display: "block" }}
               >
-                Members
-              </Typography>
-              <MemberAvatars members={group.members} />
-            </Box>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ display: "block", mb: 0.5 }}
-            >
-              Category split
-            </Typography>
-            <StackedBar
-              segments={group.categoryBreakdown}
-              otherHours={group.otherHours}
-              otherLabels={group.otherLabels}
-              totalHours={group.totalHours}
-              maxTotalHours={maxTotalHours}
-            />
-            <Box sx={{ display: "flex", gap: 2, mt: 1.5, flexWrap: "wrap" }}>
-              <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontSize: "0.65rem" }}>
-                  Hours
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.5 }}>
+                  <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                    {group.name}
+                  </Typography>
+                  <Box sx={{ display: "flex", gap: 0.5, alignItems: "center" }}>
+                    {hasSub && (
+                      <Chip
+                        label={`${group.subgroups!.length} sub`}
+                        size="small"
+                        sx={{
+                          height: 20,
+                          fontSize: "0.65rem",
+                          fontWeight: 700,
+                          bgcolor: "primary.dark",
+                          color: "primary.contrastText",
+                        }}
+                      />
+                    )}
+                    <Chip
+                      label={`Lv. ${group.groupLevel}`}
+                      size="small"
+                      sx={{
+                        height: 20,
+                        fontSize: "0.7rem",
+                        fontWeight: 800,
+                        backgroundColor: group.groupTierColor,
+                        color: group.groupLevel >= 10 && group.groupLevel < 30 ? "#0f172a" : "#ffffff",
+                        px: 0.5,
+                      }}
+                    />
+                  </Box>
+                </Box>
+                <Box sx={{ mb: 1.5 }}>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ display: "block", mb: 0.5 }}
+                  >
+                    Members
+                  </Typography>
+                  <MemberAvatars members={group.members} />
+                </Box>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ display: "block", mb: 0.5 }}
+                >
+                  Category split
                 </Typography>
-                <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                  {group.totalHours.toFixed(0)}h
-                </Typography>
+                <StackedBar
+                  segments={group.categoryBreakdown}
+                  otherHours={group.otherHours}
+                  otherLabels={group.otherLabels}
+                  totalHours={group.totalHours}
+                  maxTotalHours={maxTotalHours}
+                />
+                <Box sx={{ display: "flex", gap: 2, mt: 1.5, flexWrap: "wrap" }}>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontSize: "0.65rem" }}>
+                      Hours
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                      {group.totalHours.toFixed(0)}h
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontSize: "0.65rem" }}>
+                      Wks
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                      {group.groupWorkWeeks}
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontSize: "0.65rem" }}>
+                      Avg
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                      {group.groupMeanHours.toFixed(0)}h
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontSize: "0.65rem" }}>
+                      Effort
+                    </Typography>
+                    <EffortMultChip value={group.effortMultiplier} />
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontSize: "0.65rem" }}>
+                      Δ h
+                    </Typography>
+                    <DeltaChip value={group.effortGap} />
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontSize: "0.65rem" }}>
+                      CV
+                    </Typography>
+                    <CvChip value={group.coefficientOfVariation} />
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontSize: "0.65rem" }}>
+                      Reviews
+                    </Typography>
+                    <ReviewCovChip value={group.reviewCoverage} />
+                  </Box>
+                </Box>
               </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontSize: "0.65rem" }}>
-                  Wks
-                </Typography>
-                <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                  {group.groupWorkWeeks}
-                </Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontSize: "0.65rem" }}>
-                  Avg
-                </Typography>
-                <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                  {group.groupMeanHours.toFixed(0)}h
-                </Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontSize: "0.65rem" }}>
-                  Effort
-                </Typography>
-                <EffortMultChip value={group.effortMultiplier} />
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontSize: "0.65rem" }}>
-                  Δ h
-                </Typography>
-                <DeltaChip value={group.effortGap} />
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontSize: "0.65rem" }}>
-                  CV
-                </Typography>
-                <CvChip value={group.coefficientOfVariation} />
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontSize: "0.65rem" }}>
-                  Reviews
-                </Typography>
-                <ReviewCovChip value={group.reviewCoverage} />
-              </Box>
-            </Box>
-          </CardContent>
-        </Card>
-      ))}
+
+              {/* Subgroups accordion in mobile card */}
+              {hasSub && (
+                <Box sx={{ mt: 2, pt: 1.5, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={(e: React.MouseEvent) => toggleCard(group.id, e)}
+                    endIcon={isExpanded ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+                    fullWidth
+                    sx={{ textTransform: "none", fontSize: "0.8rem", borderRadius: 1.5 }}
+                  >
+                    {isExpanded ? "Hide Subgroups" : `View ${group.subgroups!.length} Subgroups`}
+                  </Button>
+
+                  <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+                    <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, mt: 1.5 }}>
+                      {group.subgroups!.map((sub) => (
+                        <Card
+                          key={sub.id}
+                          component={NextLink}
+                          href={`/${sub.id}`}
+                          sx={{
+                            textDecoration: "none",
+                            bgcolor: "rgba(124, 58, 237, 0.05)",
+                            border: "1px solid rgba(124, 58, 237, 0.15)",
+                            p: 1.5,
+                            borderRadius: 1.5,
+                          }}
+                        >
+                          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                              <Typography variant="caption" sx={{ color: "primary.light" }}>↳</Typography>
+                              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                                {sub.name}
+                              </Typography>
+                            </Box>
+                            <Chip
+                              label={`Lv. ${sub.groupLevel}`}
+                              size="small"
+                              sx={{
+                                height: 18,
+                                fontSize: "0.65rem",
+                                fontWeight: 700,
+                                backgroundColor: sub.groupTierColor,
+                                color: sub.groupLevel >= 10 && sub.groupLevel < 30 ? "#0f172a" : "#ffffff",
+                              }}
+                            />
+                          </Box>
+                          <StackedBar
+                            segments={sub.categoryBreakdown}
+                            otherHours={sub.otherHours}
+                            otherLabels={sub.otherLabels}
+                            totalHours={sub.totalHours}
+                            maxTotalHours={maxTotalHours}
+                          />
+                          <Box sx={{ display: "flex", justifyContent: "space-between", mt: 1 }}>
+                            <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                              {sub.totalHours.toFixed(0)}h total
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {sub.members.filter((m) => !m.bot).length} members
+                            </Typography>
+                          </Box>
+                        </Card>
+                      ))}
+                    </Box>
+                  </Collapse>
+                </Box>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })}
     </Box>
   );
 }

@@ -83,4 +83,8 @@ export type DescendantGroup = {
   name: string;
   id: string;
   url: string;
+  parentId?: string | null;
+  parentName?: string | null;
+  level?: number;
 };
+

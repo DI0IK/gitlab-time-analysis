@@ -1,12 +1,42 @@
-import { NextResponse } from "next/server";
 import {
   PROJECT_START_DATE,
   PROJECT_END_DATE,
   SPRINT_DURATION_WEEKS,
   SPRINT_START_WEEKDAY,
-} from "../../../env";
+} from "../env";
 
-export const revalidate = 60;
+export type GroupMembersResponse = {
+  id: string;
+  name: string;
+  url: string;
+  bot: boolean;
+  avatarUrl: string | null;
+  verified: boolean;
+}[];
+
+export type GroupLabelsResponse = {
+  [labelGroup: string]: {
+    id: string;
+    title: string;
+    description: string;
+    color: string;
+  }[];
+};
+
+export type GroupTimelogsResponse = {
+  id: string;
+  issueUrl: string;
+  issueLabels: string[];
+  issueTitle: string;
+  issueState: string;
+  issueTimeEstimate: number;
+  issueCreatedAt: string;
+  issueClosedAt: string | null;
+  spentAt: string;
+  timeSpent: number;
+  username: string;
+  sprintNumber?: number;
+}[];
 
 export type GroupSprintsResponse = {
   sprintNumber: number;
@@ -15,13 +45,11 @@ export type GroupSprintsResponse = {
 }[];
 
 export function generateSprints(): GroupSprintsResponse {
-  // Generate sprints based on PROJECT_START_DATE, PROJECT_END_DATE, SPRINT_DURATION_WEEKS, SPRINT_START_WEEKDAY
   const sprints: GroupSprintsResponse = [];
   const startDate = new Date(PROJECT_START_DATE || "");
   const endDate = new Date(PROJECT_END_DATE || "");
   let sprintStartDate = new Date(startDate);
 
-  // Adjust sprintStartDate to the next SPRINT_START_WEEKDAY
   const weekdayMap: { [key: string]: number } = {
     Sunday: 0,
     Monday: 1,
@@ -43,7 +71,7 @@ export function generateSprints(): GroupSprintsResponse {
     const sprintEndDate = new Date(sprintStartDate);
     sprintEndDate.setDate(
       sprintEndDate.getDate() +
-        (SPRINT_DURATION_WEEKS ? Number(SPRINT_DURATION_WEEKS) * 7 - 1 : 13)
+        (SPRINT_DURATION_WEEKS ? Number(SPRINT_DURATION_WEEKS) * 7 - 1 : 13),
     );
     if (sprintEndDate > endDate) {
       break;
@@ -61,12 +89,3 @@ export function generateSprints(): GroupSprintsResponse {
   }
   return sprints;
 }
-
-export const GET = async (
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) => {
-  return NextResponse.json(generateSprints(), {
-    headers: { "x-cache-timestamp": String(Date.now()) },
-  });
-};

@@ -14,6 +14,10 @@ async function fetchAndProcessDescendantGroups(
             nodes {
               fullPath
               name
+              parent {
+                fullPath
+                name
+              }
             }
           }
         }
@@ -29,15 +33,41 @@ async function fetchAndProcessDescendantGroups(
     );
   }
   const nodes = data.group.descendantGroups?.nodes || [];
-  return nodes.map((group: { fullPath: string; name: string }) => {
-    const id = group.fullPath.replace(GITLAB_GROUP_PATH + "/", "");
-    const domain = GITLAB_DOMAIN || "https://gitlab.com";
-    return {
-      fullPath: group.fullPath,
-      name: group.name,
-      id,
-      url: `${domain}/${group.fullPath}`,
-    };
+  const domain = GITLAB_DOMAIN || "https://gitlab.com";
+
+  const mappedGroups = nodes.map(
+    (group: {
+      fullPath: string;
+      name: string;
+      parent?: { fullPath: string; name: string } | null;
+    }) => {
+      const id = group.fullPath.replace(GITLAB_GROUP_PATH + "/", "");
+      const parentFullPath = group.parent?.fullPath;
+      const parentId =
+        parentFullPath && parentFullPath !== GITLAB_GROUP_PATH
+          ? parentFullPath.replace(GITLAB_GROUP_PATH + "/", "")
+          : null;
+      const parentName = group.parent?.name || null;
+      const level = id.includes("/") ? id.split("/").length : 1;
+
+      return {
+        fullPath: group.fullPath,
+        name: group.name,
+        id,
+        parentId,
+        parentName,
+        level,
+        url: `${domain}/${group.fullPath}`,
+      };
+    },
+  );
+
+  // Sort groups: top-level groups first (alphabetical by name), then subgroups by id
+  return mappedGroups.sort((a: DescendantGroup, b: DescendantGroup) => {
+    if ((a.level ?? 1) !== (b.level ?? 1)) {
+      return (a.level ?? 1) - (b.level ?? 1);
+    }
+    return a.name.localeCompare(b.name);
   });
 }
 

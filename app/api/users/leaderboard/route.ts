@@ -1,11 +1,9 @@
 import { NextResponse } from "next/server";
 import { getDescendantGroups } from "../../descendantGroups";
-import { getMembers } from "../../group/[id]/members/route";
-import { getTimelogs } from "../../group/[id]/timelogs/route";
+import { getMembers, getTimelogs, getMergeRequests } from "../../cache";
 import { matchLabelToCategory } from "@/app/utils/categoryUtils";
 import { CATEGORY_DEFINITIONS } from "@/app/config/categories";
 import { computeGamification } from "@/app/utils/gamification";
-import { getMergeRequests } from "../../cache";
 
 export type CategoryEntry = {
   categoryId: string;
@@ -46,6 +44,8 @@ export const GET = async (request: Request) => {
 
   const allTimelogs: any[] = [];
   const allMergeRequests: any[] = [];
+  const seenTimelogIds = new Set<string>();
+  const seenMrIds = new Set<string>();
   const userTeammatesMap: Record<string, Set<string>> = {};
 
   for (const group of groups) {
@@ -55,8 +55,12 @@ export const GET = async (request: Request) => {
       getMergeRequests(group.id).then((r) => r.data),
     ]);
 
-    allTimelogs.push(...timelogs);
-    allMergeRequests.push(...mergeRequests);
+    for (const mr of mergeRequests) {
+      if (!seenMrIds.has(mr.id)) {
+        seenMrIds.add(mr.id);
+        allMergeRequests.push(mr);
+      }
+    }
 
     const memberMap = new Map(
       members.map((m) => [m.id, { name: m.name, avatarUrl: m.avatarUrl }]),
@@ -79,6 +83,12 @@ export const GET = async (request: Request) => {
     });
 
     for (const log of timelogs) {
+      if (seenTimelogIds.has(log.id)) {
+        continue;
+      }
+      seenTimelogIds.add(log.id);
+      allTimelogs.push(log);
+
       const userId = log.username || "unknown";
       if (!userMap[userId]) {
         const info = memberMap.get(userId);

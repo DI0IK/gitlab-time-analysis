@@ -20,19 +20,26 @@ import {
   TableHead,
   TableRow,
   Paper,
+  Breadcrumbs,
+  Chip,
 } from "@mui/material";
+import NextLink from "next/link";
 import ReportProblemIcon from "@mui/icons-material/ReportProblem";
 import TvIcon from "@mui/icons-material/Tv";
 import FullscreenExitIcon from "@mui/icons-material/FullscreenExit";
 import Group from "@mui/icons-material/Group";
+import NavigateNextIcon from "@mui/icons-material/NavigateNext";
 import { useParams } from "next/navigation";
 import React from "react";
 import { useUserAuth } from "../UserAuthContext";
 import { useThemeMode } from "../ThemeContext";
-import type { GroupLabelsResponse } from "../api/group/[id]/labels/route";
-import type { GroupMembersResponse } from "../api/group/[id]/members/route";
-import type { GroupSprintsResponse } from "../api/group/[id]/sprints/route";
-import type { GroupTimelogsResponse } from "../api/group/[id]/timelogs/route";
+import type {
+  GroupLabelsResponse,
+  GroupMembersResponse,
+  GroupSprintsResponse,
+  GroupTimelogsResponse,
+} from "../api/group/types";
+import type { GroupResponse } from "../api/groups/route";
 import EstimateAccuracy from "../components/EstimateAccuracy";
 import HeaderCards from "../components/HeaderCards";
 import Heatmap from "../components/Heatmap";
@@ -93,8 +100,40 @@ export default function GroupPage() {
   const theme = useTheme();
   const { presentationMode, setPresentationMode } = useThemeMode();
   const { groupId } = useParams();
-  const groupIdStr = groupId?.toString() || "";
+  const groupIdStr = Array.isArray(groupId) ? groupId.join("/") : (groupId?.toString() || "");
   const { token, loading: authLoading } = useUserAuth();
+
+  const [allGroups, setAllGroups] = React.useState<GroupResponse>([]);
+  React.useEffect(() => {
+    fetch("/api/groups")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setAllGroups(data))
+      .catch(() => {});
+  }, []);
+
+  const currentGroupInfo = allGroups.find((g) => g.id === groupIdStr);
+  const childSubgroups = allGroups.filter((g) => g.parentId === groupIdStr);
+  const parentGroup = currentGroupInfo?.parentId
+    ? allGroups.find((g) => g.id === currentGroupInfo.parentId)
+    : null;
+  const siblingSubgroups = parentGroup
+    ? allGroups.filter((g) => g.parentId === parentGroup.id)
+    : [];
+
+  const breadcrumbAncestors = React.useMemo(() => {
+    const ancestors: typeof allGroups = [];
+    let curr = currentGroupInfo;
+    while (curr?.parentId) {
+      const parent = allGroups.find((g) => g.id === curr?.parentId);
+      if (parent) {
+        ancestors.unshift(parent);
+        curr = parent;
+      } else {
+        break;
+      }
+    }
+    return ancestors;
+  }, [currentGroupInfo, allGroups]);
 
   const [members, setMembers] = React.useState<GroupMembersResponse>([]);
   const [labels, setLabels] = React.useState<GroupLabelsResponse>({});
@@ -395,11 +434,45 @@ export default function GroupPage() {
             }}
           >
             <Box>
+              <Breadcrumbs
+                separator={<NavigateNextIcon fontSize="small" sx={{ color: "text.secondary" }} />}
+                aria-label="breadcrumb"
+                sx={{ mb: 0.5 }}
+              >
+                <Typography
+                  component={NextLink}
+                  href="/"
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ textDecoration: "none", "&:hover": { textDecoration: "underline" } }}
+                >
+                  All Groups
+                </Typography>
+                {breadcrumbAncestors.map((ancestor) => (
+                  <Typography
+                    key={ancestor.id}
+                    component={NextLink}
+                    href={`/${ancestor.id}`}
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ textDecoration: "none", "&:hover": { textDecoration: "underline" } }}
+                  >
+                    {ancestor.name}
+                  </Typography>
+                ))}
+                <Typography variant="caption" color="text.primary" sx={{ fontWeight: 600 }}>
+                  {currentGroupInfo?.name || groupIdStr}
+                </Typography>
+              </Breadcrumbs>
               <Typography variant="h4" sx={{ fontWeight: 800 }}>
-                Group Dashboard
+                {currentGroupInfo?.name || "Group Dashboard"}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Review timesheets and category distributions across weekly cycles
+                {parentGroup
+                  ? `Exercise / Subgroup under ${parentGroup.name}`
+                  : childSubgroups.length > 0
+                    ? `Team Dashboard (${childSubgroups.length} exercises/subgroups)`
+                    : "Review timesheets and category distributions across weekly cycles"}
               </Typography>
             </Box>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -467,6 +540,75 @@ export default function GroupPage() {
                 </IconButton>
               </Tooltip>
             </Box>
+          </Box>
+        )}
+
+        {/* Subgroups / Exercises Navigation Bar */}
+        {!presentationMode && (childSubgroups.length > 0 || parentGroup) && (
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              flexWrap: "wrap",
+              px: 2.5,
+              py: 1.5,
+              borderRadius: 2,
+              bgcolor: theme.palette.mode === "dark" ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)",
+              border: "1px solid var(--border-color)",
+            }}
+          >
+            <Typography
+              variant="caption"
+              sx={{
+                fontWeight: 700,
+                color: "text.secondary",
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+                mr: 1,
+              }}
+            >
+              {parentGroup ? "Team Navigation:" : "Exercises / Subgroups:"}
+            </Typography>
+
+            {parentGroup ? (
+              <Chip
+                component={NextLink}
+                href={`/${parentGroup.id}`}
+                label={`← ${parentGroup.name} (Overview)`}
+                size="small"
+                variant="outlined"
+                clickable
+                sx={{ fontWeight: 600 }}
+              />
+            ) : (
+              <Chip
+                label="Team Overview (All)"
+                size="small"
+                color="primary"
+                variant="filled"
+                sx={{ fontWeight: 700 }}
+              />
+            )}
+
+            {(parentGroup ? siblingSubgroups : childSubgroups).map((sub) => {
+              const isCurrent = sub.id === groupIdStr;
+              return (
+                <Chip
+                  key={sub.id}
+                  component={NextLink}
+                  href={`/${sub.id}`}
+                  label={sub.name}
+                  size="small"
+                  color={isCurrent ? "primary" : "default"}
+                  variant={isCurrent ? "filled" : "outlined"}
+                  clickable
+                  sx={{
+                    fontWeight: isCurrent ? 700 : 500,
+                  }}
+                />
+              );
+            })}
           </Box>
         )}
 

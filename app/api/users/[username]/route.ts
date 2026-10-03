@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 import { getDescendantGroups } from "../../descendantGroups";
-import { getMembers } from "../../group/[id]/members/route";
-import { getTimelogs } from "../../group/[id]/timelogs/route";
-import { generateSprints } from "../../group/[id]/sprints/route";
-import { getMergeRequests } from "../../cache";
+import { getMembers, getTimelogs, getMergeRequests } from "../../cache";
+import { generateSprints } from "../../group/types";
 
 export const GET = async (
   request: Request,
@@ -15,8 +13,11 @@ export const GET = async (
 
     let userMemberInfo: any = null;
     const userTimelogs: any[] = [];
-    const allTimelogsForGamification: any[] = []; // needed to compute gamification rank/streak accurately if they span groups
+    const allTimelogsForGamification: any[] = [];
     const allMergeRequestsForGamification: any[] = [];
+    const seenGamificationTimelogIds = new Set<string>();
+    const seenGamificationMrIds = new Set<string>();
+    const seenUserTimelogIds = new Set<string>();
 
     const validatedTeammatesSet = new Set<string>();
     let userGroupTotalSeconds = 0;
@@ -28,8 +29,19 @@ export const GET = async (
         getMergeRequests(group.id).then((r) => r.data),
       ]);
 
-      allTimelogsForGamification.push(...timelogs);
-      allMergeRequestsForGamification.push(...mergeRequests);
+      for (const log of timelogs) {
+        if (!seenGamificationTimelogIds.has(log.id)) {
+          seenGamificationTimelogIds.add(log.id);
+          allTimelogsForGamification.push(log);
+        }
+      }
+
+      for (const mr of mergeRequests) {
+        if (!seenGamificationMrIds.has(mr.id)) {
+          seenGamificationMrIds.add(mr.id);
+          allMergeRequestsForGamification.push(mr);
+        }
+      }
 
       const foundMember = members.find((m) => m.id.toLowerCase() === username.toLowerCase());
       if (foundMember) {
@@ -54,7 +66,12 @@ export const GET = async (
         }
       }
 
-      const filteredLogs = timelogs.filter((log) => log.username.toLowerCase() === username.toLowerCase());
+      const filteredLogs = timelogs.filter(
+        (log) => log.username.toLowerCase() === username.toLowerCase() && !seenUserTimelogIds.has(log.id)
+      );
+      for (const log of filteredLogs) {
+        seenUserTimelogIds.add(log.id);
+      }
       userTimelogs.push(...filteredLogs);
     }
 

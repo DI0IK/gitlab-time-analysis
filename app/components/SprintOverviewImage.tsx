@@ -1,6 +1,5 @@
 import React from "react";
-import { GroupTimelogsResponse } from "../api/group/[id]/timelogs/route";
-import { GroupMembersResponse } from "../api/group/[id]/members/route";
+import { GroupTimelogsResponse, GroupMembersResponse } from "../api/group/types";
 import { CATEGORY_DEFINITIONS } from "../config/categories";
 import { matchLabelToCategory } from "../utils/categoryUtils";
 

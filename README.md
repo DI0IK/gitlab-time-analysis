@@ -153,13 +153,13 @@ The dashboard supports light, dark, and system color modes, plus selectable colo
 | ------ | ----------------------------------------- | --------------------------------------------------------------- |
 | GET    | `/api/groups`                             | Lists descendant groups under the configured root group.        |
 | GET    | `/api/groups/comparison`                  | Cross-group comparison data with hours, categories, gamification. |
-| GET    | `/api/group/[id]/members`                 | Group members used by the dashboard.                            |
-| GET    | `/api/group/[id]/labels`                  | Labels grouped by namespace prefix.                             |
-| GET    | `/api/group/[id]/timelogs`                | Mapped timelog entries for the configured project date range.   |
-| GET    | `/api/group/[id]/merge-requests`          | Merge request data used for gamification and review views.      |
-| GET    | `/api/group/[id]/sprints`                 | Sprint windows from the configured start/end dates and duration. |
-| GET    | `/api/group/[id]/table.svg`               | Shareable SVG of the sprint overview table.                     |
-| GET    | `/api/group/[id]/og`                      | Per-group Open Graph image.                                     |
+| GET    | `/api/group/[...id]/members`              | Group members used by the dashboard (supports nested subgroups). |
+| GET    | `/api/group/[...id]/labels`               | Labels grouped by namespace prefix.                             |
+| GET    | `/api/group/[...id]/timelogs`             | Mapped timelog entries for the configured project date range.   |
+| GET    | `/api/group/[...id]/merge-requests`       | Merge request data used for gamification and review views.      |
+| GET    | `/api/group/[...id]/sprints`              | Sprint windows from the configured start/end dates and duration. |
+| GET    | `/api/group/[...id]/table.svg`            | Shareable SVG of the sprint overview table.                     |
+| GET    | `/api/group/[...id]/og`                   | Per-group Open Graph image.                                     |
 | GET    | `/api/og`                                 | Global Open Graph image for the landing page.                   |
 | GET    | `/api/users/leaderboard`                  | Cross-group user ranking with hours and gamification data.      |
 | GET    | `/api/users/[username]`                   | Per-user profile data (timelogs, merge requests, gamification). |

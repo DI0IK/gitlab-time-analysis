@@ -4,8 +4,7 @@ import {
   type CategoryId,
 } from "../config/categories";
 export { matchLabelToCategory } from "../config/categories";
-import type { GroupLabelsResponse } from "../api/group/[id]/labels/route";
-import type { GroupTimelogsResponse } from "../api/group/[id]/timelogs/route";
+import type { GroupLabelsResponse, GroupTimelogsResponse } from "../api/group/types";
 
 /**
  * How many of the four well-known categories are covered by sub-labels

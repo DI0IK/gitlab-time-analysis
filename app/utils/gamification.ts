@@ -2,7 +2,7 @@ import {
   matchLabelToCategory,
   CATEGORY_DEFINITIONS,
 } from "../config/categories";
-import { GroupTimelogsResponse } from "../api/group/[id]/timelogs/route";
+import { GroupTimelogsResponse } from "../api/group/types";
 
 // ---------------------------------------------------------------------------
 // Types

@@ -6,9 +6,10 @@ import { apolloClient, gql } from "../api/apollo-client";
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ groupId: string }>;
+  params: Promise<{ groupId: string | string[] }>;
 }): Promise<Metadata> {
-  const { groupId: id } = await params;
+  const { groupId } = await params;
+  const id = Array.isArray(groupId) ? groupId.join("/") : groupId;
   const fullPath = `${GITLAB_GROUP_PATH}/${id}`;
 
   let groupName = id;

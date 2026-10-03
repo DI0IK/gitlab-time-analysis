@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDescendantGroups } from "../../descendantGroups";
-import { getMembers } from "../../group/[id]/members/route";
-import { getLabels } from "../../group/[id]/labels/route";
-import { getTimelogs } from "../../group/[id]/timelogs/route";
-import { getMergeRequests } from "../../cache";
+import { getMembers, getLabels, getTimelogs, getMergeRequests } from "../../cache";
 import { computeCategorySummary } from "@/app/utils/categoryUtils";
 import { computeGamification, computeLevelInfo, TIER_INFO } from "@/app/utils/gamification";
 
@@ -27,6 +24,10 @@ export type GroupComparisonItem = {
   id: string;
   name: string;
   url: string;
+  parentId?: string | null;
+  parentName?: string | null;
+  level: number;
+  subgroups?: GroupComparisonItem[];
   members: MemberBrief[];
   categoryBreakdown: CategoryBreakdown[];
   otherHours: number;
@@ -48,6 +49,7 @@ export type GroupComparisonItem = {
 
 export type GroupComparisonResponse = {
   groups: GroupComparisonItem[];
+  allGroups?: GroupComparisonItem[];
 };
 
 function chunk<T>(arr: T[], size: number): T[][] {
@@ -162,6 +164,10 @@ export const GET = async (request: Request) => {
           id: group.id,
           name: group.name,
           url: group.url,
+          parentId: group.parentId ?? null,
+          parentName: group.parentName ?? null,
+          level: group.level ?? (group.id.includes("/") ? group.id.split("/").length : 1),
+          subgroups: [],
           members: members.map((m) => ({
             id: m.id,
             name: m.name,
@@ -204,7 +210,24 @@ export const GET = async (request: Request) => {
     }
   }
 
+  // Nest child subgroups under their parent groups while keeping top-level groups clean
+  const itemMap = new Map<string, GroupComparisonItem>();
+  for (const item of comparisonData) {
+    item.subgroups = [];
+    itemMap.set(item.id, item);
+  }
+
+  const topLevelGroups: GroupComparisonItem[] = [];
+  for (const item of comparisonData) {
+    if (item.parentId && itemMap.has(item.parentId)) {
+      itemMap.get(item.parentId)!.subgroups!.push(item);
+    } else {
+      topLevelGroups.push(item);
+    }
+  }
+
   return NextResponse.json({
-    groups: comparisonData,
+    groups: topLevelGroups,
+    allGroups: comparisonData,
   });
 };

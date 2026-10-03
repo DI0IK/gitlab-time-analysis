@@ -1,12 +1,8 @@
 import SprintOverview from "@/app/components/SprintOverviewImage";
 import satori from "satori";
-import { NextRequest } from "next/server";
-import { getTimelogs } from "../timelogs/route";
-import { generateSprints } from "../sprints/route";
-import { getMembers } from "../members/route";
-import { NextResponse } from "next/server";
-
-export const revalidate = 60;
+import { NextRequest, NextResponse } from "next/server";
+import { getTimelogs, getMembers } from "../cache";
+import { generateSprints } from "./types";
 
 const fontData = fetch(
   new URL(
@@ -15,15 +11,10 @@ const fontData = fetch(
   ),
 ).then((res) => res.arrayBuffer());
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  const { id } = await params;
-
+export async function renderTableSvg(groupId: string, request: NextRequest) {
   const [{ data: timelogs }, { data: members }] = await Promise.all([
-    getTimelogs(id),
-    getMembers(id),
+    getTimelogs(groupId),
+    getMembers(groupId),
   ]);
 
   const sprints = generateSprints();

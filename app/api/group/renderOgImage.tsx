@@ -1,19 +1,12 @@
 import { ImageResponse } from "next/og";
-import { GITLAB_GROUP_PATH } from "../../../env";
-import { apolloClient, gql } from "../../../apollo-client";
+import { GITLAB_GROUP_PATH } from "../env";
+import { apolloClient, gql } from "../apollo-client";
 import { CATEGORY_DEFINITIONS } from "@/app/config/categories";
-import { getMembers } from "../members/route";
-import { getTimelogs } from "../timelogs/route";
-import { generateSprints } from "../sprints/route";
+import { getMembers, getTimelogs } from "../cache";
+import { generateSprints } from "./types";
+import { NextRequest } from "next/server";
 
-export const runtime = "nodejs";
-
-export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  const { id } = await params;
-
+export async function renderOgImage(groupId: string, _request: NextRequest) {
   const [inter, interBold, { data: members }, { data: timelogs }, sprints] = await Promise.all([
     fetch(
       "https://cdn.jsdelivr.net/npm/@fontsource/inter/files/inter-latin-400-normal.woff",
@@ -21,8 +14,8 @@ export async function GET(
     fetch(
       "https://cdn.jsdelivr.net/npm/@fontsource/inter/files/inter-latin-700-normal.woff",
     ).then((res) => res.arrayBuffer()),
-    getMembers(id),
-    getTimelogs(id),
+    getMembers(groupId),
+    getTimelogs(groupId),
     generateSprints(),
   ]);
 
@@ -79,8 +72,8 @@ export async function GET(
   const maxSubMinutes = topSubs.length > 0 ? topSubs[0][1] : 1;
   const CATEGORY_COLORS = ["#82ca9d", "#8884d8", "#ffc658", "#ff7300"];
 
-  const fullPath = `${GITLAB_GROUP_PATH}/${id}`;
-  let groupName = id;
+  const fullPath = `${GITLAB_GROUP_PATH}/${groupId}`;
+  let groupName = groupId;
   try {
     const data: any = (await apolloClient.query<any>({
       query: gql`
@@ -159,13 +152,13 @@ export async function GET(
             {members.filter((m) => !m.bot && m.avatarUrl).length > 8 && (
               <div
                 style={{
-                display: "flex",
-                width: 44,
-                height: 44,
-                borderRadius: 22,
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 14,
+                  display: "flex",
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 14,
                   fontWeight: 700,
                   color: "#a0a0c0",
                   background: "rgba(255,255,255,0.08)",

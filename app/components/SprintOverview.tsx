@@ -24,7 +24,7 @@ import {
   useTheme,
   Chip,
 } from "@mui/material";
-import { GroupTimelogsResponse } from "../api/group/[id]/timelogs/route";
+import { GroupTimelogsResponse } from "../api/group/types";
 import { matchLabelToCategory } from "../utils/categoryUtils";
 import { CATEGORY_DEFINITIONS } from "../config/categories";
 import Label from "./Label";
