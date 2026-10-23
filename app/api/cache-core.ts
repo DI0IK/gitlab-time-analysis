@@ -80,6 +80,14 @@ export function registerIssue(issueNode: any): string {
         : "Ungrouped::" + title;
   });
 
+  const epic = issueNode.epic
+    ? {
+        id: issueNode.epic.id,
+        title: issueNode.epic.title || "",
+        webUrl: issueNode.epic.webUrl || "",
+      }
+    : null;
+
   issuesStore.set(webUrl, {
     webUrl,
     title: issueNode.title || "",
@@ -88,6 +96,7 @@ export function registerIssue(issueNode: any): string {
     labels,
     createdAt: issueNode.createdAt || new Date().toISOString(),
     closedAt: issueNode.closedAt || null,
+    epic,
   });
   return webUrl;
 }

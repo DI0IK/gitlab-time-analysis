@@ -12,9 +12,14 @@ const fontData = fetch(
 ).then((res) => res.arrayBuffer());
 
 export async function renderTableSvg(groupId: string, request: NextRequest) {
+  const authHeader = request.headers.get("Authorization");
+  const token = authHeader?.startsWith("Bearer ")
+    ? authHeader.slice(7).trim()
+    : request.nextUrl.searchParams.get("token") || undefined;
+
   const [{ data: timelogs }, { data: members }] = await Promise.all([
-    getTimelogs(groupId),
-    getMembers(groupId),
+    getTimelogs(groupId, token),
+    getMembers(groupId, token),
   ]);
 
   const sprints = generateSprints();

@@ -31,6 +31,7 @@ import Label from "./Label";
 import { UserAvatar } from "./UserAvatar";
 import ShareIcon from "@mui/icons-material/Share";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import BookmarkBorderIcon from "@mui/icons-material/BookmarkBorder";
 import IssueDetailModal from "./IssueDetailModal";
 import MergeRequestDetailModal from "./MergeRequestDetailModal";
 import { useUserProfile } from "../UserProfileContext";
@@ -86,13 +87,11 @@ export default function SprintOverview() {
     const log = logRaw as GroupTimelogsResponse[number];
     if (!inSelectedSprint(log)) return;
     const memberId = log.username || "unknown";
-    if (!tableData[memberId]) {
-      tableData[memberId] = {};
-      categoryColumns.forEach((c) => {
-        tableData[memberId][c.id] = 0;
-      });
-      tableData[memberId]["__sum"] = 0;
-    }
+    const activeMember = members.find(
+      (m) => !m.bot && m.verified && m.id.toLowerCase() === memberId.toLowerCase()
+    );
+    if (!activeMember) return;
+    const canonicalId = activeMember.id;
 
     let assignedColumn = "other";
     for (const label of log.issueLabels || []) {
@@ -103,10 +102,10 @@ export default function SprintOverview() {
       }
     }
 
-    if (!tableData[memberId][assignedColumn])
-      tableData[memberId][assignedColumn] = 0;
-    tableData[memberId][assignedColumn] += log.timeSpent;
-    tableData[memberId]["__sum"] += log.timeSpent;
+    if (!tableData[canonicalId][assignedColumn])
+      tableData[canonicalId][assignedColumn] = 0;
+    tableData[canonicalId][assignedColumn] += log.timeSpent;
+    tableData[canonicalId]["__sum"] += log.timeSpent;
   });
 
   // Column sums
@@ -142,7 +141,12 @@ export default function SprintOverview() {
     if (selectedSprint === 1000) {
       const issuesMap: Record<
         string,
-        { title: string; url: string; timelogs: GroupTimelogsResponse }
+        {
+          title: string;
+          url: string;
+          timelogs: GroupTimelogsResponse;
+          epic?: { id?: string; title: string; webUrl: string } | null;
+        }
       > = {};
       timelogs.forEach((log) => {
         if (!issuesMap[log.issueUrl]) {
@@ -150,6 +154,7 @@ export default function SprintOverview() {
             title: log.issueTitle,
             url: log.issueUrl,
             timelogs: [],
+            epic: log.issueEpic || null,
           };
         }
         issuesMap[log.issueUrl].timelogs.push(log);
@@ -161,7 +166,12 @@ export default function SprintOverview() {
     ) as GroupTimelogsResponse;
     const issuesMap: Record<
       string,
-      { title: string; url: string; timelogs: GroupTimelogsResponse }
+      {
+        title: string;
+        url: string;
+        timelogs: GroupTimelogsResponse;
+        epic?: { id?: string; title: string; webUrl: string } | null;
+      }
     > = {};
     timelogsInSprint.forEach((log) => {
       if (!issuesMap[log.issueUrl]) {
@@ -169,6 +179,7 @@ export default function SprintOverview() {
           title: log.issueTitle,
           url: log.issueUrl,
           timelogs: [],
+          epic: log.issueEpic || null,
         };
       }
       issuesMap[log.issueUrl].timelogs.push(log);
@@ -507,7 +518,26 @@ export default function SprintOverview() {
                                {deviationPercent}%
                              </span>
                            </Box>
-                           <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                           <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap", justifyContent: "flex-end", alignItems: "center" }}>
+                             {issue.epic && (
+                               <Chip
+                                 size="small"
+                                 label={issue.epic.title}
+                                 icon={<BookmarkBorderIcon sx={{ fontSize: "0.85rem !important" }} />}
+                                 component="a"
+                                 href={issue.epic.webUrl}
+                                 target="_blank"
+                                 onClick={(e) => e.stopPropagation()}
+                                 clickable
+                                 variant="outlined"
+                                 color="secondary"
+                                 sx={{
+                                   height: 22,
+                                   fontSize: "0.7rem",
+                                   fontWeight: 600,
+                                 }}
+                               />
+                             )}
                              {(issue.timelogs[0]?.issueLabels || []).slice(0, isMobile ? 2 : 3).map((label) => (
                                <Label
                                  key={label}

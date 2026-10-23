@@ -32,6 +32,13 @@ export type GroupTimelogsResponse = {
   issueTimeEstimate: number;
   issueCreatedAt: string;
   issueClosedAt: string | null;
+  issueEpic?: {
+    id?: string;
+    title: string;
+    webUrl: string;
+  } | null;
+  issueEpicTitle?: string | null;
+  issueEpicUrl?: string | null;
   spentAt: string;
   timeSpent: number;
   username: string;

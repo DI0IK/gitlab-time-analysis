@@ -19,16 +19,17 @@ export default function SprintOverview({
     { id: "other", title: "Other" },
   ];
 
+  // Match website user filtering: verified human members only
+  const activeMembers = members.filter((m) => !m.bot && m.verified);
+
   // Build a map: memberId -> column -> timeSpent (seconds)
   const tableData: Record<string, Record<string, number>> = {};
 
-  members
-    .filter((m) => !m.bot)
-    .forEach((m) => {
-      tableData[m.id] = {};
-      categoryColumns.forEach((c) => (tableData[m.id][c.id] = 0));
-      tableData[m.id]["__sum"] = 0;
-    });
+  activeMembers.forEach((m) => {
+    tableData[m.id] = {};
+    categoryColumns.forEach((c) => (tableData[m.id][c.id] = 0));
+    tableData[m.id]["__sum"] = 0;
+  });
 
   // Helper: determine if a timelog belongs to the selected sprint
   const inSelectedSprint = (log: GroupTimelogsResponse[number]) =>
@@ -42,11 +43,11 @@ export default function SprintOverview({
     const log = logRaw as GroupTimelogsResponse[number];
     if (!inSelectedSprint(log)) return;
     const memberId = log.username || "unknown";
-    if (!tableData[memberId]) {
-      tableData[memberId] = {};
-      categoryColumns.forEach((c) => (tableData[memberId][c.id] = 0));
-      tableData[memberId]["__sum"] = 0;
-    }
+    const activeMember = activeMembers.find(
+      (m) => m.id.toLowerCase() === memberId.toLowerCase()
+    );
+    if (!activeMember) return;
+    const canonicalId = activeMember.id;
 
     let assignedColumn = "other";
     for (const label of log.issueLabels || []) {
@@ -57,10 +58,10 @@ export default function SprintOverview({
       }
     }
 
-    if (!tableData[memberId][assignedColumn])
-      tableData[memberId][assignedColumn] = 0;
-    tableData[memberId][assignedColumn] += log.timeSpent;
-    tableData[memberId]["__sum"] += log.timeSpent;
+    if (!tableData[canonicalId][assignedColumn])
+      tableData[canonicalId][assignedColumn] = 0;
+    tableData[canonicalId][assignedColumn] += log.timeSpent;
+    tableData[canonicalId]["__sum"] += log.timeSpent;
   });
 
   // Column sums

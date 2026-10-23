@@ -40,7 +40,9 @@ export async function GET(
   switch (action) {
     case "members": {
       const { data, timestamp } = await getMembers(groupId, token);
-      return NextResponse.json(data, {
+      const verifiedOnly = request.nextUrl.searchParams.get("verified") === "true";
+      const responseData = verifiedOnly ? data.filter((m) => !m.bot && m.verified) : data;
+      return NextResponse.json(responseData, {
         headers: { "x-cache-timestamp": String(timestamp) },
       });
     }
@@ -54,7 +56,31 @@ export async function GET(
 
     case "timelogs": {
       const { data, timestamp } = await getTimelogs(groupId, token);
-      return NextResponse.json(data, {
+      const verifiedOnly = request.nextUrl.searchParams.get("verified") === "true";
+      let responseData = data;
+      if (verifiedOnly) {
+        const { data: members } = await getMembers(groupId, token);
+        const verifiedIds = new Set(
+          members.filter((m) => !m.bot && m.verified).map((m) => m.id.toLowerCase())
+        );
+        responseData = data.filter((log) =>
+          verifiedIds.has((log.username || "").toLowerCase())
+        );
+      }
+      return NextResponse.json(responseData, {
+        headers: { "x-cache-timestamp": String(timestamp) },
+      });
+    }
+
+    case "epics": {
+      const { data: timelogs, timestamp } = await getTimelogs(groupId, token);
+      const epicsMap = new Map<string, { id?: string; title: string; webUrl: string }>();
+      for (const log of timelogs) {
+        if (log.issueEpic && log.issueEpic.webUrl) {
+          epicsMap.set(log.issueEpic.webUrl, log.issueEpic);
+        }
+      }
+      return NextResponse.json(Array.from(epicsMap.values()), {
         headers: { "x-cache-timestamp": String(timestamp) },
       });
     }

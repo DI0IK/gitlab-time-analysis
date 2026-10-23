@@ -14,6 +14,11 @@ export interface NormalizedIssue {
   labels: string[];
   createdAt: string;
   closedAt: string | null;
+  epic?: {
+    id?: string;
+    title: string;
+    webUrl: string;
+  } | null;
 }
 
 export interface NormalizedTimelog {

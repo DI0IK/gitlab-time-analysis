@@ -37,6 +37,61 @@ const TIMELOGS_QUERY = gql`
                 title
               }
             }
+            epic {
+              id
+              title
+              webUrl
+            }
+          }
+        }
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+      }
+    }
+  }
+`;
+
+const EPIC_WORK_ITEMS_TIMELOGS_QUERY = gql`
+  query GetGroupEpicTimelogs($fullPath: ID!, $after: String) {
+    group(fullPath: $fullPath) {
+      workItems(types: [EPIC], includeDescendants: true, first: 100, after: $after) {
+        nodes {
+          id
+          title
+          state
+          createdAt
+          closedAt
+          webUrl
+          widgets {
+            type
+            ... on WorkItemWidgetLabels {
+              labels {
+                nodes {
+                  title
+                }
+              }
+            }
+            ... on WorkItemWidgetTimeTracking {
+              timeEstimate
+              totalTimeSpent
+              timelogs {
+                nodes {
+                  id
+                  timeSpent
+                  spentAt
+                  summary
+                  user {
+                    username
+                    name
+                    webUrl
+                    avatarUrl
+                    bot
+                  }
+                }
+              }
+            }
           }
         }
         pageInfo {
@@ -54,6 +109,7 @@ async function fetchAndProcessTimelogs(
 ): Promise<string[]> {
   let cursor: string | null = null;
   const timelogIds: string[] = [];
+  const seenIds = new Set<string>();
 
   while (true) {
     const data: any = (await apolloClient.query<any>({
@@ -77,12 +133,89 @@ async function fetchAndProcessTimelogs(
         continue;
       }
       const logId = registerTimelog(node);
-      timelogIds.push(logId);
+      if (!seenIds.has(logId)) {
+        seenIds.add(logId);
+        timelogIds.push(logId);
+      }
     }
 
     const pageInfo = data.group.timelogs?.pageInfo;
     if (pageInfo?.hasNextPage) {
       cursor = pageInfo.endCursor;
+    } else {
+      break;
+    }
+  }
+
+  // Also fetch direct timelogs on Epics (managed via Work Items in GitLab)
+  let epicCursor: string | null = null;
+  while (true) {
+    let epicData: any = null;
+    try {
+      epicData = (await apolloClient.query<any>({
+        query: EPIC_WORK_ITEMS_TIMELOGS_QUERY,
+        variables: {
+          fullPath: fullGroupPath,
+          after: epicCursor,
+        },
+        fetchPolicy: "no-cache",
+      })).data;
+    } catch (err) {
+      console.warn("Could not fetch epic work item timelogs for", fullGroupPath, err);
+      break;
+    }
+
+    if (!epicData?.group) break;
+    const workItems = epicData.group.workItems?.nodes || [];
+
+    for (const epicItem of workItems) {
+      if (epicItem.webUrl?.includes("deletion_scheduled")) continue;
+
+      const labelsWidget = epicItem.widgets?.find((w: any) => w.type === "LABELS");
+      const labels = labelsWidget?.labels || { nodes: [] };
+      const timeTrackingWidget = epicItem.widgets?.find(
+        (w: any) => w.type === "TIME_TRACKING"
+      );
+      const timeEstimate = timeTrackingWidget?.timeEstimate || 0;
+
+      const issueObj = {
+        webUrl: epicItem.webUrl,
+        title: epicItem.title || "",
+        state: epicItem.state ? epicItem.state.toLowerCase() : "opened",
+        timeEstimate,
+        createdAt: epicItem.createdAt || "",
+        closedAt: epicItem.closedAt || null,
+        labels,
+        epic: {
+          id: epicItem.id,
+          title: epicItem.title || "",
+          webUrl: epicItem.webUrl,
+        },
+      };
+
+      const timelogsNodes = timeTrackingWidget?.timelogs?.nodes || [];
+      for (const log of timelogsNodes) {
+        if (!log.id || seenIds.has(log.id)) continue;
+
+        if (PROJECT_START_DATE && new Date(log.spentAt) < new Date(PROJECT_START_DATE)) continue;
+        if (PROJECT_END_DATE && new Date(log.spentAt) > new Date(PROJECT_END_DATE)) continue;
+
+        const logId = registerTimelog({
+          id: log.id,
+          spentAt: log.spentAt,
+          timeSpent: log.timeSpent,
+          user: log.user,
+          issue: issueObj,
+        });
+
+        seenIds.add(logId);
+        timelogIds.push(logId);
+      }
+    }
+
+    const pageInfo = epicData.group.workItems?.pageInfo;
+    if (pageInfo?.hasNextPage) {
+      epicCursor = pageInfo.endCursor;
     } else {
       break;
     }
@@ -136,6 +269,9 @@ export async function getTimelogs(groupId: string, token?: string) {
           issueTimeEstimate: issue?.timeEstimate || 0,
           issueCreatedAt: issue?.createdAt || "",
           issueClosedAt: issue?.closedAt || null,
+          issueEpic: issue?.epic || null,
+          issueEpicTitle: issue?.epic?.title || null,
+          issueEpicUrl: issue?.epic?.webUrl || null,
           spentAt: log.spentAt,
           timeSpent: log.timeSpent,
           username: log.username,

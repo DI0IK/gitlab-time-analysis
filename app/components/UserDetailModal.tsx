@@ -243,13 +243,14 @@ export default function UserDetailModal({
 
   // Group by issue
   const issueSummary = React.useMemo(() => {
-    const issuesMap: Record<string, { title: string; url: string; hours: number }> = {};
+    const issuesMap: Record<string, { title: string; url: string; hours: number; epic?: { id?: string; title: string; webUrl: string } | null }> = {};
     userLogs.forEach((log) => {
       if (!issuesMap[log.issueUrl]) {
         issuesMap[log.issueUrl] = {
           title: log.issueTitle,
           url: log.issueUrl,
           hours: 0,
+          epic: log.issueEpic || null,
         };
       }
       issuesMap[log.issueUrl].hours += log.timeSpent / 3600;
@@ -740,6 +741,25 @@ export default function UserDetailModal({
                                 </Typography>
                                 <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
                                   Rank #{idx + 1}
+                                  {issue.epic && (
+                                    <>
+                                      {" • "}
+                                      <Typography
+                                        component="a"
+                                        href={issue.epic.webUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        sx={{
+                                          color: "primary.main",
+                                          textDecoration: "none",
+                                          fontWeight: 600,
+                                          "&:hover": { textDecoration: "underline" },
+                                        }}
+                                      >
+                                        Epic: {issue.epic.title}
+                                      </Typography>
+                                    </>
+                                  )}
                                 </Typography>
                               </Box>
                               <Typography variant="body2" sx={{ fontWeight: 700, color: "primary.light", flexShrink: 0 }}>

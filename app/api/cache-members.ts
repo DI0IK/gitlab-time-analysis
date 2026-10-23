@@ -1,5 +1,5 @@
 import { apolloClient, gql } from "./apollo-client";
-import { CACHE_TTL_MS, groupCaches, getOrCreateGroupCache, getCacheKey, usersStore, registerUser, cleanupOrphanedEntities } from "./cache-core";
+import { CACHE_TTL_MS, groupCaches, getOrCreateGroupCache, getCacheKey, usersStore, timelogsStore, registerUser, cleanupOrphanedEntities } from "./cache-core";
 import { GITLAB_GROUP_PATH } from "./env";
 import { getDescendantGroups } from "./cache-descendant-groups";
 import type { DescendantGroup } from "./cache-types";
@@ -234,6 +234,17 @@ async function fetchAndProcessMembers(
       const username = registerUser(node.user);
       allUsernames.add(username);
       timelogUsernames.add(username);
+    }
+  }
+
+  // Also ensure any users who logged time in this specific group are marked in timelogUsernames
+  const currentGroupCache = groupCaches.get(getCacheKey(fullGroupPath, token));
+  if (currentGroupCache?.timelogIds) {
+    for (const logId of currentGroupCache.timelogIds) {
+      const log = timelogsStore.get(logId);
+      if (log?.username) {
+        timelogUsernames.add(log.username);
+      }
     }
   }
 

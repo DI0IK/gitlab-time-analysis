@@ -24,7 +24,7 @@ import {
   useMediaQuery,
   useTheme,
 } from "@mui/material";
-import { Close, OpenInNew, Edit, Save, Label as LabelIcon } from "@mui/icons-material";
+import { Close, OpenInNew, Edit, Save, Label as LabelIcon, BookmarkBorder } from "@mui/icons-material";
 import { GroupContext } from "../GroupContext";
 import { useUserAuth } from "../UserAuthContext";
 import { UserAvatar } from "./UserAvatar";
@@ -60,6 +60,10 @@ export default function IssueDetailModal({
 
   const issueState = React.useMemo(() => {
     return issueLogs[0]?.issueState || "UNKNOWN";
+  }, [issueLogs]);
+
+  const issueEpic = React.useMemo(() => {
+    return issueLogs[0]?.issueEpic || null;
   }, [issueLogs]);
 
   const currentLabels = React.useMemo(() => {
@@ -275,9 +279,27 @@ export default function IssueDetailModal({
       </DialogTitle>
 
       <DialogContent dividers>
-        <Typography variant="h6" sx={{ mb: 2, fontWeight: 650, color: "text.primary" }}>
+        <Typography variant="h6" sx={{ mb: issueEpic ? 1 : 2, fontWeight: 650, color: "text.primary" }}>
           {issueTitle}
         </Typography>
+
+        {issueEpic && (
+          <Box sx={{ mb: 2, display: "flex", alignItems: "center", gap: 1 }}>
+            <Chip
+              size="small"
+              icon={<BookmarkBorder fontSize="small" />}
+              label={`Epic: ${issueEpic.title}`}
+              component="a"
+              href={issueEpic.webUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              clickable
+              color="secondary"
+              variant="outlined"
+              sx={{ fontWeight: 600, fontSize: "0.75rem" }}
+            />
+          </Box>
+        )}
 
         {/* Labels Section */}
         <Box sx={{ mb: 3 }}>

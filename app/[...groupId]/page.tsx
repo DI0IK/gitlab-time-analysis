@@ -662,6 +662,7 @@ export default function GroupPage() {
                 users: string[];
                 estimate: number;
                 labels: string[];
+                epic?: { id?: string; title: string; webUrl: string } | null;
               }
             > = {};
             currentSprintLogs.forEach((log) => {
@@ -678,6 +679,7 @@ export default function GroupPage() {
                   users: [],
                   estimate: log.issueTimeEstimate || 0,
                   labels: log.issueLabels || [],
+                  epic: log.issueEpic || null,
                 };
               }
               issuesMap[log.issueUrl].timeSpent += log.timeSpent;
@@ -1029,6 +1031,24 @@ export default function GroupPage() {
                                 >
                                   {issue.title}
                                 </Typography>
+                                {issue.epic && (
+                                  <Typography
+                                    component="a"
+                                    href={issue.epic.webUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    sx={{
+                                      fontSize: "0.72rem",
+                                      fontWeight: 600,
+                                      color: "secondary.main",
+                                      textDecoration: "none",
+                                      display: "inline-block",
+                                      "&:hover": { textDecoration: "underline" },
+                                    }}
+                                  >
+                                    Epic: {issue.epic.title}
+                                  </Typography>
+                                )}
                                 <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", mt: 0.25 }}>
                                   <Typography component="span" sx={{ fontSize: "0.7rem", color: "#64748b" }}>
                                     Cycle: <b>{loggedHours}h</b>

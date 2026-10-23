@@ -134,7 +134,7 @@ export async function renderOgImage(groupId: string, _request: NextRequest) {
           </div>
           <div style={{ display: "flex", gap: 6 }}>
             {members
-              .filter((m) => !m.bot && m.avatarUrl)
+              .filter((m) => !m.bot && m.verified && m.avatarUrl)
               .slice(0, 8)
               .map((m) => (
                 <img
@@ -149,7 +149,7 @@ export async function renderOgImage(groupId: string, _request: NextRequest) {
                   }}
                 />
               ))}
-            {members.filter((m) => !m.bot && m.avatarUrl).length > 8 && (
+            {members.filter((m) => !m.bot && m.verified && m.avatarUrl).length > 8 && (
               <div
                 style={{
                   display: "flex",
