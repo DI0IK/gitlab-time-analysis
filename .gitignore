@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing & Coverage
+coverage/
+
+# Next.js & Build outputs
+.next/
+out/
+build/
+dist/
+target/
+
+# Environment files
+.env
+.env*.local
+.env.tinf*
+.envrc
+
+# Cache & Temp
+.devenv/
+.direnv/
+*.tsbuildinfo
+next-env.d.ts
+*.log
+.DS_Store
+
+# SQLite databases
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+data/
