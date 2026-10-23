@@ -33,3 +33,14 @@ next-env.d.ts
 *.db-wal
 *.db-shm
 data/
+
+# Devenv
+.devenv*
+devenv.local.nix
+devenv.local.yaml
+
+# direnv
+.direnv
+
+# pre-commit
+.pre-commit-config.yaml
