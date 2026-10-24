@@ -133,27 +133,39 @@ pub async fn get_group_repositories(
         .await?
         .ok_or_else(|| AppError::NotFound(format!("Group '{slug}' not found")))?;
 
-    let path_prefix = &group.full_path;
+    let path_prefix = format!("{}/%", group.full_path.trim_end_matches('/'));
     let rows = sqlx::query_as::<_, (String, i64, i64)>(
         r#"
         SELECT p.path,
                COALESCE(w.cnt, 0) as work_items_count,
                COALESCE(m.cnt, 0) as merge_requests_count
         FROM (
-            SELECT DISTINCT project_path as path FROM work_items WHERE project_path IS NOT NULL AND (project_path = ?1 OR project_path LIKE ?1 || '/%')
+            SELECT DISTINCT project_path as path FROM work_items 
+            WHERE project_path IS NOT NULL 
+              AND work_item_type != 'epic' 
+              AND project_path LIKE ?1
             UNION
-            SELECT DISTINCT project_path as path FROM merge_requests WHERE project_path IS NOT NULL AND (project_path = ?1 OR project_path LIKE ?1 || '/%')
+            SELECT DISTINCT project_path as path FROM merge_requests 
+            WHERE project_path IS NOT NULL 
+              AND project_path LIKE ?1
         ) p
         LEFT JOIN (
-            SELECT project_path, COUNT(*) as cnt FROM work_items WHERE project_path IS NOT NULL GROUP BY project_path
+            SELECT project_path, COUNT(*) as cnt 
+            FROM work_items 
+            WHERE project_path IS NOT NULL AND work_item_type != 'epic' 
+            GROUP BY project_path
         ) w ON p.path = w.project_path
         LEFT JOIN (
-            SELECT project_path, COUNT(*) as cnt FROM merge_requests WHERE project_path IS NOT NULL GROUP BY project_path
+            SELECT project_path, COUNT(*) as cnt 
+            FROM merge_requests 
+            WHERE project_path IS NOT NULL 
+            GROUP BY project_path
         ) m ON p.path = m.project_path
+        WHERE p.path NOT IN (SELECT full_path FROM groups)
         ORDER BY p.path ASC
         "#,
     )
-    .bind(path_prefix)
+    .bind(&path_prefix)
     .fetch_all(&state.db)
     .await
     .map_err(AppError::Database)?;

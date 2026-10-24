@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ListTodo, Search, RefreshCw, FolderTree, List } from 'lucide-react'
+import { ListTodo, Search, RefreshCw, FolderTree, List, FolderGit2 } from 'lucide-react'
 import { WorkItemModal, type WorkItemModalData } from './work-item-modal'
 import { WorkItemTreeNode } from './work-item-tree-node'
 
@@ -11,6 +11,7 @@ export function WorkItemsExplorer({ slug }: { slug: string }) {
   const [search, setSearch] = React.useState('')
   const [typeFilter, setTypeFilter] = React.useState<string>('all')
   const [stateFilter, setStateFilter] = React.useState<string>('all')
+  const [repoFilter, setRepoFilter] = React.useState<string>('all')
   const [viewMode, setViewMode] = React.useState<'tree' | 'flat'>('tree')
   const [selectedItem, setSelectedItem] = React.useState<WorkItemModalData | null>(null)
   const [expanded, setExpanded] = React.useState<Set<string>>(new Set())
@@ -26,18 +27,29 @@ export function WorkItemsExplorer({ slug }: { slug: string }) {
     },
   })
 
+  const availableRepos = React.useMemo(() => {
+    const repos = new Set<string>()
+    for (const item of data || []) {
+      if (item.project_path) {
+        repos.add(item.project_path)
+      }
+    }
+    return Array.from(repos).sort()
+  }, [data])
+
   const filtered = React.useMemo(() => {
     return (data || []).filter((item) => {
       const matchesSearch = item.title.toLowerCase().includes(search.toLowerCase()) || String(item.iid).includes(search)
       const matchesType = typeFilter === 'all' || item.work_item_type.toLowerCase() === typeFilter.toLowerCase()
+      const matchesRepo = repoFilter === 'all' || item.project_path === repoFilter
       const itemState = item.state.toLowerCase()
       const matchesState =
         stateFilter === 'all' ||
         ((stateFilter === 'open' || stateFilter === 'opened') && (itemState === 'open' || itemState === 'opened')) ||
         itemState === stateFilter.toLowerCase()
-      return matchesSearch && matchesType && matchesState
+      return matchesSearch && matchesType && matchesRepo && matchesState
     })
-  }, [data, search, typeFilter, stateFilter])
+  }, [data, search, typeFilter, repoFilter, stateFilter])
 
   const { rootItems, childrenMap } = React.useMemo(() => {
     const map = new Map<string, WorkItemModalData[]>()
@@ -105,6 +117,24 @@ export function WorkItemsExplorer({ slug }: { slug: string }) {
               <button key={s} onClick={() => setStateFilter(s)} className={`px-2.5 py-1 text-xs font-medium rounded-md capitalize min-h-[36px] ${stateFilter === s ? 'bg-background text-foreground shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground'}`}>{s}</button>
             ))}
           </div>
+
+          {availableRepos.length > 0 && (
+            <div className="relative inline-flex items-center">
+              <FolderGit2 className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+              <select
+                value={repoFilter}
+                onChange={(e) => setRepoFilter(e.target.value)}
+                className="rounded-lg border border-border bg-muted/40 pl-8 pr-3 py-1 text-xs font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-ring min-h-[36px]"
+              >
+                <option value="all">All Repositories</option>
+                {availableRepos.map((repo) => (
+                  <option key={repo} value={repo}>
+                    {repo.split('/').pop() || repo}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       </div>
 

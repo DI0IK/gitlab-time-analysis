@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import { ChevronRight, ChevronDown, Clock, ExternalLink, Folder, FolderGit2 } from 'lucide-react'
 import { Badge, ScopedBadge } from '@/components/ui/badge'
 import { getRelativePath, formatStatus } from '@/lib/format'
@@ -76,17 +77,27 @@ export function WorkItemTreeNode({
           <span className="text-xs font-mono text-muted-foreground shrink-0">#{item.iid}</span>
 
           {item.project_path && (
-            <span
-              className="inline-flex items-center gap-1 font-mono text-[10px] bg-muted/60 text-muted-foreground px-1.5 py-0.5 rounded-sm border border-border/40 shrink-0 max-w-[130px] sm:max-w-[180px]"
-              title={item.project_path}
-            >
-              {isEpic ? (
-                <Folder className="h-3 w-3 text-purple-500 shrink-0" />
-              ) : (
+            slug && !isEpic ? (
+              <Link
+                to="/groups/$slug/repo"
+                params={{ slug }}
+                search={{ project: item.project_path }}
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1 font-mono text-[10px] bg-muted/60 hover:bg-primary/20 text-muted-foreground hover:text-primary px-1.5 py-0.5 rounded-sm border border-border/40 shrink-0 max-w-[130px] sm:max-w-[180px] transition-colors cursor-pointer"
+                title={`Browse code in ${item.project_path}`}
+              >
                 <FolderGit2 className="h-3 w-3 text-primary shrink-0" />
-              )}
-              <span className="truncate">{getRelativePath(item.project_path, slug)}</span>
-            </span>
+                <span className="truncate">{getRelativePath(item.project_path, slug)}</span>
+              </Link>
+            ) : (
+              <span
+                className="inline-flex items-center gap-1 font-mono text-[10px] bg-muted/60 text-muted-foreground px-1.5 py-0.5 rounded-sm border border-border/40 shrink-0 max-w-[130px] sm:max-w-[180px]"
+                title={item.project_path}
+              >
+                <Folder className="h-3 w-3 text-purple-500 shrink-0" />
+                <span className="truncate">{getRelativePath(item.project_path, slug)}</span>
+              </span>
+            )
           )}
 
           <span className="text-sm font-medium text-foreground group-hover:text-primary transition-colors truncate">

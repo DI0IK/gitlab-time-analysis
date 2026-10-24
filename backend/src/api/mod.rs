@@ -19,6 +19,7 @@ pub mod middleware;
 pub mod openapi;
 pub mod profile;
 pub mod render;
+pub mod repo;
 pub mod sync;
 
 pub fn router(state: AppState) -> Router {
@@ -67,6 +68,10 @@ pub fn router(state: AppState) -> Router {
         .route("/render/badge/:id", get(render::render_badge))
         .route("/render/user/:username", get(render::render_user_card))
         .route("/render/group/:slug", get(render::render_group_banner))
+        .route("/repo/branches", get(repo::list_branches))
+        .route("/repo/tree", get(repo::get_tree))
+        .route("/repo/blob", get(repo::get_blob))
+        .route("/repo/commits", get(repo::list_commits))
         .route("/sync", post(sync::trigger_sync))
         .route("/sync/status", get(sync::sync_status))
         .layer(from_fn(middleware::security_headers))

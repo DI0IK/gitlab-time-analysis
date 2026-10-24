@@ -1,7 +1,8 @@
+import { Link } from '@tanstack/react-router'
 import { Modal } from '@/components/ui/modal'
 import { Badge, ScopedBadge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Clock, ExternalLink, Calendar, Folder, FolderGit2, CheckCircle2, CircleDot } from 'lucide-react'
+import { Clock, ExternalLink, Calendar, Folder, FolderGit2, CheckCircle2, CircleDot, Code2 } from 'lucide-react'
 import { getRelativePath, formatStatus } from '@/lib/format'
 
 export interface WorkItemModalData {
@@ -64,14 +65,29 @@ export function WorkItemModal({
         {/* Project Path & Dates */}
         <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
           {item.project_path && (
-            <div
-              className="inline-flex items-center gap-1.5 font-mono bg-muted/40 px-2 py-1 rounded-md border border-border/50"
-              title={item.project_path}
-            >
-              {isEpic ? <Folder className="h-3.5 w-3.5 text-purple-500" /> : <FolderGit2 className="h-3.5 w-3.5 text-primary" />}
-              <span className="text-foreground font-medium">{isEpic ? 'Group:' : 'Repo:'}</span>
-              <span>{getRelativePath(item.project_path, slug)}</span>
-            </div>
+            slug && !isEpic ? (
+              <Link
+                to="/groups/$slug/repo"
+                params={{ slug }}
+                search={{ project: item.project_path }}
+                onClick={onClose}
+                className="inline-flex items-center gap-1.5 font-mono bg-muted/40 hover:bg-muted/80 px-2 py-1 rounded-md border border-border/50 text-foreground hover:text-primary transition-colors cursor-pointer"
+                title={`Browse code in ${item.project_path}`}
+              >
+                <FolderGit2 className="h-3.5 w-3.5 text-primary" />
+                <span className="font-medium">Repo:</span>
+                <span>{getRelativePath(item.project_path, slug)}</span>
+              </Link>
+            ) : (
+              <div
+                className="inline-flex items-center gap-1.5 font-mono bg-muted/40 px-2 py-1 rounded-md border border-border/50"
+                title={item.project_path}
+              >
+                <Folder className="h-3.5 w-3.5 text-purple-500" />
+                <span className="text-foreground font-medium">Group:</span>
+                <span>{getRelativePath(item.project_path, slug)}</span>
+              </div>
+            )
           )}
           <div className="inline-flex items-center gap-1">
             <Calendar className="h-3.5 w-3.5" />
@@ -135,9 +151,23 @@ export function WorkItemModal({
         </div>
 
         {/* Footer actions */}
-        <div className="pt-2 flex justify-end">
+        <div className="pt-2 flex flex-wrap items-center justify-between gap-2">
+          {item.project_path && slug && !isEpic ? (
+            <Link
+              to="/groups/$slug/repo"
+              params={{ slug }}
+              search={{ project: item.project_path }}
+              onClick={onClose}
+            >
+              <Button size="sm" variant="outline" className="gap-1.5 text-xs font-mono min-h-[36px]">
+                <Code2 className="h-3.5 w-3.5 text-primary" />
+                <span>Browse Code in Repo</span>
+              </Button>
+            </Link>
+          ) : <div />}
+
           <a href={item.web_url} target="_blank" rel="noreferrer" className="w-full sm:w-auto">
-            <Button size="sm" className="w-full sm:w-auto gap-1.5 min-h-[44px] sm:min-h-[36px]">
+            <Button size="sm" variant="ghost" className="w-full sm:w-auto gap-1.5 min-h-[44px] sm:min-h-[36px] text-xs text-muted-foreground hover:text-foreground">
               <span>Open in GitLab</span>
               <ExternalLink className="h-3.5 w-3.5" />
             </Button>

@@ -308,6 +308,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/repo/blob": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_blob"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/repo/branches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_branches"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/repo/commits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_commits"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/repo/tree": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_tree"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sync": {
         parameters: {
             query?: never;
@@ -602,6 +666,46 @@ export interface components {
             sprint_duration_weeks: number;
             sprint_start_weekday: string;
             tiers: components["schemas"]["TierMeta"][];
+        };
+        RepoBranch: {
+            commit?: null | components["schemas"]["RepoBranchCommit"];
+            default?: boolean;
+            name: string;
+            protected?: boolean;
+        };
+        RepoBranchCommit: {
+            created_at?: string | null;
+            id: string;
+            short_id: string;
+            title: string;
+        };
+        RepoCommit: {
+            author_email: string;
+            author_name: string;
+            authored_date?: string | null;
+            id: string;
+            message: string;
+            short_id: string;
+            title: string;
+            web_url?: string | null;
+        };
+        RepoFileContent: {
+            commit_id?: string | null;
+            content: string;
+            file_name: string;
+            file_path: string;
+            is_binary: boolean;
+            last_commit_id?: string | null;
+            ref_name: string;
+            /** Format: int64 */
+            size: number;
+        };
+        RepoTreeItem: {
+            id: string;
+            mode: string;
+            name: string;
+            path: string;
+            type: string;
         };
         RepositorySummary: {
             full_path: string;
@@ -1229,6 +1333,129 @@ export interface operations {
                 };
             };
             /** @description User not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_blob: {
+        parameters: {
+            query: {
+                project: string;
+                ref?: string | null;
+                file_path: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Repository file content and metadata */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepoFileContent"];
+                };
+            };
+            /** @description File not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    list_branches: {
+        parameters: {
+            query: {
+                project: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of repository branches */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepoBranch"][];
+                };
+            };
+            /** @description Repository not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    list_commits: {
+        parameters: {
+            query: {
+                project: string;
+                ref?: string | null;
+                path?: string | null;
+                limit?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Commit history log */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepoCommit"][];
+                };
+            };
+            /** @description Repository not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_tree: {
+        parameters: {
+            query: {
+                project: string;
+                ref?: string | null;
+                path?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Repository file and directory tree */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepoTreeItem"][];
+                };
+            };
+            /** @description Repository or path not found */
             404: {
                 headers: {
                     [name: string]: unknown;

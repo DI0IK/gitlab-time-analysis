@@ -10,6 +10,7 @@ use crate::{
         meta::{self, FeatureFlags, MetaResponse},
         profile::{self, UpdateProfileRequest},
         render::{self},
+        repo::{self, RepoBranch, RepoBranchCommit, RepoCommit, RepoFileContent, RepoTreeItem},
         sync::{self},
     },
     db::{
@@ -64,6 +65,10 @@ use crate::{
         render::render_badge,
         render::render_user_card,
         render::render_group_banner,
+        repo::list_branches,
+        repo::get_tree,
+        repo::get_blob,
+        repo::list_commits,
         sync::trigger_sync,
         sync::sync_status,
     ),
@@ -101,6 +106,11 @@ use crate::{
             UserCategoryMatrixRow,
             WeekdayHeatmapCell,
             WeekdaySprintHeatmap,
+            RepoBranch,
+            RepoBranchCommit,
+            RepoTreeItem,
+            RepoFileContent,
+            RepoCommit,
         )
     ),
     tags(
@@ -110,6 +120,7 @@ use crate::{
         (name = "Profile", description = "User profile and custom display name customization"),
         (name = "Groups", description = "GitLab group hierarchy and cohort discovery"),
         (name = "Analytics", description = "Sprint progress, effort fairness, and category distribution"),
+        (name = "Repository", description = "GitLab code browsing, file tree, blob content, and commits"),
         (name = "Leaderboard", description = "Ranked leaderboards with XP, levels, and badges"),
         (name = "Render", description = "Dynamic SVG badges, profile cards, and open-graph banners"),
         (name = "Sync", description = "Incremental GitLab ingestion worker triggers and status"),

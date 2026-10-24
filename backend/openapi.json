@@ -527,6 +527,222 @@
         }
       }
     },
+    "/api/repo/blob": {
+      "get": {
+        "tags": [
+          "Repository"
+        ],
+        "operationId": "get_blob",
+        "parameters": [
+          {
+            "name": "project",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ref",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "file_path",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Repository file content and metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepoFileContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "File not found"
+          }
+        }
+      }
+    },
+    "/api/repo/branches": {
+      "get": {
+        "tags": [
+          "Repository"
+        ],
+        "operationId": "list_branches",
+        "parameters": [
+          {
+            "name": "project",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of repository branches",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RepoBranch"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Repository not found"
+          }
+        }
+      }
+    },
+    "/api/repo/commits": {
+      "get": {
+        "tags": [
+          "Repository"
+        ],
+        "operationId": "list_commits",
+        "parameters": [
+          {
+            "name": "project",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ref",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "path",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Commit history log",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RepoCommit"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Repository not found"
+          }
+        }
+      }
+    },
+    "/api/repo/tree": {
+      "get": {
+        "tags": [
+          "Repository"
+        ],
+        "operationId": "get_tree",
+        "parameters": [
+          {
+            "name": "project",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ref",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "path",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Repository file and directory tree",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RepoTreeItem"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Repository or path not found"
+          }
+        }
+      }
+    },
     "/api/sync": {
       "post": {
         "tags": [
@@ -1510,6 +1726,172 @@
           }
         }
       },
+      "RepoBranch": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "commit": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/RepoBranchCommit"
+              }
+            ]
+          },
+          "default": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "protected": {
+            "type": "boolean"
+          }
+        }
+      },
+      "RepoBranchCommit": {
+        "type": "object",
+        "required": [
+          "id",
+          "short_id",
+          "title"
+        ],
+        "properties": {
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "short_id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
+      "RepoCommit": {
+        "type": "object",
+        "required": [
+          "id",
+          "short_id",
+          "title",
+          "message",
+          "author_name",
+          "author_email"
+        ],
+        "properties": {
+          "author_email": {
+            "type": "string"
+          },
+          "author_name": {
+            "type": "string"
+          },
+          "authored_date": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "short_id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "web_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "RepoFileContent": {
+        "type": "object",
+        "required": [
+          "file_name",
+          "file_path",
+          "size",
+          "content",
+          "is_binary",
+          "ref_name"
+        ],
+        "properties": {
+          "commit_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "content": {
+            "type": "string"
+          },
+          "file_name": {
+            "type": "string"
+          },
+          "file_path": {
+            "type": "string"
+          },
+          "is_binary": {
+            "type": "boolean"
+          },
+          "last_commit_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ref_name": {
+            "type": "string"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "RepoTreeItem": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "type",
+          "path",
+          "mode"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        }
+      },
       "RepositorySummary": {
         "type": "object",
         "required": [
@@ -2047,6 +2429,10 @@
     {
       "name": "Analytics",
       "description": "Sprint progress, effort fairness, and category distribution"
+    },
+    {
+      "name": "Repository",
+      "description": "GitLab code browsing, file tree, blob content, and commits"
     },
     {
       "name": "Leaderboard",

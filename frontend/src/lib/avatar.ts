@@ -11,3 +11,9 @@ export function getAvatarUrl(url?: string | null, gitlabDomain = 'https://gitlab
   const cleanPath = url.startsWith('/') ? url : `/${url}`
   return `${cleanDomain}${cleanPath}`
 }
+
+export function generateAvatarUrl(name: string): string {
+  const encoded = encodeURIComponent(name.trim() || 'User')
+  return `https://api.dicebear.com/7.x/identicon/svg?seed=${encoded}`
+}
+
