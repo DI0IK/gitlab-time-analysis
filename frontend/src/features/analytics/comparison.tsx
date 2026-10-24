@@ -23,7 +23,9 @@ import {
 import { apiClient } from '@/lib/api/client'
 import { apiKeys } from '@/lib/api/keys'
 import { buildGroupTree, filterTree, getAllNodeIds, type GroupTreeNode } from '@/lib/groups-tree'
-import type { GroupComparisonSummary } from '@/lib/api/schema'
+import type { components } from '@/lib/api/schema'
+
+type GroupComparisonSummary = components['schemas']['GroupComparisonSummary']
 
 export function ComparisonView() {
   const [search, setSearch] = useState('')
@@ -143,10 +145,12 @@ export function ComparisonView() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold font-display">
-              {comparison?.cohort_fairness ? `${(comparison.cohort_fairness.gini_index * 100).toFixed(0)}%` : '100%'}
+              {comparison?.cohort_fairness?.rating ?? 'Balanced'}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              {comparison?.cohort_fairness?.rating ?? 'Balanced'} Distribution
+              {comparison?.cohort_fairness
+                ? `CV ${(comparison.cohort_fairness.coefficient_of_variation * 100).toFixed(0)}% • ${comparison.cohort_fairness.mean_hours}h mean`
+                : 'Effort distribution'}
             </p>
           </CardContent>
         </Card>
