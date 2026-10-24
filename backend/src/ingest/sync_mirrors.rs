@@ -3,10 +3,12 @@ use tracing::{debug, info, warn};
 use crate::{error::AppError, git::mirror::sync_bare_repo, state::AppState};
 
 pub async fn sync_all_bare_mirrors(state: &AppState) -> Result<(usize, usize), AppError> {
-    // 1. Query distinct project paths from DB (excluding groups and epics)
+    // 1. Query distinct project paths from DB (including projects table and any from work items/MRs)
     let project_paths = sqlx::query_scalar::<_, String>(
         r#"
         SELECT DISTINCT path FROM (
+            SELECT DISTINCT full_path as path FROM projects WHERE archived = 0
+            UNION
             SELECT DISTINCT project_path as path FROM work_items 
             WHERE project_path IS NOT NULL 
               AND work_item_type != 'epic' 

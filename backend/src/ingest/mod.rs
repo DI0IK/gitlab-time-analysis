@@ -3,6 +3,7 @@ pub mod sync_groups;
 pub mod sync_issues;
 pub mod sync_merge_requests;
 pub mod sync_mirrors;
+pub mod sync_projects;
 pub mod sync_work_items;
 pub mod worker;
 

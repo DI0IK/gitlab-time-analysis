@@ -66,7 +66,23 @@ pub async fn run_sync(state: &AppState) -> Result<SyncSummary, AppError> {
             }
         }
 
-        // 2. Fetch all groups belonging to this root group and sync work items/MRs
+        // 2. Sync all projects under this root group hierarchy
+        match crate::ingest::sync_projects::sync_group_projects(&client, state, &root_group.path)
+            .await
+        {
+            Ok(project_ids) => {
+                tracing::info!(
+                    "Synced {} projects for {}",
+                    project_ids.len(),
+                    root_group.path
+                );
+            }
+            Err(e) => {
+                tracing::error!("Failed to sync projects for {}: {e}", root_group.path);
+            }
+        }
+
+        // 3. Fetch all groups belonging to this root group and sync work items/MRs
         let root_prefix = format!("{}/", root_group.path);
         let all_groups = get_all_groups(&state.db).await?;
         let groups: Vec<_> = all_groups

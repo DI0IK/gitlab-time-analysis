@@ -246,23 +246,28 @@ pub async fn get_group_wiki_targets(
     }
 
     // 3. Project wikis
+    let clean = group.full_path.trim_end_matches('/');
     let project_paths = sqlx::query_scalar::<_, String>(
         r#"
         SELECT DISTINCT path FROM (
+            SELECT DISTINCT full_path as path FROM projects
+            WHERE (full_path LIKE ?1 OR full_path = ?2) AND archived = 0
+            UNION
             SELECT DISTINCT project_path as path FROM work_items 
             WHERE project_path IS NOT NULL 
               AND work_item_type != 'epic' 
-              AND project_path LIKE ?1
+              AND (project_path LIKE ?1 OR project_path = ?2)
             UNION
             SELECT DISTINCT project_path as path FROM merge_requests 
             WHERE project_path IS NOT NULL 
-              AND project_path LIKE ?1
+              AND (project_path LIKE ?1 OR project_path = ?2)
         )
         WHERE path NOT IN (SELECT full_path FROM groups)
         ORDER BY path ASC
         "#,
     )
     .bind(&prefix)
+    .bind(clean)
     .fetch_all(&state.db)
     .await
     .unwrap_or_default();

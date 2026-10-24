@@ -10,6 +10,7 @@ use crate::error::AppError;
 
 pub mod groups;
 pub mod merge_requests;
+pub mod projects;
 pub mod sessions;
 pub mod sync_state;
 pub mod timelogs;

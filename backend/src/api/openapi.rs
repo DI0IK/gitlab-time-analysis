@@ -17,6 +17,7 @@ use crate::{
     db::{
         groups::{GroupMemberRecord, GroupRecord},
         merge_requests::MergeRequestRecord,
+        projects::ProjectRecord,
         sync_state::SyncStateRecord,
         users::UserRecord,
         work_items::WorkItemRecord,
@@ -97,6 +98,7 @@ use crate::{
             UpdateProfileRequest,
             GroupRecord,
             GroupMemberRecord,
+            ProjectRecord,
             SyncSummary,
             SyncStateRecord,
             GroupDashboardResponse,

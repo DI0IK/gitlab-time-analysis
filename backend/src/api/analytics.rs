@@ -133,22 +133,28 @@ pub async fn get_group_repositories(
         .await?
         .ok_or_else(|| AppError::NotFound(format!("Group '{slug}' not found")))?;
 
-    let path_prefix = format!("{}/%", group.full_path.trim_end_matches('/'));
-    let rows = sqlx::query_as::<_, (String, i64, i64)>(
+    let clean = group.full_path.trim_end_matches('/');
+    let path_prefix = format!("{clean}/%");
+    let rows = sqlx::query_as::<_, (String, Option<String>, i64, i64)>(
         r#"
         SELECT p.path,
+               pr.name,
                COALESCE(w.cnt, 0) as work_items_count,
                COALESCE(m.cnt, 0) as merge_requests_count
         FROM (
+            SELECT DISTINCT full_path as path FROM projects
+            WHERE (full_path LIKE ?1 OR full_path = ?2) AND archived = 0
+            UNION
             SELECT DISTINCT project_path as path FROM work_items 
             WHERE project_path IS NOT NULL 
               AND work_item_type != 'epic' 
-              AND project_path LIKE ?1
+              AND (project_path LIKE ?1 OR project_path = ?2)
             UNION
             SELECT DISTINCT project_path as path FROM merge_requests 
             WHERE project_path IS NOT NULL 
-              AND project_path LIKE ?1
+              AND (project_path LIKE ?1 OR project_path = ?2)
         ) p
+        LEFT JOIN projects pr ON p.path = pr.full_path
         LEFT JOIN (
             SELECT project_path, COUNT(*) as cnt 
             FROM work_items 
@@ -166,14 +172,17 @@ pub async fn get_group_repositories(
         "#,
     )
     .bind(&path_prefix)
+    .bind(clean)
     .fetch_all(&state.db)
     .await
     .map_err(AppError::Database)?;
 
     let repos = rows
         .into_iter()
-        .map(|(path, wi_cnt, mr_cnt)| {
-            let name = path.split('/').next_back().unwrap_or(&path).to_string();
+        .map(|(path, pr_name, wi_cnt, mr_cnt)| {
+            let name = pr_name
+                .filter(|n| !n.is_empty())
+                .unwrap_or_else(|| path.split('/').next_back().unwrap_or(&path).to_string());
             let web_url = format!(
                 "{}/{}",
                 state.config.gitlab_domain.trim_end_matches('/'),

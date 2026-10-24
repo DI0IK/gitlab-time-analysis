@@ -1965,6 +1965,44 @@
           }
         }
       },
+      "ProjectRecord": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "full_path",
+          "web_url",
+          "archived",
+          "synced_at"
+        ],
+        "properties": {
+          "archived": {
+            "type": "boolean"
+          },
+          "full_path": {
+            "type": "string"
+          },
+          "group_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "synced_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "web_url": {
+            "type": "string"
+          }
+        }
+      },
       "RepoBranch": {
         "type": "object",
         "required": [

@@ -749,6 +749,16 @@ export interface components {
             sprint_start_weekday: string;
             tiers: components["schemas"]["TierMeta"][];
         };
+        ProjectRecord: {
+            archived: boolean;
+            full_path: string;
+            group_id?: string | null;
+            id: string;
+            name: string;
+            /** Format: date-time */
+            synced_at: string;
+            web_url: string;
+        };
         RepoBranch: {
             commit?: null | components["schemas"]["RepoBranchCommit"];
             default?: boolean;
