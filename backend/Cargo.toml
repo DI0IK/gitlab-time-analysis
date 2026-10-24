@@ -1,0 +1,45 @@
+[package]
+name = "gitlab-platform"
+version = "0.1.0"
+edition = "2024"
+default-run = "gitlab-platform"
+
+[lib]
+name = "gitlab_platform"
+path = "src/lib.rs"
+
+[[bin]]
+name = "gitlab-platform"
+path = "src/main.rs"
+
+[[bin]]
+name = "export-openapi"
+path = "src/bin/export-openapi.rs"
+
+[dependencies]
+aes-gcm.workspace = true
+anyhow.workspace = true
+axum.workspace = true
+base64.workspace = true
+bytes.workspace = true
+chrono.workspace = true
+config.workspace = true
+dotenvy.workspace = true
+moka.workspace = true
+rand.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+sqlx.workspace = true
+thiserror.workspace = true
+time.workspace = true
+tokio.workspace = true
+tower.workspace = true
+tower-http.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+url.workspace = true
+utoipa.workspace = true
+utoipa-swagger-ui.workspace = true
+uuid.workspace = true

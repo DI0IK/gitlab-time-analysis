@@ -1,0 +1,123 @@
+use utoipa::OpenApi;
+
+use crate::{
+    api::{
+        analytics::{self, RepositorySummary},
+        auth::{self, AuthMeResponse},
+        groups::{self},
+        health::{self, HealthResponse},
+        leaderboard::{self},
+        meta::{self, FeatureFlags, MetaResponse},
+        profile::{self, UpdateProfileRequest},
+        render::{self},
+        sync::{self},
+    },
+    db::{
+        groups::{GroupMemberRecord, GroupRecord},
+        merge_requests::MergeRequestRecord,
+        sync_state::SyncStateRecord,
+        users::UserRecord,
+        work_items::WorkItemRecord,
+    },
+    domain::{
+        analytics::{
+            comparison::{ComparisonResponse, GroupComparisonSummary},
+            dashboard::GroupDashboardResponse,
+            metrics::{
+                CategoryDistribution, FairnessMetric, MemberMetric, SprintMetric,
+                UserCategoryMatrixRow, WeekdayHeatmapCell, WeekdaySprintHeatmap,
+            },
+        },
+        categories::{CategoryId, CategoryMeta},
+        gamification::{
+            catalog::BadgeMeta,
+            evaluator::{LeaderboardEntry, UserGamificationSummary},
+            levels::{LevelProgress, Tier, TierMeta},
+        },
+    },
+    error::ErrorResponse,
+    ingest::worker::SyncSummary,
+};
+
+#[derive(OpenApi)]
+#[openapi(
+    paths(
+        health::health_check,
+        meta::get_meta,
+        auth::login,
+        auth::callback,
+        auth::me,
+        auth::logout,
+        profile::get_profile,
+        profile::update_profile,
+        profile::get_user_gamification,
+        groups::list_groups,
+        groups::get_group,
+        groups::list_members,
+        analytics::get_group_dashboard,
+        analytics::get_group_work_items,
+        analytics::get_group_merge_requests,
+        analytics::get_group_repositories,
+        analytics::get_cohort_comparison,
+        leaderboard::get_group_leaderboard,
+        leaderboard::get_cohort_leaderboard,
+        render::render_badge,
+        render::render_user_card,
+        render::render_group_banner,
+        sync::trigger_sync,
+        sync::sync_status,
+    ),
+    components(
+        schemas(
+            HealthResponse,
+            MetaResponse,
+            FeatureFlags,
+            CategoryMeta,
+            CategoryId,
+            TierMeta,
+            Tier,
+            LevelProgress,
+            BadgeMeta,
+            ErrorResponse,
+            AuthMeResponse,
+            UserRecord,
+            UpdateProfileRequest,
+            GroupRecord,
+            GroupMemberRecord,
+            SyncSummary,
+            SyncStateRecord,
+            GroupDashboardResponse,
+            ComparisonResponse,
+            GroupComparisonSummary,
+            MemberMetric,
+            CategoryDistribution,
+            SprintMetric,
+            FairnessMetric,
+            LeaderboardEntry,
+            WorkItemRecord,
+            MergeRequestRecord,
+            RepositorySummary,
+            UserGamificationSummary,
+            UserCategoryMatrixRow,
+            WeekdayHeatmapCell,
+            WeekdaySprintHeatmap,
+        )
+    ),
+    tags(
+        (name = "Health", description = "Liveness and service health checks"),
+        (name = "Meta", description = "Static catalogs, categories, tiers, and configuration"),
+        (name = "Auth", description = "GitLab OAuth2 PKCE login, session management, and logout"),
+        (name = "Profile", description = "User profile and custom display name customization"),
+        (name = "Groups", description = "GitLab group hierarchy and cohort discovery"),
+        (name = "Analytics", description = "Sprint progress, effort fairness, and category distribution"),
+        (name = "Leaderboard", description = "Ranked leaderboards with XP, levels, and badges"),
+        (name = "Render", description = "Dynamic SVG badges, profile cards, and open-graph banners"),
+        (name = "Sync", description = "Incremental GitLab ingestion worker triggers and status"),
+    ),
+    info(
+        title = "GitLab Unified Platform API",
+        version = "2.0.0",
+        description = "High-performance API for GitLab Analytics, Gamification, Work Items, Code Browser, and MR Reviews"
+    )
+)]
+pub struct ApiDoc;

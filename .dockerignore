@@ -1,0 +1,13 @@
+**/.git
+**/.github
+**/.direnv
+**/.devenv
+**/target
+**/node_modules
+**/dist
+**/.env*
+!**/.env.example
+*.db*
+data/
+*.log
+.DS_Store

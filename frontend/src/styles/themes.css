@@ -1,0 +1,96 @@
+:root {
+  /* Default Palette - Modern Slate & Blue */
+  --background: 220 20% 98%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --primary: 221 83% 53%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222 47% 11%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%;
+  --accent: 210 40% 96%;
+  --accent-foreground: 222 47% 11%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 214 32% 91%;
+  --input: 214 32% 91%;
+  --ring: 221 83% 53%;
+  --radius: 0.625rem;
+
+  /* Tier & Category Accent Colors */
+  --tier-bronze: #cd7f32;
+  --tier-silver: #94a3b8;
+  --tier-gold: #f59e0b;
+  --tier-legend: #a855f7;
+
+  --cat-pm: #ff7300;
+  --cat-re: #8884d8;
+  --cat-impl: #10b981;
+  --cat-arch: #f59e0b;
+  --cat-other: #64748b;
+}
+
+.dark {
+  --background: 224 71% 4%;
+  --foreground: 213 31% 91%;
+  --card: 224 71% 7%;
+  --card-foreground: 213 31% 91%;
+  --popover: 224 71% 7%;
+  --popover-foreground: 213 31% 91%;
+  --primary: 217 91% 60%;
+  --primary-foreground: 222 47% 11%;
+  --secondary: 222 47% 14%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 223 47% 11%;
+  --muted-foreground: 215 20% 65%;
+  --accent: 222 47% 16%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 63% 31%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 216 34% 17%;
+  --input: 216 34% 17%;
+  --ring: 224 76% 48%;
+}
+
+/* Palette 2: DHBW Crimson */
+[data-theme='dhbw'] {
+  --primary: 348 83% 47%;
+  --primary-foreground: 0 0% 100%;
+  --ring: 348 83% 47%;
+}
+.dark[data-theme='dhbw'],
+[data-theme='dhbw'].dark {
+  --primary: 348 90% 55%;
+  --primary-foreground: 0 0% 100%;
+  --ring: 348 90% 55%;
+}
+
+/* Palette 3: Emerald / Mint */
+[data-theme='emerald'] {
+  --primary: 158 64% 45%;
+  --primary-foreground: 0 0% 100%;
+  --ring: 158 64% 45%;
+}
+.dark[data-theme='emerald'],
+[data-theme='emerald'].dark {
+  --primary: 158 75% 48%;
+  --primary-foreground: 224 71% 4%;
+  --ring: 158 75% 48%;
+}
+
+/* Palette 4: Purple / Violet */
+[data-theme='purple'] {
+  --primary: 271 81% 56%;
+  --primary-foreground: 0 0% 100%;
+  --ring: 271 81% 56%;
+}
+.dark[data-theme='purple'],
+[data-theme='purple'].dark {
+  --primary: 271 91% 65%;
+  --primary-foreground: 224 71% 4%;
+  --ring: 271 91% 65%;
+}

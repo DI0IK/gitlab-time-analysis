@@ -1,0 +1,21 @@
+services:
+  gitlab-platform:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: gitlab-time-analysis:latest
+    container_name: gitlab-platform
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=sqlite:///data/platform.db?mode=rwc
+      - FRONTEND_DIST=/app/public
+    volumes:
+      - platform-data:/data
+
+volumes:
+  platform-data:
+    driver: local

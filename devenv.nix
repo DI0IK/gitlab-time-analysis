@@ -32,32 +32,43 @@
     cargo-nextest
     cargo-deny
     cargo-audit
-
-    # Node.js ecosystem for Vite + React frontend
-    nodejs
-    nodePackages.pnpm
+    just
 
     # Network & JSON tools
     curl
     jq
   ];
 
+  languages.javascript = {
+    enable = true;
+    package = pkgs.nodejs_24;
+    pnpm = {
+      enable = true;
+      package = pkgs.pnpm;
+    };
+  };
+
+  processes = {
+    backend.exec = "cargo watch -x 'run --bin gitlab-platform'";
+    frontend.exec = "pnpm --dir frontend dev";
+  };
+
   dotenv.enable = true;
 
   enterShell = ''
-    echo "=========================================================="
-    echo " GitLab Unified Platform v2 Development Environment"
-    echo " Architecture: Rust (Axum) + SQLite + Vite / React"
-    echo "=========================================================="
-    rustc --version
-    cargo --version
-    node --version
-    echo ""
-    echo "Available commands:"
-    echo "  devenv tasks run build-release - Build frontend & optimized backend"
-    echo "  dev-backend                    - Run backend with hot reloading (cargo-watch)"
-    echo "  dev-frontend                   - Run Vite development server"
-    echo "=========================================================="
+    if [ -t 1 ]; then
+      echo "=========================================================="
+      echo " GitLab Unified Platform v2 Development Environment"
+      echo " Architecture: Rust (Axum) + SQLite + Vite / React"
+      echo "=========================================================="
+      rustc --version
+      cargo --version
+      node --version
+      pnpm --version
+      echo ""
+      echo "Canonical task runner: just (run 'just' to list commands)"
+      echo "=========================================================="
+    fi
   '';
 
   enterTest = ''
@@ -68,47 +79,35 @@
   scripts = {
     dev-backend.exec = ''
       echo "==> Starting Rust backend with cargo-watch..."
-      cargo watch -x "run"
+      cargo watch -x "run --bin gitlab-platform"
     '';
 
     dev-frontend.exec = ''
       echo "==> Starting Vite development server..."
-      if [ -d "frontend" ]; then
-        npm --prefix frontend run dev
-      else
-        echo "No 'frontend' directory found yet."
-      fi
+      pnpm --dir frontend dev
     '';
 
     build-frontend.exec = ''
       set -e
-      if [ -d "frontend" ]; then
-        echo "==> Building Vite React frontend..."
-        npm --prefix frontend install
-        npm --prefix frontend run build
-      else
-        echo "No 'frontend' directory found to build."
-      fi
+      echo "==> Building Vite React frontend..."
+      pnpm --dir frontend install
+      pnpm --dir frontend build
     '';
 
     build-debug.exec = ''
       set -e
-      if [ -d "frontend" ]; then
-        echo "==> Building frontend assets..."
-        npm --prefix frontend install
-        npm --prefix frontend run build
-      fi
+      echo "==> Building frontend assets..."
+      pnpm --dir frontend install
+      pnpm --dir frontend build
       echo "==> Compiling debug binary..."
       cargo build
     '';
 
     build-release.exec = ''
       set -e
-      if [ -d "frontend" ]; then
-        echo "==> Building optimized frontend assets..."
-        npm --prefix frontend install
-        npm --prefix frontend run build
-      fi
+      echo "==> Building optimized frontend assets..."
+      pnpm --dir frontend install
+      pnpm --dir frontend build
       echo "==> Compiling optimized release binary..."
       cargo build --release
       echo "==> Release binary ready at target/release/"

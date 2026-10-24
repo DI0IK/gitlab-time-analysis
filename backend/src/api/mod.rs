@@ -1,0 +1,78 @@
+use axum::{
+    Router,
+    middleware::from_fn,
+    routing::{get, post},
+};
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
+
+use crate::{api::openapi::ApiDoc, state::AppState};
+
+pub mod analytics;
+pub mod auth;
+pub mod extractors;
+pub mod groups;
+pub mod health;
+pub mod leaderboard;
+pub mod meta;
+pub mod middleware;
+pub mod openapi;
+pub mod profile;
+pub mod render;
+pub mod sync;
+
+pub fn router(state: AppState) -> Router {
+    let openapi_doc = ApiDoc::openapi();
+
+    let api_routes = Router::new()
+        .route("/health", get(health::health_check))
+        .route("/meta", get(meta::get_meta))
+        .route("/auth/login", get(auth::login))
+        .route("/auth/callback", get(auth::callback))
+        .route("/auth/me", get(auth::me))
+        .route("/auth/logout", post(auth::logout))
+        .route(
+            "/user/profile",
+            get(profile::get_profile).patch(profile::update_profile),
+        )
+        .route(
+            "/users/:username/gamification",
+            get(profile::get_user_gamification),
+        )
+        .route("/groups", get(groups::list_groups))
+        .route("/groups/:slug", get(groups::get_group))
+        .route("/groups/:slug/members", get(groups::list_members))
+        .route(
+            "/groups/:slug/dashboard",
+            get(analytics::get_group_dashboard),
+        )
+        .route(
+            "/groups/:slug/work-items",
+            get(analytics::get_group_work_items),
+        )
+        .route(
+            "/groups/:slug/merge-requests",
+            get(analytics::get_group_merge_requests),
+        )
+        .route(
+            "/groups/:slug/repositories",
+            get(analytics::get_group_repositories),
+        )
+        .route(
+            "/groups/:slug/leaderboard",
+            get(leaderboard::get_group_leaderboard),
+        )
+        .route("/comparison", get(analytics::get_cohort_comparison))
+        .route("/leaderboard", get(leaderboard::get_cohort_leaderboard))
+        .route("/render/badge/:id", get(render::render_badge))
+        .route("/render/user/:username", get(render::render_user_card))
+        .route("/render/group/:slug", get(render::render_group_banner))
+        .route("/sync", post(sync::trigger_sync))
+        .route("/sync/status", get(sync::sync_status))
+        .layer(from_fn(middleware::security_headers))
+        .with_state(state);
+
+    let swagger_routes = SwaggerUi::new("/swagger-ui").url("/api/openapi.json", openapi_doc);
+
+    Router::new().nest("/api", api_routes).merge(swagger_routes)
+}
