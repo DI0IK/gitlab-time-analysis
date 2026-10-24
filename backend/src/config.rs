@@ -158,6 +158,7 @@ pub struct Config {
     pub gitlab_oauth_client_id: Option<String>,
     pub gitlab_oauth_client_secret: Option<String>,
     pub gitlab_oauth_redirect_uri: String,
+    pub gitlab_oauth_scopes: String,
     pub session_secret: String,
     pub repos_dir: String,
 }
@@ -302,6 +303,11 @@ impl Config {
         let gitlab_oauth_redirect_uri = env::var("GITLAB_OAUTH_REDIRECT_URI")
             .unwrap_or_else(|_| format!("{app_url}/api/auth/callback"));
 
+        let gitlab_oauth_scopes = env::var("GITLAB_OAUTH_SCOPES")
+            .unwrap_or_else(|_| "read_user".to_string())
+            .trim()
+            .to_string();
+
         let session_secret = env::var("SESSION_SECRET")
             .unwrap_or_else(|_| "default-development-session-secret-key-32-bytes!".to_string());
 
@@ -337,6 +343,7 @@ impl Config {
             gitlab_oauth_client_id,
             gitlab_oauth_client_secret,
             gitlab_oauth_redirect_uri,
+            gitlab_oauth_scopes,
             session_secret,
             repos_dir,
         })

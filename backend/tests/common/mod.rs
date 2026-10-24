@@ -21,6 +21,7 @@ pub async fn setup_test_state() -> (AppState, SqlitePool) {
         gitlab_oauth_client_id: None,
         gitlab_oauth_client_secret: None,
         gitlab_oauth_redirect_uri: "http://localhost:3000/api/auth/callback".to_string(),
+        gitlab_oauth_scopes: "read_user".to_string(),
         repos_dir: "data/repos".to_string(),
         session_secret: "test-secret-at-least-32-bytes-long!".to_string(),
     });

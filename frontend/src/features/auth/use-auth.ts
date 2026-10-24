@@ -18,7 +18,21 @@ export function useAuth() {
       try {
         const res = await fetch('/api/auth/me')
         if (!res.ok) return { authenticated: false, user: null }
-        return (await res.json()) as { authenticated: boolean; user: UserProfile | null }
+        const json = await res.json()
+        if (!json.authenticated || !json.user) {
+          return { authenticated: false, user: null }
+        }
+        const u = json.user as any
+        const profile: UserProfile = {
+          gitlabId: u.gitlab_id || u.gitlabId || '',
+          username: u.username || '',
+          name: u.name || '',
+          customDisplayName: u.custom_display_name ?? u.customDisplayName ?? null,
+          avatarUrl: u.avatar_url ?? u.avatarUrl ?? null,
+          webUrl: u.web_url || u.webUrl || '',
+          isBot: u.is_bot ?? u.isBot ?? false,
+        }
+        return { authenticated: true, user: profile }
       } catch {
         return { authenticated: false, user: null }
       }

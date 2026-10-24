@@ -62,6 +62,7 @@ pub async fn login(State(state): State<AppState>) -> Result<Response, AppError> 
         &state.config.gitlab_oauth_redirect_uri,
         &state_token,
         &challenge,
+        &state.config.gitlab_oauth_scopes,
     );
 
     let is_secure = state.config.app_url.starts_with("https://");

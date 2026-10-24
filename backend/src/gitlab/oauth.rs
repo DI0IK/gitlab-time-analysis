@@ -44,13 +44,15 @@ pub fn build_authorize_url(
     redirect_uri: &str,
     state: &str,
     code_challenge: &str,
+    scopes: &str,
 ) -> String {
     format!(
-        "{}/oauth/authorize?client_id={}&redirect_uri={}&response_type=code&state={}&scope=read_user+read_repository+api&code_challenge={}&code_challenge_method=S256",
+        "{}/oauth/authorize?client_id={}&redirect_uri={}&response_type=code&state={}&scope={}&code_challenge={}&code_challenge_method=S256",
         gitlab_domain.trim_end_matches('/'),
         urlencoding::encode(client_id),
         urlencoding::encode(redirect_uri),
         urlencoding::encode(state),
+        urlencoding::encode(scopes),
         urlencoding::encode(code_challenge),
     )
 }
