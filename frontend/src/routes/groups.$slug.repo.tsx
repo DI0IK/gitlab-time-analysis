@@ -4,6 +4,6 @@ import { RepoBrowserView } from '@/features/repo/browser'
 export const Route = createFileRoute('/groups/$slug/repo')({
   component: function RouteComponent() {
     const { slug } = Route.useParams()
-    return <RepoBrowserView slug={slug} />
+    return <RepoBrowserView key={slug} slug={slug} />
   },
 })

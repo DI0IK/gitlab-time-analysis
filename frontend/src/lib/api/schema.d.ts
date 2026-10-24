@@ -196,6 +196,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/groups/{slug}/wiki/targets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_group_wiki_targets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/groups/{slug}/work-items": {
         parameters: {
             query?: never;
@@ -356,6 +372,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/repo/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["trigger_repo_sync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/repo/tree": {
         parameters: {
             query?: never;
@@ -428,6 +460,54 @@ export interface paths {
             cookie?: never;
         };
         get: operations["get_user_gamification"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/wiki/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_wiki_history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/wiki/page": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_wiki_page"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/wiki/pages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_wiki_pages"];
         put?: never;
         post?: never;
         delete?: never;
@@ -662,6 +742,7 @@ export interface components {
             features: components["schemas"]["FeatureFlags"];
             gitlab_domain: string;
             group_path: string;
+            root_groups: string[];
             /** Format: int32 */
             sprint_duration_weeks: number;
             sprint_start_weekday: string;
@@ -736,8 +817,10 @@ export interface components {
             groups_synced: number;
             merge_requests_synced: number;
             message: string;
+            repos_synced: number;
             /** Format: date-time */
             synced_at: string;
+            wikis_synced: number;
             work_items_synced: number;
         };
         /** @enum {string} */
@@ -824,6 +907,28 @@ export interface components {
             sprint_start_weekday: string;
             /** Format: double */
             total_hours: number;
+        };
+        WikiPageContent: {
+            content: string;
+            last_author_name?: string | null;
+            last_commit_date?: string | null;
+            last_commit_id?: string | null;
+            path: string;
+            slug: string;
+            title: string;
+        };
+        WikiPageItem: {
+            format: string;
+            path: string;
+            slug: string;
+            title: string;
+        };
+        WikiTarget: {
+            has_wiki: boolean;
+            name: string;
+            page_count: number;
+            path: string;
+            target_type: string;
         };
         WorkItemRecord: {
             /** Format: date-time */
@@ -1152,6 +1257,36 @@ export interface operations {
             };
         };
     };
+    get_group_wiki_targets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Group slug or identifier */
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of all groups, subgroups, and projects with wiki status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WikiTarget"][];
+                };
+            };
+            /** @description Group not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     get_group_work_items: {
         parameters: {
             query?: never;
@@ -1433,6 +1568,28 @@ export interface operations {
             };
         };
     };
+    trigger_repo_sync: {
+        parameters: {
+            query: {
+                project: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Trigger immediate mirror sync */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
     get_tree: {
         parameters: {
             query: {
@@ -1597,6 +1754,98 @@ export interface operations {
                 };
             };
             /** @description User not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_wiki_history: {
+        parameters: {
+            query: {
+                project: string;
+                slug?: string | null;
+                limit?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Revision history for a wiki page or entire wiki */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepoCommit"][];
+                };
+            };
+            /** @description Page not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_wiki_page: {
+        parameters: {
+            query: {
+                project: string;
+                slug: string;
+                ref?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Wiki page content and metadata */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WikiPageContent"];
+                };
+            };
+            /** @description Wiki page not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    list_wiki_pages: {
+        parameters: {
+            query: {
+                project: string;
+                ref?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of all wiki pages in the repository or group */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WikiPageItem"][];
+                };
+            };
+            /** @description Wiki not found */
             404: {
                 headers: {
                     [name: string]: unknown;

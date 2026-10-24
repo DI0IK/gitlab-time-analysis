@@ -327,6 +327,43 @@
         }
       }
     },
+    "/api/groups/{slug}/wiki/targets": {
+      "get": {
+        "tags": [
+          "Wiki"
+        ],
+        "operationId": "get_group_wiki_targets",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "description": "Group slug or identifier",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of all groups, subgroups, and projects with wiki status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WikiTarget"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Group not found"
+          }
+        }
+      }
+    },
     "/api/groups/{slug}/work-items": {
       "get": {
         "tags": [
@@ -685,6 +722,36 @@
         }
       }
     },
+    "/api/repo/sync": {
+      "post": {
+        "tags": [
+          "Repository"
+        ],
+        "operationId": "trigger_repo_sync",
+        "parameters": [
+          {
+            "name": "project",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Trigger immediate mirror sync",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/repo/tree": {
       "get": {
         "tags": [
@@ -894,6 +961,164 @@
           },
           "404": {
             "description": "User not found"
+          }
+        }
+      }
+    },
+    "/api/wiki/history": {
+      "get": {
+        "tags": [
+          "Wiki"
+        ],
+        "operationId": "get_wiki_history",
+        "parameters": [
+          {
+            "name": "project",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "slug",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Revision history for a wiki page or entire wiki",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RepoCommit"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Page not found"
+          }
+        }
+      }
+    },
+    "/api/wiki/page": {
+      "get": {
+        "tags": [
+          "Wiki"
+        ],
+        "operationId": "get_wiki_page",
+        "parameters": [
+          {
+            "name": "project",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "slug",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ref",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Wiki page content and metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WikiPageContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Wiki page not found"
+          }
+        }
+      }
+    },
+    "/api/wiki/pages": {
+      "get": {
+        "tags": [
+          "Wiki"
+        ],
+        "operationId": "list_wiki_pages",
+        "parameters": [
+          {
+            "name": "project",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ref",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of all wiki pages in the repository or group",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WikiPageItem"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Wiki not found"
           }
         }
       }
@@ -1669,6 +1894,7 @@
           "tiers",
           "badges",
           "features",
+          "root_groups",
           "group_path",
           "gitlab_domain",
           "sprint_duration_weeks",
@@ -1709,6 +1935,12 @@
           },
           "group_path": {
             "type": "string"
+          },
+          "root_groups": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "sprint_duration_weeks": {
             "type": "integer",
@@ -1985,6 +2217,8 @@
           "groups_synced",
           "work_items_synced",
           "merge_requests_synced",
+          "repos_synced",
+          "wikis_synced",
           "synced_at",
           "message"
         ],
@@ -2000,9 +2234,17 @@
           "message": {
             "type": "string"
           },
+          "repos_synced": {
+            "type": "integer",
+            "minimum": 0
+          },
           "synced_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "wikis_synced": {
+            "type": "integer",
+            "minimum": 0
           },
           "work_items_synced": {
             "type": "integer",
@@ -2316,6 +2558,98 @@
           }
         }
       },
+      "WikiPageContent": {
+        "type": "object",
+        "required": [
+          "slug",
+          "title",
+          "path",
+          "content"
+        ],
+        "properties": {
+          "content": {
+            "type": "string"
+          },
+          "last_author_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_commit_date": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_commit_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "path": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
+      "WikiPageItem": {
+        "type": "object",
+        "required": [
+          "slug",
+          "title",
+          "path",
+          "format"
+        ],
+        "properties": {
+          "format": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
+      "WikiTarget": {
+        "type": "object",
+        "required": [
+          "path",
+          "name",
+          "target_type",
+          "has_wiki",
+          "page_count"
+        ],
+        "properties": {
+          "has_wiki": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "page_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "path": {
+            "type": "string"
+          },
+          "target_type": {
+            "type": "string"
+          }
+        }
+      },
       "WorkItemRecord": {
         "type": "object",
         "required": [
@@ -2433,6 +2767,10 @@
     {
       "name": "Repository",
       "description": "GitLab code browsing, file tree, blob content, and commits"
+    },
+    {
+      "name": "Wiki",
+      "description": "GitLab Wiki documentation pages, content, revision history, and full-text search"
     },
     {
       "name": "Leaderboard",

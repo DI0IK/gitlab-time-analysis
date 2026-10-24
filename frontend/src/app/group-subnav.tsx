@@ -5,6 +5,7 @@ import {
   ListTodo,
   FolderGit2,
   GitPullRequest,
+  BookOpen,
   Presentation,
 } from 'lucide-react'
 
@@ -43,6 +44,12 @@ export function GroupSubnav() {
       active: pathname.includes('/repo'),
     },
     {
+      to: '/groups/$slug/wiki' as const,
+      label: 'Wiki',
+      icon: BookOpen,
+      active: pathname.includes('/wiki'),
+    },
+    {
       to: '/groups/$slug/merge-requests' as const,
       label: 'MR Suite',
       icon: GitPullRequest,
@@ -64,6 +71,11 @@ export function GroupSubnav() {
                 key={tab.to}
                 to={tab.to}
                 params={{ slug: currentSlug }}
+                onClick={() => {
+                  if (tab.to === '/groups/$slug/repo') {
+                    window.dispatchEvent(new CustomEvent('reset-repo-browser'))
+                  }
+                }}
                 className={`flex min-h-[44px] items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-medium transition ${
                   tab.active
                     ? 'bg-primary/10 text-primary font-semibold shadow-xs'

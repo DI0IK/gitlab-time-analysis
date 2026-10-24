@@ -17,6 +17,7 @@ import { Route as GroupsSlugIndexRouteImport } from './routes/groups.$slug.index
 import { Route as GroupsSlugLeaderboardRouteImport } from './routes/groups.$slug.leaderboard'
 import { Route as GroupsSlugMergeRequestsRouteImport } from './routes/groups.$slug.merge-requests'
 import { Route as GroupsSlugRepoRouteImport } from './routes/groups.$slug.repo'
+import { Route as GroupsSlugWikiRouteImport } from './routes/groups.$slug.wiki'
 import { Route as GroupsSlugWorkItemsRouteImport } from './routes/groups.$slug.work-items'
 
 const IndexRoute = IndexRouteImport.update({
@@ -59,6 +60,11 @@ const GroupsSlugRepoRoute = GroupsSlugRepoRouteImport.update({
   path: '/repo',
   getParentRoute: () => GroupsSlugRoute,
 } as any)
+const GroupsSlugWikiRoute = GroupsSlugWikiRouteImport.update({
+  id: '/wiki',
+  path: '/wiki',
+  getParentRoute: () => GroupsSlugRoute,
+} as any)
 const GroupsSlugWorkItemsRoute = GroupsSlugWorkItemsRouteImport.update({
   id: '/work-items',
   path: '/work-items',
@@ -73,6 +79,7 @@ export interface FileRoutesByFullPath {
   '/groups/$slug/leaderboard': typeof GroupsSlugLeaderboardRoute
   '/groups/$slug/merge-requests': typeof GroupsSlugMergeRequestsRoute
   '/groups/$slug/repo': typeof GroupsSlugRepoRoute
+  '/groups/$slug/wiki': typeof GroupsSlugWikiRoute
   '/groups/$slug/work-items': typeof GroupsSlugWorkItemsRoute
   '/groups/$slug/': typeof GroupsSlugIndexRoute
 }
@@ -83,6 +90,7 @@ export interface FileRoutesByTo {
   '/groups/$slug/leaderboard': typeof GroupsSlugLeaderboardRoute
   '/groups/$slug/merge-requests': typeof GroupsSlugMergeRequestsRoute
   '/groups/$slug/repo': typeof GroupsSlugRepoRoute
+  '/groups/$slug/wiki': typeof GroupsSlugWikiRoute
   '/groups/$slug/work-items': typeof GroupsSlugWorkItemsRoute
   '/groups/$slug': typeof GroupsSlugIndexRoute
 }
@@ -95,6 +103,7 @@ export interface FileRoutesById {
   '/groups/$slug/leaderboard': typeof GroupsSlugLeaderboardRoute
   '/groups/$slug/merge-requests': typeof GroupsSlugMergeRequestsRoute
   '/groups/$slug/repo': typeof GroupsSlugRepoRoute
+  '/groups/$slug/wiki': typeof GroupsSlugWikiRoute
   '/groups/$slug/work-items': typeof GroupsSlugWorkItemsRoute
   '/groups/$slug/': typeof GroupsSlugIndexRoute
 }
@@ -108,6 +117,7 @@ export interface FileRouteTypes {
     | '/groups/$slug/leaderboard'
     | '/groups/$slug/merge-requests'
     | '/groups/$slug/repo'
+    | '/groups/$slug/wiki'
     | '/groups/$slug/work-items'
     | '/groups/$slug/'
   fileRoutesByTo: FileRoutesByTo
@@ -118,6 +128,7 @@ export interface FileRouteTypes {
     | '/groups/$slug/leaderboard'
     | '/groups/$slug/merge-requests'
     | '/groups/$slug/repo'
+    | '/groups/$slug/wiki'
     | '/groups/$slug/work-items'
     | '/groups/$slug'
   id:
@@ -129,6 +140,7 @@ export interface FileRouteTypes {
     | '/groups/$slug/leaderboard'
     | '/groups/$slug/merge-requests'
     | '/groups/$slug/repo'
+    | '/groups/$slug/wiki'
     | '/groups/$slug/work-items'
     | '/groups/$slug/'
   fileRoutesById: FileRoutesById
@@ -198,6 +210,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GroupsSlugRepoRouteImport
       parentRoute: typeof GroupsSlugRoute
     }
+    '/groups/$slug/wiki': {
+      id: '/groups/$slug/wiki'
+      path: '/wiki'
+      fullPath: '/groups/$slug/wiki'
+      preLoaderRoute: typeof GroupsSlugWikiRouteImport
+      parentRoute: typeof GroupsSlugRoute
+    }
     '/groups/$slug/work-items': {
       id: '/groups/$slug/work-items'
       path: '/work-items'
@@ -212,6 +231,7 @@ interface GroupsSlugRouteChildren {
   GroupsSlugLeaderboardRoute: typeof GroupsSlugLeaderboardRoute
   GroupsSlugMergeRequestsRoute: typeof GroupsSlugMergeRequestsRoute
   GroupsSlugRepoRoute: typeof GroupsSlugRepoRoute
+  GroupsSlugWikiRoute: typeof GroupsSlugWikiRoute
   GroupsSlugWorkItemsRoute: typeof GroupsSlugWorkItemsRoute
   GroupsSlugIndexRoute: typeof GroupsSlugIndexRoute
 }
@@ -220,6 +240,7 @@ const GroupsSlugRouteChildren: GroupsSlugRouteChildren = {
   GroupsSlugLeaderboardRoute: GroupsSlugLeaderboardRoute,
   GroupsSlugMergeRequestsRoute: GroupsSlugMergeRequestsRoute,
   GroupsSlugRepoRoute: GroupsSlugRepoRoute,
+  GroupsSlugWikiRoute: GroupsSlugWikiRoute,
   GroupsSlugWorkItemsRoute: GroupsSlugWorkItemsRoute,
   GroupsSlugIndexRoute: GroupsSlugIndexRoute,
 }

@@ -21,6 +21,7 @@ pub mod profile;
 pub mod render;
 pub mod repo;
 pub mod sync;
+pub mod wiki;
 
 pub fn router(state: AppState) -> Router {
     let openapi_doc = ApiDoc::openapi();
@@ -60,6 +61,10 @@ pub fn router(state: AppState) -> Router {
             get(analytics::get_group_repositories),
         )
         .route(
+            "/groups/:slug/wiki/targets",
+            get(wiki::get_group_wiki_targets),
+        )
+        .route(
             "/groups/:slug/leaderboard",
             get(leaderboard::get_group_leaderboard),
         )
@@ -72,6 +77,10 @@ pub fn router(state: AppState) -> Router {
         .route("/repo/tree", get(repo::get_tree))
         .route("/repo/blob", get(repo::get_blob))
         .route("/repo/commits", get(repo::list_commits))
+        .route("/repo/sync", post(repo::trigger_repo_sync))
+        .route("/wiki/pages", get(wiki::list_wiki_pages))
+        .route("/wiki/page", get(wiki::get_wiki_page))
+        .route("/wiki/history", get(wiki::get_wiki_history))
         .route("/sync", post(sync::trigger_sync))
         .route("/sync/status", get(sync::sync_status))
         .layer(from_fn(middleware::security_headers))

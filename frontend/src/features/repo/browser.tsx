@@ -15,7 +15,9 @@ import {
   ArrowLeft,
   Code2,
   GitCommit,
+  BookOpen,
 } from 'lucide-react'
+import { WikiPane } from '@/features/wiki/wiki-pane'
 import { BranchSelector, type RepoBranch } from './branch-selector'
 import { FileBreadcrumbs } from './file-breadcrumbs'
 import { FileTree, type TreeItem } from './file-tree'
@@ -41,20 +43,7 @@ export function RepoBrowserView({ slug }: { slug: string }) {
   const [selectedBranch, setSelectedBranch] = React.useState<string>('')
   const [currentPath, setCurrentPath] = React.useState<string>('')
   const [selectedFile, setSelectedFile] = React.useState<string | null>(null)
-  const [activeTab, setActiveTab] = React.useState<'code' | 'commits'>('code')
-
-  // Sync state to URL search parameters for linkability
-  React.useEffect(() => {
-    if (typeof window === 'undefined') return
-    const params = new URLSearchParams(window.location.search)
-    if (selectedProject) {
-      params.set('project', selectedProject)
-    } else {
-      params.delete('project')
-    }
-    const newUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`
-    window.history.replaceState({}, '', newUrl)
-  }, [selectedProject])
+  const [activeTab, setActiveTab] = React.useState<'code' | 'commits' | 'wiki'>('code')
 
   // 1. Fetch repositories under this group
   const {
@@ -74,21 +63,41 @@ export function RepoBrowserView({ slug }: { slug: string }) {
     },
   })
 
+  // Validate that selected project belongs to this group's repositories
+  const effectiveProject = React.useMemo(() => {
+    if (!selectedProject) return null
+    if (!repos) return selectedProject
+    return repos.some((r) => r.full_path === selectedProject) ? selectedProject : null
+  }, [selectedProject, repos])
+
+  // Sync state to URL search parameters for linkability
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    if (effectiveProject) {
+      params.set('project', effectiveProject)
+    } else {
+      params.delete('project')
+    }
+    const newUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`
+    window.history.replaceState({}, '', newUrl)
+  }, [effectiveProject])
+
   // 2. Fetch branches for the selected repository
   const {
     data: branches,
     isLoading: isBranchesLoading,
   } = useQuery({
-    queryKey: apiKeys.repoBranches(selectedProject ?? ''),
+    queryKey: apiKeys.repoBranches(effectiveProject ?? ''),
     queryFn: async () => {
-      if (!selectedProject) return []
+      if (!effectiveProject) return []
       const { data, error } = await apiClient.GET('/api/repo/branches', {
-        params: { query: { project: selectedProject } },
+        params: { query: { project: effectiveProject } },
       })
       if (error || !data) throw new Error('Failed to load branches')
       return data as RepoBranch[]
     },
-    enabled: !!selectedProject,
+    enabled: !!effectiveProject,
   })
 
   // Derive active branch without cascading state updates
@@ -104,13 +113,13 @@ export function RepoBrowserView({ slug }: { slug: string }) {
     isLoading: isTreeLoading,
     refetch: refetchTree,
   } = useQuery({
-    queryKey: apiKeys.repoTree(selectedProject ?? '', currentPath, effectiveBranch),
+    queryKey: apiKeys.repoTree(effectiveProject ?? '', currentPath, effectiveBranch),
     queryFn: async () => {
-      if (!selectedProject) return []
+      if (!effectiveProject) return []
       const { data, error } = await apiClient.GET('/api/repo/tree', {
         params: {
           query: {
-            project: selectedProject,
+            project: effectiveProject,
             ref: effectiveBranch || undefined,
             path: currentPath || undefined,
           },
@@ -119,7 +128,7 @@ export function RepoBrowserView({ slug }: { slug: string }) {
       if (error || !data) throw new Error('Failed to load tree')
       return data as TreeItem[]
     },
-    enabled: !!selectedProject && !selectedFile && activeTab === 'code',
+    enabled: !!effectiveProject && !selectedFile && activeTab === 'code',
   })
 
   // 4. Fetch file blob content
@@ -127,13 +136,13 @@ export function RepoBrowserView({ slug }: { slug: string }) {
     data: fileBlob,
     isLoading: isBlobLoading,
   } = useQuery({
-    queryKey: apiKeys.repoBlob(selectedProject ?? '', selectedFile ?? '', effectiveBranch),
+    queryKey: apiKeys.repoBlob(effectiveProject ?? '', selectedFile ?? '', effectiveBranch),
     queryFn: async () => {
-      if (!selectedProject || !selectedFile) return null
+      if (!effectiveProject || !selectedFile) return null
       const { data, error } = await apiClient.GET('/api/repo/blob', {
         params: {
           query: {
-            project: selectedProject,
+            project: effectiveProject,
             file_path: selectedFile,
             ref: effectiveBranch || undefined,
           },
@@ -142,7 +151,7 @@ export function RepoBrowserView({ slug }: { slug: string }) {
       if (error || !data) throw new Error('Failed to load file content')
       return data as FileBlobData
     },
-    enabled: !!selectedProject && !!selectedFile && activeTab === 'code',
+    enabled: !!effectiveProject && !!selectedFile && activeTab === 'code',
   })
 
   // 5. Fetch commits history
@@ -151,13 +160,13 @@ export function RepoBrowserView({ slug }: { slug: string }) {
     isLoading: isCommitsLoading,
     refetch: refetchCommits,
   } = useQuery({
-    queryKey: apiKeys.repoCommits(selectedProject ?? '', currentPath, effectiveBranch),
+    queryKey: apiKeys.repoCommits(effectiveProject ?? '', currentPath, effectiveBranch),
     queryFn: async () => {
-      if (!selectedProject) return []
+      if (!effectiveProject) return []
       const { data, error } = await apiClient.GET('/api/repo/commits', {
         params: {
           query: {
-            project: selectedProject,
+            project: effectiveProject,
             ref: effectiveBranch || undefined,
             path: currentPath || undefined,
             limit: 40,
@@ -167,17 +176,51 @@ export function RepoBrowserView({ slug }: { slug: string }) {
       if (error || !data) throw new Error('Failed to load commits')
       return data as CommitItem[]
     },
-    enabled: !!selectedProject && activeTab === 'commits',
+    enabled: !!effectiveProject && activeTab === 'commits',
   })
 
-  const activeRepo = (repos || []).find((r) => r.full_path === selectedProject)
-  const activeRepoName = activeRepo?.name ?? selectedProject?.split('/').pop() ?? 'Repository'
+  const activeRepo = (repos || []).find((r) => r.full_path === effectiveProject)
+  const activeRepoName = activeRepo?.name ?? effectiveProject?.split('/').pop() ?? 'Repository'
 
   const filteredRepos = (repos || []).filter(
     (repo) =>
       repo.name.toLowerCase().includes(search.toLowerCase()) ||
       repo.full_path.toLowerCase().includes(search.toLowerCase())
   )
+
+  const handleResetToAllRepos = React.useCallback(() => {
+    setSelectedProject(null)
+    setSelectedFile(null)
+    setCurrentPath('')
+    setSelectedBranch('')
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      params.delete('project')
+      const newUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`
+      window.history.replaceState({}, '', newUrl)
+    }
+  }, [])
+
+  React.useEffect(() => {
+    const handleReset = () => {
+      handleResetToAllRepos()
+    }
+    const handlePopState = () => {
+      const proj = new URLSearchParams(window.location.search).get('project')
+      setSelectedProject(proj)
+      if (!proj) {
+        setSelectedFile(null)
+        setCurrentPath('')
+        setSelectedBranch('')
+      }
+    }
+    window.addEventListener('reset-repo-browser', handleReset)
+    window.addEventListener('popstate', handlePopState)
+    return () => {
+      window.removeEventListener('reset-repo-browser', handleReset)
+      window.removeEventListener('popstate', handlePopState)
+    }
+  }, [handleResetToAllRepos])
 
   const handleSelectRepo = (fullPath: string) => {
     setSelectedProject(fullPath)
@@ -201,27 +244,38 @@ export function RepoBrowserView({ slug }: { slug: string }) {
         <div>
           <div className="flex items-center gap-2">
             <FolderGit2 className="h-6 w-6 text-primary" />
-            <h1 className="text-2xl font-bold tracking-tight font-display">
-              {selectedProject ? activeRepoName : 'Code & Repository Browser'}
+            <h1 className="text-2xl font-bold tracking-tight font-display flex items-center gap-2">
+              {effectiveProject ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleResetToAllRepos}
+                    className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    title="Return to All Repositories"
+                  >
+                    Code Browser
+                  </button>
+                  <span className="text-muted-foreground font-normal text-lg">/</span>
+                  <span>{activeRepoName}</span>
+                </>
+              ) : (
+                'Code & Repository Browser'
+              )}
             </h1>
           </div>
           <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-            {selectedProject
-              ? `Browse source code, files, and commit logs directly in-app for ${selectedProject}`
+            {effectiveProject
+              ? `Browse source code, files, and commit logs directly in-app for ${effectiveProject}`
               : `GitLab project repositories, branch structures, and code bases for ${slug}.`}
           </p>
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-auto">
-          {selectedProject && (
+          {effectiveProject && (
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
-                setSelectedProject(null)
-                setSelectedFile(null)
-                setCurrentPath('')
-              }}
+              onClick={handleResetToAllRepos}
               className="gap-1.5 text-xs font-mono min-h-[36px]"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
@@ -233,7 +287,7 @@ export function RepoBrowserView({ slug }: { slug: string }) {
             variant="outline"
             size="sm"
             onClick={() => {
-              if (!selectedProject) {
+              if (!effectiveProject) {
                 refetchRepos()
               } else if (activeTab === 'code') {
                 refetchTree()
@@ -251,7 +305,7 @@ export function RepoBrowserView({ slug }: { slug: string }) {
       </div>
 
       {/* VIEW 1: REPOSITORY LISTING */}
-      {!selectedProject ? (
+      {!effectiveProject ? (
         <>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -382,6 +436,18 @@ export function RepoBrowserView({ slug }: { slug: string }) {
                   <GitCommit className="h-3.5 w-3.5 text-primary" />
                   <span>Commits</span>
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('wiki')}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded transition-colors ${
+                    activeTab === 'wiki'
+                      ? 'bg-background text-foreground font-semibold shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <BookOpen className="h-3.5 w-3.5 text-primary" />
+                  <span>Wiki</span>
+                </button>
               </div>
             </div>
 
@@ -469,6 +535,15 @@ export function RepoBrowserView({ slug }: { slug: string }) {
                 }}
               />
             </div>
+          )}
+
+          {/* TAB 3: REPO WIKI */}
+          {activeTab === 'wiki' && (
+            <WikiPane
+              targetPath={effectiveProject}
+              title={activeRepoName}
+              gitlabDomain="https://gitlab.com"
+            />
           )}
         </div>
       )}

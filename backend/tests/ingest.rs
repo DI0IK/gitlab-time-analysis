@@ -23,7 +23,7 @@ use gitlab_platform::{
 async fn setup_test_app() -> (axum::Router, SqlitePool, AppState) {
     let mut config = Config::from_env().unwrap();
     config.database_url = "sqlite::memory:".to_string();
-    config.gitlab_token = None; // No token in unit tests, graceful skip
+    config.root_groups = vec![]; // No root groups in unit tests, graceful skip
 
     let pool = init_db(&config.database_url).await.unwrap();
     let state = AppState {
@@ -126,7 +126,7 @@ async fn test_groups_and_sync_endpoints() {
         summary["message"]
             .as_str()
             .unwrap()
-            .contains("GITLAB_TOKEN not configured")
+            .contains("GITLAB_ROOT_GROUPS not configured")
     );
 
     // 6. Query /api/sync/status

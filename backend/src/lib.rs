@@ -11,6 +11,7 @@ pub mod config;
 pub mod db;
 pub mod domain;
 pub mod error;
+pub mod git;
 pub mod gitlab;
 pub mod ingest;
 pub mod session;
@@ -43,10 +44,16 @@ pub async fn run() -> anyhow::Result<()> {
     telemetry::init_tracing();
 
     let config = Config::from_env().map_err(|e| anyhow::anyhow!("{e}"))?;
+    let root_groups_str = config
+        .root_groups
+        .iter()
+        .map(|rg| rg.path.as_str())
+        .collect::<Vec<_>>()
+        .join(", ");
     tracing::info!(
         host = %config.host,
         port = config.port,
-        group = %config.gitlab_group_path,
+        root_groups = %root_groups_str,
         "Starting GitLab Unified Platform v2"
     );
 

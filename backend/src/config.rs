@@ -4,6 +4,12 @@ use std::env;
 
 use crate::error::AppError;
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RootGroupConfig {
+    pub path: String,
+    pub token: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     pub port: u16,
@@ -11,8 +17,7 @@ pub struct Config {
     pub database_url: String,
     pub app_url: String,
     pub gitlab_domain: String,
-    pub gitlab_group_path: String,
-    pub gitlab_token: Option<String>,
+    pub root_groups: Vec<RootGroupConfig>,
     pub frontend_dist: String,
     pub sync_interval_secs: u64,
     pub project_start_date: Option<NaiveDate>,
@@ -23,6 +28,7 @@ pub struct Config {
     pub gitlab_oauth_client_secret: Option<String>,
     pub gitlab_oauth_redirect_uri: String,
     pub session_secret: String,
+    pub repos_dir: String,
 }
 
 impl Config {
@@ -49,10 +55,41 @@ impl Config {
             .trim_end_matches('/')
             .to_string();
 
-        let gitlab_group_path =
-            env::var("GITLAB_GROUP_PATH").unwrap_or_else(|_| "dhbw/tinf24".to_string());
+        let root_groups_str = env::var("GITLAB_ROOT_GROUPS").map_err(|_| {
+            AppError::Config(
+                "GITLAB_ROOT_GROUPS is required (format: 'group1:pat1,group2:pat2')".to_string(),
+            )
+        })?;
 
-        let gitlab_token = env::var("GITLAB_TOKEN").ok().filter(|t| !t.is_empty());
+        let mut root_groups = Vec::new();
+        for item in root_groups_str.split(',') {
+            let trimmed = item.trim().trim_matches('"').trim_matches('\'');
+            if trimmed.is_empty() {
+                continue;
+            }
+            let (path, token) = trimmed.split_once(':').ok_or_else(|| {
+                AppError::Config(format!(
+                    "Invalid GITLAB_ROOT_GROUPS entry '{trimmed}'. Expected format 'path:token'"
+                ))
+            })?;
+            let clean_path = path.trim().trim_matches('/').to_string();
+            let clean_token = token.trim().to_string();
+            if clean_path.is_empty() || clean_token.is_empty() {
+                return Err(AppError::Config(format!(
+                    "Invalid GITLAB_ROOT_GROUPS entry '{trimmed}'. Both path and token must be non-empty"
+                )));
+            }
+            root_groups.push(RootGroupConfig {
+                path: clean_path,
+                token: clean_token,
+            });
+        }
+
+        if root_groups.is_empty() {
+            return Err(AppError::Config(
+                "GITLAB_ROOT_GROUPS must contain at least one valid 'path:token' pair".to_string(),
+            ));
+        }
 
         let frontend_dist =
             env::var("FRONTEND_DIST").unwrap_or_else(|_| "frontend/dist".to_string());
@@ -92,14 +129,15 @@ impl Config {
         let session_secret = env::var("SESSION_SECRET")
             .unwrap_or_else(|_| "default-development-session-secret-key-32-bytes!".to_string());
 
+        let repos_dir = env::var("REPOS_DIR").unwrap_or_else(|_| "data/repos".to_string());
+
         Ok(Self {
             port,
             host,
             database_url,
             app_url,
             gitlab_domain,
-            gitlab_group_path,
-            gitlab_token,
+            root_groups,
             frontend_dist,
             sync_interval_secs,
             project_start_date,
@@ -110,6 +148,17 @@ impl Config {
             gitlab_oauth_client_secret,
             gitlab_oauth_redirect_uri,
             session_secret,
+            repos_dir,
         })
+    }
+
+    pub fn get_token_for_path(&self, path: &str) -> Option<String> {
+        let clean = path.trim().trim_matches('/');
+        self.root_groups
+            .iter()
+            .filter(|rg| clean == rg.path || clean.starts_with(&format!("{}/", rg.path)))
+            .max_by_key(|rg| rg.path.len())
+            .map(|rg| rg.token.clone())
+            .or_else(|| self.root_groups.first().map(|rg| rg.token.clone()))
     }
 }

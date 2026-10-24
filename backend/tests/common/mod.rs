@@ -8,8 +8,10 @@ pub async fn setup_test_state() -> (AppState, SqlitePool) {
         database_url: "sqlite::memory:".to_string(),
         app_url: "http://localhost:3000".to_string(),
         gitlab_domain: "https://gitlab.com".to_string(),
-        gitlab_group_path: "test/group".to_string(),
-        gitlab_token: None,
+        root_groups: vec![gitlab_platform::config::RootGroupConfig {
+            path: "test/group".to_string(),
+            token: "test-token".to_string(),
+        }],
         frontend_dist: "frontend/dist".to_string(),
         sync_interval_secs: 300,
         project_start_date: None,
@@ -19,6 +21,7 @@ pub async fn setup_test_state() -> (AppState, SqlitePool) {
         gitlab_oauth_client_id: None,
         gitlab_oauth_client_secret: None,
         gitlab_oauth_redirect_uri: "http://localhost:3000/api/auth/callback".to_string(),
+        repos_dir: "data/repos".to_string(),
         session_secret: "test-secret-at-least-32-bytes-long!".to_string(),
     });
     config.database_url = "sqlite::memory:".to_string();

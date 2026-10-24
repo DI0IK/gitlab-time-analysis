@@ -15,6 +15,11 @@ export const apiKeys = {
   repoCommits: (projectPath: string, path?: string, ref?: string) =>
     ['repo-commits', projectPath, path ?? '', ref ?? ''] as const,
   mergeRequests: (slug: string) => ['merge-requests', slug] as const,
+  wikiPages: (project: string, ref?: string) => ['wiki-pages', project, ref ?? ''] as const,
+  wikiPage: (project: string, slug: string, ref?: string) =>
+    ['wiki-page', project, slug, ref ?? ''] as const,
+  wikiHistory: (project: string, slug?: string) => ['wiki-history', project, slug ?? ''] as const,
+  wikiTargets: (slug: string) => ['wiki-targets', slug] as const,
   authMe: ['auth', 'me'] as const,
   userProfile: ['user', 'profile'] as const,
 }

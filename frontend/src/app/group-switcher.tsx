@@ -33,14 +33,28 @@ export function GroupSwitcher() {
     queryFn: async () => (await apiClient.GET('/api/groups')).data,
   })
 
-  const rootSlug = meta?.group_path ? meta.group_path.replace(/\//g, '-') : 'dhbw-tinf24'
+  const fallbackRoots: GroupItem[] = (
+    meta?.root_groups || (meta?.group_path ? [meta.group_path] : [])
+  ).map((rg) => ({
+    slug: rg.replace(/\//g, '-'),
+    name: rg,
+    isRoot: true,
+  }))
 
   const knownGroups: GroupItem[] = dbGroups?.length
-    ? dbGroups.map((g) => ({ slug: g.full_path.replace(/\//g, '-'), name: g.name, isRoot: g.level === 0 }))
-    : [{ slug: rootSlug, name: meta?.group_path || 'dhbw/tinf24', isRoot: true }]
+    ? dbGroups.map((g) => ({
+        slug: g.full_path.replace(/\//g, '-'),
+        name: g.name,
+        isRoot: g.level === 0,
+      }))
+    : fallbackRoots.length
+      ? fallbackRoots
+      : [{ slug: 'dhbw-tinf24', name: 'dhbw/tinf24', isRoot: true }]
 
   const filteredGroups = knownGroups.filter(
-    (g) => g.name.toLowerCase().includes(search.toLowerCase()) || g.slug.toLowerCase().includes(search.toLowerCase())
+    (g) =>
+      g.name.toLowerCase().includes(search.toLowerCase()) ||
+      g.slug.toLowerCase().includes(search.toLowerCase())
   )
 
   const activeGroup = knownGroups.find((g) => g.slug === currentSlug)
@@ -134,7 +148,14 @@ export function GroupSwitcher() {
                     {g.slug.slice(0, 2).toUpperCase()}
                   </div>
                   <div className="text-left">
-                    <p className="font-medium truncate max-w-[160px]">{g.name}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-medium truncate max-w-[130px]">{g.name}</p>
+                      {g.isRoot && (
+                        <span className="rounded bg-primary/20 px-1 py-0.2 text-[9px] font-semibold text-primary shrink-0">
+                          Root
+                        </span>
+                      )}
+                    </div>
                     <p className="text-[10px] text-muted-foreground font-mono truncate max-w-[160px]">{g.slug}</p>
                   </div>
                 </div>

@@ -100,8 +100,17 @@ export function FileTree({
 
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={3} className="py-8 text-center text-muted-foreground">
-                  Empty directory
+                <td colSpan={3} className="py-12 text-center text-muted-foreground">
+                  <div className="flex flex-col items-center justify-center gap-1.5">
+                    <p className="font-semibold text-foreground/80">
+                      {currentPath ? 'Empty directory' : 'This repository is empty'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {currentPath
+                        ? 'No files found in this directory'
+                        : 'No branches or files have been pushed to this repository yet'}
+                    </p>
+                  </div>
                 </td>
               </tr>
             ) : (

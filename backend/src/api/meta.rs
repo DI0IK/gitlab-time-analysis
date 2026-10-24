@@ -28,6 +28,7 @@ pub struct MetaResponse {
     pub tiers: Vec<TierMeta>,
     pub badges: Vec<BadgeMeta>,
     pub features: FeatureFlags,
+    pub root_groups: Vec<String>,
     pub group_path: String,
     pub gitlab_domain: String,
     pub sprint_duration_weeks: u32,
@@ -54,6 +55,14 @@ pub async fn get_meta(State(state): State<AppState>) -> Result<impl IntoResponse
         state.config.sprint_duration_weeks,
     );
 
+    let root_groups: Vec<String> = state
+        .config
+        .root_groups
+        .iter()
+        .map(|rg| rg.path.clone())
+        .collect();
+    let group_path = root_groups.first().cloned().unwrap_or_default();
+
     let response = MetaResponse {
         categories: all_categories(),
         tiers: all_tiers(),
@@ -64,7 +73,8 @@ pub async fn get_meta(State(state): State<AppState>) -> Result<impl IntoResponse
             repo_browser_enabled: true,
             mr_suite_enabled: true,
         },
-        group_path: state.config.gitlab_group_path.clone(),
+        root_groups,
+        group_path,
         gitlab_domain: state.config.gitlab_domain.clone(),
         sprint_duration_weeks: state.config.sprint_duration_weeks,
         sprint_start_weekday: state.config.sprint_start_weekday.clone(),

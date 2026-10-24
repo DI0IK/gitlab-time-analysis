@@ -12,6 +12,7 @@ use crate::{
         render::{self},
         repo::{self, RepoBranch, RepoBranchCommit, RepoCommit, RepoFileContent, RepoTreeItem},
         sync::{self},
+        wiki::{self, WikiTarget},
     },
     db::{
         groups::{GroupMemberRecord, GroupRecord},
@@ -37,6 +38,7 @@ use crate::{
         },
     },
     error::ErrorResponse,
+    git::wiki_reader::{WikiPageContent, WikiPageItem},
     ingest::worker::SyncSummary,
 };
 
@@ -69,6 +71,11 @@ use crate::{
         repo::get_tree,
         repo::get_blob,
         repo::list_commits,
+        repo::trigger_repo_sync,
+        wiki::list_wiki_pages,
+        wiki::get_wiki_page,
+        wiki::get_wiki_history,
+        wiki::get_group_wiki_targets,
         sync::trigger_sync,
         sync::sync_status,
     ),
@@ -111,6 +118,9 @@ use crate::{
             RepoTreeItem,
             RepoFileContent,
             RepoCommit,
+            WikiPageItem,
+            WikiPageContent,
+            WikiTarget,
         )
     ),
     tags(
@@ -121,6 +131,7 @@ use crate::{
         (name = "Groups", description = "GitLab group hierarchy and cohort discovery"),
         (name = "Analytics", description = "Sprint progress, effort fairness, and category distribution"),
         (name = "Repository", description = "GitLab code browsing, file tree, blob content, and commits"),
+        (name = "Wiki", description = "GitLab Wiki documentation pages, content, revision history, and full-text search"),
         (name = "Leaderboard", description = "Ranked leaderboards with XP, levels, and badges"),
         (name = "Render", description = "Dynamic SVG badges, profile cards, and open-graph banners"),
         (name = "Sync", description = "Incremental GitLab ingestion worker triggers and status"),
