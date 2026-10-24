@@ -743,6 +743,7 @@ export interface components {
             gitlab_domain: string;
             group_path: string;
             root_groups: string[];
+            root_groups_meta: components["schemas"]["RootGroupMeta"][];
             /** Format: int32 */
             sprint_duration_weeks: number;
             sprint_start_weekday: string;
@@ -794,6 +795,20 @@ export interface components {
             name: string;
             web_url: string;
             work_items_count: number;
+        };
+        RootGroupMeta: {
+            /** Format: int64 */
+            current_sprint?: number | null;
+            /** Format: int64 */
+            default_sprint?: number | null;
+            path: string;
+            /** Format: date */
+            project_end_date?: string | null;
+            /** Format: date */
+            project_start_date?: string | null;
+            /** Format: int32 */
+            sprint_duration_weeks: number;
+            sprint_start_weekday: string;
         };
         SprintMetric: {
             active_members: number;

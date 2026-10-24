@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde_json::json;
 
-use super::calculate_sprint;
+use super::calculate_sprint_for_group;
 use crate::{
     db::{timelogs::upsert_timelog, users::upsert_user, work_items::upsert_work_item},
     error::AppError,
@@ -214,7 +214,7 @@ pub async fn sync_group_work_items(
                         .await;
                     }
 
-                    let sprint_number = calculate_sprint(spent_at, state);
+                    let sprint_number = calculate_sprint_for_group(spent_at, state, group_path);
                     let _ = upsert_timelog(
                         &state.db,
                         t_id,

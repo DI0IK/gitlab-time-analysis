@@ -9,15 +9,30 @@ pub mod worker;
 use crate::state::AppState;
 use chrono::{DateTime, Utc};
 
-pub fn calculate_sprint(spent_at: DateTime<Utc>, state: &AppState) -> Option<i64> {
-    let start_date = state.config.project_start_date?;
+pub fn calculate_sprint_for_group(
+    spent_at: DateTime<Utc>,
+    state: &AppState,
+    group_full_path: &str,
+) -> Option<i64> {
+    let root_cfg = state.config.get_root_group_for_path(group_full_path);
+    let start_date = root_cfg
+        .and_then(|rc| rc.project_start_date)
+        .or(state.config.project_start_date)?;
+    let duration_weeks = root_cfg
+        .map(|rc| rc.sprint_duration_weeks)
+        .unwrap_or(state.config.sprint_duration_weeks);
+
     let spent_date = spent_at.date_naive();
     let days = (spent_date - start_date).num_days();
     if days < 0 {
         return None;
     }
-    let duration_days = (state.config.sprint_duration_weeks.max(1) * 7) as i64;
+    let duration_days = (duration_weeks.max(1) * 7) as i64;
     Some((days / duration_days) + 1)
+}
+
+pub fn calculate_sprint(spent_at: DateTime<Utc>, state: &AppState) -> Option<i64> {
+    calculate_sprint_for_group(spent_at, state, "")
 }
 
 pub fn calculate_current_and_default_sprint(

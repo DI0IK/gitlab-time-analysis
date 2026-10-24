@@ -1895,6 +1895,7 @@
           "badges",
           "features",
           "root_groups",
+          "root_groups_meta",
           "group_path",
           "gitlab_domain",
           "sprint_duration_weeks",
@@ -1940,6 +1941,12 @@
             "type": "array",
             "items": {
               "type": "string"
+            }
+          },
+          "root_groups_meta": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RootGroupMeta"
             }
           },
           "sprint_duration_weeks": {
@@ -2150,6 +2157,55 @@
           "work_items_count": {
             "type": "integer",
             "minimum": 0
+          }
+        }
+      },
+      "RootGroupMeta": {
+        "type": "object",
+        "required": [
+          "path",
+          "sprint_duration_weeks",
+          "sprint_start_weekday"
+        ],
+        "properties": {
+          "current_sprint": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "default_sprint": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "path": {
+            "type": "string"
+          },
+          "project_end_date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "project_start_date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "sprint_duration_weeks": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "sprint_start_weekday": {
+            "type": "string"
           }
         }
       },

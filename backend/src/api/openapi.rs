@@ -7,7 +7,7 @@ use crate::{
         groups::{self},
         health::{self, HealthResponse},
         leaderboard::{self},
-        meta::{self, FeatureFlags, MetaResponse},
+        meta::{self, FeatureFlags, MetaResponse, RootGroupMeta},
         profile::{self, UpdateProfileRequest},
         render::{self},
         repo::{self, RepoBranch, RepoBranchCommit, RepoCommit, RepoFileContent, RepoTreeItem},
@@ -83,6 +83,7 @@ use crate::{
         schemas(
             HealthResponse,
             MetaResponse,
+            RootGroupMeta,
             FeatureFlags,
             CategoryMeta,
             CategoryId,

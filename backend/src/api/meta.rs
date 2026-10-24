@@ -23,12 +23,24 @@ pub struct FeatureFlags {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct RootGroupMeta {
+    pub path: String,
+    pub project_start_date: Option<chrono::NaiveDate>,
+    pub project_end_date: Option<chrono::NaiveDate>,
+    pub sprint_duration_weeks: u32,
+    pub sprint_start_weekday: String,
+    pub current_sprint: Option<i64>,
+    pub default_sprint: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct MetaResponse {
     pub categories: Vec<CategoryMeta>,
     pub tiers: Vec<TierMeta>,
     pub badges: Vec<BadgeMeta>,
     pub features: FeatureFlags,
     pub root_groups: Vec<String>,
+    pub root_groups_meta: Vec<RootGroupMeta>,
     pub group_path: String,
     pub gitlab_domain: String,
     pub sprint_duration_weeks: u32,
@@ -49,11 +61,36 @@ pub async fn get_meta(State(state): State<AppState>) -> Result<impl IntoResponse
     let oauth_enabled = state.config.gitlab_oauth_client_id.is_some()
         && state.config.gitlab_oauth_client_secret.is_some();
 
+    let now = chrono::Utc::now();
     let (current_sprint, default_sprint) = crate::ingest::calculate_current_and_default_sprint(
-        chrono::Utc::now(),
+        now,
         state.config.project_start_date,
         state.config.sprint_duration_weeks,
     );
+
+    let root_groups_meta: Vec<RootGroupMeta> = state
+        .config
+        .root_groups
+        .iter()
+        .map(|rg| {
+            let start = rg.project_start_date.or(state.config.project_start_date);
+            let end = rg.project_end_date.or(state.config.project_end_date);
+            let (cur, def) = crate::ingest::calculate_current_and_default_sprint(
+                now,
+                start,
+                rg.sprint_duration_weeks,
+            );
+            RootGroupMeta {
+                path: rg.path.clone(),
+                project_start_date: start,
+                project_end_date: end,
+                sprint_duration_weeks: rg.sprint_duration_weeks,
+                sprint_start_weekday: rg.sprint_start_weekday.clone(),
+                current_sprint: cur,
+                default_sprint: def,
+            }
+        })
+        .collect();
 
     let root_groups: Vec<String> = state
         .config
@@ -74,6 +111,7 @@ pub async fn get_meta(State(state): State<AppState>) -> Result<impl IntoResponse
             mr_suite_enabled: true,
         },
         root_groups,
+        root_groups_meta,
         group_path,
         gitlab_domain: state.config.gitlab_domain.clone(),
         sprint_duration_weeks: state.config.sprint_duration_weeks,

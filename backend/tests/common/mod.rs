@@ -8,10 +8,10 @@ pub async fn setup_test_state() -> (AppState, SqlitePool) {
         database_url: "sqlite::memory:".to_string(),
         app_url: "http://localhost:3000".to_string(),
         gitlab_domain: "https://gitlab.com".to_string(),
-        root_groups: vec![gitlab_platform::config::RootGroupConfig {
-            path: "test/group".to_string(),
-            token: "test-token".to_string(),
-        }],
+        root_groups: vec![gitlab_platform::config::RootGroupConfig::new(
+            "test/group",
+            "test-token",
+        )],
         frontend_dist: "frontend/dist".to_string(),
         sync_interval_secs: 300,
         project_start_date: None,

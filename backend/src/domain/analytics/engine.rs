@@ -125,20 +125,28 @@ pub async fn compute_group_dashboard(
     let matrix = compute_matrix(&work_items, &timelogs, &member_metrics);
 
     let now = chrono::Utc::now();
-    let (current_sprint, default_sprint) = if let Some(c) = config {
-        crate::ingest::calculate_current_and_default_sprint(
-            now,
-            c.project_start_date,
-            c.sprint_duration_weeks,
-        )
-    } else {
-        (None, None)
-    };
+    let root_cfg = config.and_then(|c| c.get_root_group_for_path(&group.full_path));
+    let start_date = root_cfg
+        .and_then(|rc| rc.project_start_date)
+        .or_else(|| config.and_then(|c| c.project_start_date));
+    let end_date = root_cfg
+        .and_then(|rc| rc.project_end_date)
+        .or_else(|| config.and_then(|c| c.project_end_date));
+    let duration_weeks = root_cfg
+        .map(|rc| rc.sprint_duration_weeks)
+        .or_else(|| config.map(|c| c.sprint_duration_weeks))
+        .unwrap_or(1);
+    let start_weekday_str = root_cfg
+        .map(|rc| rc.sprint_start_weekday.as_str())
+        .or_else(|| config.map(|c| c.sprint_start_weekday.as_str()));
+
+    let (current_sprint, default_sprint) =
+        crate::ingest::calculate_current_and_default_sprint(now, start_date, duration_weeks);
 
     // 5. Weekday x Sprint heatmap
-    let total_sprints = config.and_then(|c| match (c.project_start_date, c.project_end_date) {
+    let total_sprints = match (start_date, end_date) {
         (Some(start), Some(end)) => {
-            let duration = (c.sprint_duration_weeks.max(1) * 7) as i64;
+            let duration = (duration_weeks.max(1) * 7) as i64;
             let days = (end - start).num_days();
             if days >= 0 {
                 Some((days / duration) + 1)
@@ -147,8 +155,7 @@ pub async fn compute_group_dashboard(
             }
         }
         _ => None,
-    });
-    let start_weekday_str = config.map(|c| c.sprint_start_weekday.as_str());
+    };
     let heatmap = compute_weekday_heatmap(
         &timelogs,
         total_sprints,

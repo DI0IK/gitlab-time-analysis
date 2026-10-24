@@ -5,7 +5,7 @@ use crate::{
     db::{timelogs::upsert_timelog, users::upsert_user, work_items::upsert_work_item},
     error::AppError,
     gitlab::{client::GitLabClient, graphql::IssuesData},
-    ingest::calculate_sprint,
+    ingest::calculate_sprint_for_group,
     state::AppState,
 };
 
@@ -177,7 +177,7 @@ pub async fn sync_group_issues(
                         .await;
                     }
 
-                    let sprint_number = calculate_sprint(spent_at, state);
+                    let sprint_number = calculate_sprint_for_group(spent_at, state, group_path);
                     let _ = upsert_timelog(
                         &state.db,
                         &tl.id,
