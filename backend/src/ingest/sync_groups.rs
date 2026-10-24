@@ -175,9 +175,20 @@ pub async fn sync_group_hierarchy(
     }
 
     // 3. Upsert descendant groups
-    if let Some(descendants) = root_group.descendant_groups.and_then(|d| d.nodes) {
+    if let Some(mut descendants) = root_group.descendant_groups.and_then(|d| d.nodes) {
+        // Sort by hierarchy depth so parents are ALWAYS inserted before their children
+        descendants.sort_by_key(|sg| sg.full_path.matches('/').count());
+
+        let mut inserted_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
+        inserted_ids.insert(root_group.id.clone());
+
         for sg in descendants {
-            let parent_id = sg.parent.as_ref().map(|p| p.id.as_str());
+            let parent_id = sg
+                .parent
+                .as_ref()
+                .map(|p| p.id.as_str())
+                .filter(|pid| inserted_ids.contains(*pid))
+                .or(Some(&root_group.id));
             let parent_name = sg.parent.as_ref().map(|p| p.name.as_str());
             let level = sg.full_path.matches('/').count() as i64;
             upsert_group(
@@ -192,6 +203,7 @@ pub async fn sync_group_hierarchy(
                 now,
             )
             .await?;
+            inserted_ids.insert(sg.id.clone());
             group_ids.push(sg.id);
         }
     }
