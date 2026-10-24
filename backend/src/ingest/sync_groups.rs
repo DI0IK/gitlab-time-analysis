@@ -174,6 +174,8 @@ pub async fn sync_group_hierarchy(
         }
     }
 
+    let root_slash_count = root_group.full_path.matches('/').count();
+
     // 3. Upsert descendant groups
     if let Some(mut descendants) = root_group.descendant_groups.and_then(|d| d.nodes) {
         // Sort by hierarchy depth so parents are ALWAYS inserted before their children
@@ -190,7 +192,11 @@ pub async fn sync_group_hierarchy(
                 .filter(|pid| inserted_ids.contains(*pid))
                 .or(Some(&root_group.id));
             let parent_name = sg.parent.as_ref().map(|p| p.name.as_str());
-            let level = sg.full_path.matches('/').count() as i64;
+            let level = (sg
+                .full_path
+                .matches('/')
+                .count()
+                .saturating_sub(root_slash_count)) as i64;
             upsert_group(
                 &state.db,
                 &sg.id,
@@ -205,6 +211,26 @@ pub async fn sync_group_hierarchy(
             .await?;
             inserted_ids.insert(sg.id.clone());
             group_ids.push(sg.id);
+        }
+    }
+
+    // 4. Prune groups that were deleted on GitLab under this root hierarchy
+    let root_prefix = format!("{}/%", root_group.full_path.trim_end_matches('/'));
+    let existing_ids = sqlx::query_scalar::<_, String>(
+        "SELECT id FROM groups WHERE full_path = ?1 OR full_path LIKE ?2",
+    )
+    .bind(&root_group.full_path)
+    .bind(&root_prefix)
+    .fetch_all(&state.db)
+    .await?;
+
+    for eid in existing_ids {
+        if !group_ids.contains(&eid) {
+            tracing::info!("Pruning deleted GitLab group from SQLite: {eid}");
+            sqlx::query("DELETE FROM groups WHERE id = ?1")
+                .bind(&eid)
+                .execute(&state.db)
+                .await?;
         }
     }
 

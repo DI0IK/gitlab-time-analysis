@@ -97,11 +97,17 @@ pub async fn get_timelogs_for_group(
 ) -> Result<Vec<TimelogRecord>, AppError> {
     sqlx::query_as::<_, TimelogRecord>(
         r#"
+        WITH RECURSIVE descendant_groups AS (
+            SELECT id FROM groups WHERE id = ?1
+            UNION ALL
+            SELECT g.id FROM groups g
+            JOIN descendant_groups d ON g.parent_id = d.id
+        )
         SELECT t.id, t.work_item_id, t.merge_request_id, t.username, t.spent_at,
                t.time_spent, t.summary, t.web_url, t.sprint_number, t.synced_at
         FROM timelogs t
         JOIN work_items w ON t.work_item_id = w.id
-        WHERE w.group_id = ?1 OR w.group_id IN (SELECT id FROM groups WHERE parent_id = ?1)
+        WHERE w.group_id IN (SELECT id FROM descendant_groups)
         ORDER BY t.spent_at DESC
         "#,
     )

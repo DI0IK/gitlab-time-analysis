@@ -39,8 +39,8 @@ pub async fn upsert_user(
         r#"
         INSERT INTO users (gitlab_id, username, name, avatar_url, web_url, is_bot, updated_at)
         VALUES (?1, ?2, ?3, ?4, ?5, ?6, CURRENT_TIMESTAMP)
-        ON CONFLICT(username) DO UPDATE SET
-            gitlab_id = excluded.gitlab_id,
+        ON CONFLICT(gitlab_id) DO UPDATE SET
+            username = excluded.username,
             name = excluded.name,
             avatar_url = COALESCE(excluded.avatar_url, users.avatar_url),
             web_url = excluded.web_url,

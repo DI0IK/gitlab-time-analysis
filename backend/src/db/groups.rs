@@ -123,7 +123,18 @@ pub async fn get_group_members(
     group_id: &str,
 ) -> Result<Vec<GroupMemberRecord>, AppError> {
     sqlx::query_as::<_, GroupMemberRecord>(
-        "SELECT group_id, username, is_verified, access_level FROM group_members WHERE group_id = ?1 ORDER BY username ASC"
+        r#"
+        WITH RECURSIVE descendant_groups AS (
+            SELECT id FROM groups WHERE id = ?1
+            UNION ALL
+            SELECT g.id FROM groups g
+            JOIN descendant_groups d ON g.parent_id = d.id
+        )
+        SELECT DISTINCT gm.group_id, gm.username, gm.is_verified, gm.access_level
+        FROM group_members gm
+        WHERE gm.group_id IN (SELECT id FROM descendant_groups)
+        ORDER BY gm.username ASC
+        "#,
     )
     .bind(group_id)
     .fetch_all(pool)

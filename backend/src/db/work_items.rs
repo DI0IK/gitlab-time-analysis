@@ -103,6 +103,12 @@ pub async fn get_work_items_by_group(
 ) -> Result<Vec<WorkItemRecord>, AppError> {
     sqlx::query_as::<_, WorkItemRecord>(
         r#"
+        WITH RECURSIVE descendant_groups AS (
+            SELECT id FROM groups WHERE id = ?1
+            UNION ALL
+            SELECT g.id FROM groups g
+            JOIN descendant_groups d ON g.parent_id = d.id
+        )
         SELECT w.id, w.group_id,
                COALESCE(w.project_path, g.full_path) as project_path,
                w.iid, w.work_item_type, w.parent_id,
@@ -110,7 +116,7 @@ pub async fn get_work_items_by_group(
                w.web_url, w.labels_json, w.created_at, w.closed_at, w.synced_at
         FROM work_items w
         LEFT JOIN groups g ON w.group_id = g.id
-        WHERE w.group_id = ?1 OR w.group_id IN (SELECT id FROM groups WHERE parent_id = ?1)
+        WHERE w.group_id IN (SELECT id FROM descendant_groups)
         ORDER BY w.created_at DESC
         "#,
     )
