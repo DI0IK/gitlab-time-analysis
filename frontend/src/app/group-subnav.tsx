@@ -2,6 +2,7 @@ import { Link, useRouterState } from '@tanstack/react-router'
 import {
   BarChart3,
   Trophy,
+  Activity,
   ListTodo,
   FolderGit2,
   GitPullRequest,
@@ -24,6 +25,12 @@ export function GroupSubnav() {
       icon: BarChart3,
       exact: true,
       active: pathname === `/groups/${currentSlug}`,
+    },
+    {
+      to: '/groups/$slug/activity' as const,
+      label: 'Activity',
+      icon: Activity,
+      active: pathname.includes('/activity'),
     },
     {
       to: '/groups/$slug/leaderboard' as const,

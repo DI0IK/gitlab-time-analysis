@@ -1,4 +1,4 @@
-use super::graphql::{GitLabUserNode, PageInfo};
+use super::graphql::{GitLabNoteConnection, GitLabUserNode, PageInfo};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize)]
@@ -40,6 +40,7 @@ pub struct GitLabMergeRequestNode {
     pub diff_stats_summary: Option<GitLabDiffStats>,
     pub approved_by: Option<GitLabApprovedByConnection>,
     pub user_discussions_count: Option<i64>,
+    pub notes: Option<GitLabNoteConnection>,
 }
 
 #[derive(Debug, Deserialize)]

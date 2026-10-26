@@ -141,6 +141,7 @@ pub struct GitLabIssueNode {
     pub labels: Option<GitLabLabelConnection>,
     pub epic: Option<GitLabEpicRef>,
     pub timelogs: Option<GitLabTimelogConnection>,
+    pub notes: Option<GitLabNoteConnection>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -196,4 +197,34 @@ pub struct GitLabUserNode {
     pub avatar_url: Option<String>,
     pub web_url: Option<String>,
     pub bot: Option<bool>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitLabNoteConnection {
+    pub nodes: Option<Vec<GitLabNoteNode>>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitLabNoteNode {
+    pub id: String,
+    pub body: String,
+    #[serde(default)]
+    pub system: bool,
+    pub system_note_icon_name: Option<String>,
+    pub created_at: String,
+    pub updated_at: Option<String>,
+    pub url: Option<String>,
+    pub internal: Option<bool>,
+    pub resolvable: Option<bool>,
+    pub resolved: Option<bool>,
+    pub author: Option<GitLabUserNode>,
+    pub discussion: Option<GitLabDiscussionRef>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitLabDiscussionRef {
+    pub id: String,
 }

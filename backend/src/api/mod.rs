@@ -8,6 +8,7 @@ use utoipa_swagger_ui::SwaggerUi;
 
 use crate::{api::openapi::ApiDoc, state::AppState};
 
+pub mod activity;
 pub mod analytics;
 pub mod auth;
 pub mod extractors;
@@ -16,6 +17,7 @@ pub mod health;
 pub mod leaderboard;
 pub mod meta;
 pub mod middleware;
+pub mod notes;
 pub mod openapi;
 pub mod profile;
 pub mod render;
@@ -48,6 +50,7 @@ pub fn router(state: AppState) -> Router {
         .route("/groups", get(groups::list_groups))
         .route("/groups/:slug", get(groups::get_group))
         .route("/groups/:slug/members", get(groups::list_members))
+        .route("/groups/:slug/activity", get(activity::get_group_activity))
         .route(
             "/groups/:slug/dashboard",
             get(analytics::get_group_dashboard),
@@ -64,6 +67,7 @@ pub fn router(state: AppState) -> Router {
             "/groups/:slug/repositories",
             get(analytics::get_group_repositories),
         )
+        .route("/notes", get(notes::get_item_notes))
         .route(
             "/groups/:slug/wiki/targets",
             get(wiki::get_group_wiki_targets),

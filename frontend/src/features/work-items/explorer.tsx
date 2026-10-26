@@ -27,18 +27,28 @@ export function WorkItemsExplorer({ slug }: { slug: string }) {
     },
   })
 
-  const availableRepos = React.useMemo(() => {
-    const repos = new Set<string>()
+  const deduplicatedData = React.useMemo(() => {
+    const seen = new Set<string>()
+    const result: WorkItemModalData[] = []
     for (const item of data || []) {
-      if (item.project_path) {
-        repos.add(item.project_path)
-      }
+      const key = `${item.project_path || ''}:${item.iid}:${item.work_item_type}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      result.push(item)
     }
-    return Array.from(repos).sort()
+    return result
   }, [data])
 
+  const availableRepos = React.useMemo(() => {
+    const repos = new Set<string>()
+    for (const item of deduplicatedData) {
+      if (item.project_path) repos.add(item.project_path)
+    }
+    return Array.from(repos).sort()
+  }, [deduplicatedData])
+
   const filtered = React.useMemo(() => {
-    return (data || []).filter((item) => {
+    return deduplicatedData.filter((item) => {
       const matchesSearch = item.title.toLowerCase().includes(search.toLowerCase()) || String(item.iid).includes(search)
       const matchesType = typeFilter === 'all' || item.work_item_type.toLowerCase() === typeFilter.toLowerCase()
       const matchesRepo = repoFilter === 'all' || item.project_path === repoFilter
@@ -49,7 +59,7 @@ export function WorkItemsExplorer({ slug }: { slug: string }) {
         itemState === stateFilter.toLowerCase()
       return matchesSearch && matchesType && matchesRepo && matchesState
     })
-  }, [data, search, typeFilter, repoFilter, stateFilter])
+  }, [deduplicatedData, search, typeFilter, repoFilter, stateFilter])
 
   const { rootItems, childrenMap } = React.useMemo(() => {
     const map = new Map<string, WorkItemModalData[]>()

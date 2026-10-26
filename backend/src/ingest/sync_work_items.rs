@@ -3,9 +3,15 @@ use serde_json::json;
 
 use super::calculate_sprint_for_group;
 use crate::{
-    db::{timelogs::upsert_timelog, users::upsert_user, work_items::upsert_work_item},
+    db::{
+        notes::upsert_item_note, timelogs::upsert_timelog, users::upsert_user,
+        work_items::upsert_work_item,
+    },
     error::AppError,
-    gitlab::{client::GitLabClient, graphql::WorkItemsData},
+    gitlab::{
+        client::GitLabClient,
+        graphql::{GitLabNoteNode, WorkItemsData},
+    },
     state::AppState,
 };
 
@@ -32,6 +38,16 @@ pub async fn sync_group_work_items(
                   nodes {
                     id spentAt timeSpent summary
                     user { id username name avatarUrl webUrl bot }
+                  }
+                }
+              }
+              ... on WorkItemWidgetNotes {
+                type
+                notes(filter: ALL_NOTES, first: 30) {
+                  nodes {
+                    id body system systemNoteIconName createdAt updatedAt url internal resolvable resolved
+                    author { id username name avatarUrl webUrl bot }
+                    discussion { id }
                   }
                 }
               }
@@ -74,6 +90,7 @@ pub async fn sync_group_work_items(
             let mut time_estimate: i64 = 0;
             let mut total_time_spent: i64 = 0;
             let mut timelogs_to_save = Vec::new();
+            let mut notes_to_save = Vec::new();
 
             if let Some(widgets) = item.widgets {
                 for w in widgets {
@@ -105,6 +122,15 @@ pub async fn sync_group_work_items(
                                 timelogs_to_save = logs.clone();
                             }
                         }
+                        "NOTES" => {
+                            if let Some(notes) = w
+                                .get("notes")
+                                .and_then(|n| n.get("nodes"))
+                                .and_then(|n| n.as_array())
+                            {
+                                notes_to_save = notes.clone();
+                            }
+                        }
                         _ => {}
                     }
                 }
@@ -125,11 +151,20 @@ pub async fn sync_group_work_items(
                 .await;
             }
 
+            let item_project_path = if let Some((base, _)) = item.web_url.split_once("/-/") {
+                let clean = base
+                    .trim_start_matches("https://")
+                    .trim_start_matches("http://");
+                clean.split_once('/').map(|(_, path)| path.to_string())
+            } else {
+                Some(group_path.to_string())
+            };
+
             upsert_work_item(
                 &state.db,
                 &item.id,
                 Some(group_id),
-                Some(group_path),
+                item_project_path.as_deref().or(Some(group_path)),
                 iid,
                 &w_type,
                 parent_id.as_deref(),
@@ -226,6 +261,63 @@ pub async fn sync_group_work_items(
                         summary,
                         &item.web_url,
                         sprint_number,
+                        now,
+                    )
+                    .await;
+                }
+            }
+
+            for note_val in notes_to_save {
+                if let Ok(note) = serde_json::from_value::<GitLabNoteNode>(note_val) {
+                    let note_created = DateTime::parse_from_rfc3339(&note.created_at)
+                        .map(|d| d.with_timezone(&Utc))
+                        .unwrap_or(now);
+                    let note_updated = note
+                        .updated_at
+                        .as_deref()
+                        .and_then(|u| DateTime::parse_from_rfc3339(u).ok())
+                        .map(|d| d.with_timezone(&Utc));
+
+                    let author_username = note.author.as_ref().map(|u| u.username.as_str());
+                    let author_name = note.author.as_ref().and_then(|u| u.name.as_deref());
+                    let author_avatar = note.author.as_ref().and_then(|u| u.avatar_url.as_deref());
+
+                    if let Some(author) = &note.author {
+                        let uid = author
+                            .id
+                            .as_deref()
+                            .unwrap_or(&author.username)
+                            .replace("gid://gitlab/User/", "");
+                        let _ = upsert_user(
+                            &state.db,
+                            &uid,
+                            &author.username,
+                            author.name.as_deref().unwrap_or(&author.username),
+                            author.avatar_url.as_deref(),
+                            author.web_url.as_deref().unwrap_or(""),
+                            author.bot.unwrap_or(false),
+                        )
+                        .await;
+                    }
+
+                    let _ = upsert_item_note(
+                        &state.db,
+                        &note.id,
+                        Some(&item.id),
+                        None,
+                        author_username,
+                        author_name,
+                        author_avatar,
+                        &note.body,
+                        note.system,
+                        note.system_note_icon_name.as_deref(),
+                        note.discussion.as_ref().map(|d| d.id.as_str()),
+                        note.internal.unwrap_or(false),
+                        note.resolvable.unwrap_or(false),
+                        note.resolved.unwrap_or(false),
+                        note.url.as_deref(),
+                        note_created,
+                        note_updated,
                         now,
                     )
                     .await;

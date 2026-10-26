@@ -98,16 +98,26 @@ pub async fn get_timelogs_for_group(
     sqlx::query_as::<_, TimelogRecord>(
         r#"
         WITH RECURSIVE descendant_groups AS (
-            SELECT id FROM groups WHERE id = ?1
+            SELECT id, full_path FROM groups WHERE id = ?1
             UNION ALL
-            SELECT g.id FROM groups g
+            SELECT g.id, g.full_path FROM groups g
             JOIN descendant_groups d ON g.parent_id = d.id
         )
         SELECT t.id, t.work_item_id, t.merge_request_id, t.username, t.spent_at,
                t.time_spent, t.summary, t.web_url, t.sprint_number, t.synced_at
         FROM timelogs t
-        JOIN work_items w ON t.work_item_id = w.id
-        WHERE w.group_id IN (SELECT id FROM descendant_groups)
+        LEFT JOIN work_items w ON t.work_item_id = w.id
+        LEFT JOIN merge_requests mr ON t.merge_request_id = mr.id
+        WHERE (
+            (t.work_item_id IS NOT NULL AND (
+                w.group_id IN (SELECT id FROM descendant_groups)
+                OR EXISTS (SELECT 1 FROM descendant_groups dg WHERE w.project_path LIKE dg.full_path || '/%' OR w.project_path = dg.full_path)
+            ))
+            OR
+            (t.merge_request_id IS NOT NULL AND EXISTS (
+                SELECT 1 FROM descendant_groups dg WHERE mr.project_path LIKE dg.full_path || '/%' OR mr.project_path = dg.full_path
+            ))
+        )
         ORDER BY t.spent_at DESC
         "#,
     )

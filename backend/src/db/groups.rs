@@ -21,6 +21,8 @@ pub struct GroupRecord {
 pub struct GroupMemberRecord {
     pub group_id: String,
     pub username: String,
+    pub name: Option<String>,
+    pub avatar_url: Option<String>,
     pub is_verified: bool,
     pub access_level: Option<String>,
 }
@@ -125,15 +127,53 @@ pub async fn get_group_members(
     sqlx::query_as::<_, GroupMemberRecord>(
         r#"
         WITH RECURSIVE descendant_groups AS (
-            SELECT id FROM groups WHERE id = ?1
+            SELECT id, full_path FROM groups WHERE id = ?1
             UNION ALL
-            SELECT g.id FROM groups g
+            SELECT g.id, g.full_path FROM groups g
             JOIN descendant_groups d ON g.parent_id = d.id
+        ),
+        group_usernames AS (
+            SELECT gm.username, gm.is_verified, gm.access_level FROM group_members gm
+            WHERE gm.group_id IN (SELECT id FROM descendant_groups)
+            UNION
+            SELECT t.username, 1 as is_verified, NULL as access_level FROM timelogs t
+            LEFT JOIN work_items w ON t.work_item_id = w.id
+            LEFT JOIN merge_requests mr ON t.merge_request_id = mr.id
+            WHERE (
+                (t.work_item_id IS NOT NULL AND (
+                    w.group_id IN (SELECT id FROM descendant_groups)
+                    OR EXISTS (SELECT 1 FROM descendant_groups dg WHERE w.project_path LIKE dg.full_path || '/%' OR w.project_path = dg.full_path)
+                ))
+                OR
+                (t.merge_request_id IS NOT NULL AND EXISTS (
+                    SELECT 1 FROM descendant_groups dg WHERE mr.project_path LIKE dg.full_path || '/%' OR mr.project_path = dg.full_path
+                ))
+            )
+            UNION
+            SELECT mr.author_username as username, 1 as is_verified, NULL as access_level FROM merge_requests mr
+            WHERE EXISTS (SELECT 1 FROM descendant_groups dg WHERE mr.project_path LIKE dg.full_path || '/%' OR mr.project_path = dg.full_path)
+            UNION
+            SELECT n.author_username as username, 1 as is_verified, NULL as access_level FROM item_notes n
+            JOIN work_items w ON n.work_item_id = w.id
+            WHERE w.group_id IN (SELECT id FROM descendant_groups)
+               OR EXISTS (SELECT 1 FROM descendant_groups dg WHERE w.project_path LIKE dg.full_path || '/%' OR w.project_path = dg.full_path)
+            UNION
+            SELECT n.author_username as username, 1 as is_verified, NULL as access_level FROM item_notes n
+            JOIN merge_requests mr ON n.merge_request_id = mr.id
+            WHERE EXISTS (SELECT 1 FROM descendant_groups dg WHERE mr.project_path LIKE dg.full_path || '/%' OR mr.project_path = dg.full_path)
         )
-        SELECT DISTINCT gm.group_id, gm.username, gm.is_verified, gm.access_level
-        FROM group_members gm
-        WHERE gm.group_id IN (SELECT id FROM descendant_groups)
-        ORDER BY gm.username ASC
+        SELECT
+            ?1 as group_id,
+            gu.username,
+            COALESCE(u.custom_display_name, u.name) as name,
+            u.avatar_url,
+            MAX(gu.is_verified) as is_verified,
+            MAX(gu.access_level) as access_level
+        FROM group_usernames gu
+        LEFT JOIN users u ON u.username = gu.username
+        WHERE gu.username IS NOT NULL AND gu.username != '' AND gu.username != 'unknown'
+        GROUP BY gu.username
+        ORDER BY gu.username ASC
         "#,
     )
     .bind(group_id)

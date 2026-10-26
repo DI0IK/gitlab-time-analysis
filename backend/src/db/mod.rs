@@ -8,8 +8,10 @@ use std::time::Duration;
 
 use crate::error::AppError;
 
+pub mod activity;
 pub mod groups;
 pub mod merge_requests;
+pub mod notes;
 pub mod projects;
 pub mod sessions;
 pub mod sync_state;

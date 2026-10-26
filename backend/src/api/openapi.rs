@@ -2,12 +2,14 @@ use utoipa::OpenApi;
 
 use crate::{
     api::{
+        activity::{self, GroupActivityFeedResponse},
         analytics::{self, RepositorySummary},
         auth::{self, AuthMeResponse},
         groups::{self},
         health::{self, HealthResponse},
         leaderboard::{self},
         meta::{self, FeatureFlags, MetaResponse, RootGroupMeta},
+        notes::{self},
         profile::{
             self, SprintHourSummary, UpdateProfileRequest, UserMetricsSummary, UserMrSummary,
             UserProfileDetailsResponse, UserTimelogItem,
@@ -18,8 +20,10 @@ use crate::{
         wiki::{self, WikiTarget},
     },
     db::{
+        activity::GroupActivityItem,
         groups::{GroupMemberRecord, GroupRecord},
         merge_requests::MergeRequestRecord,
+        notes::ItemNoteRecord,
         projects::ProjectRecord,
         sync_state::SyncStateRecord,
         users::UserRecord,
@@ -62,6 +66,8 @@ use crate::{
         groups::list_groups,
         groups::get_group,
         groups::list_members,
+        activity::get_group_activity,
+        notes::get_item_notes,
         analytics::get_group_dashboard,
         analytics::get_group_work_items,
         analytics::get_group_merge_requests,
@@ -134,6 +140,9 @@ use crate::{
             UserMrSummary,
             SprintHourSummary,
             UserProfileDetailsResponse,
+            GroupActivityFeedResponse,
+            GroupActivityItem,
+            ItemNoteRecord,
         )
     ),
     tags(

@@ -116,6 +116,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/groups/{slug}/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_group_activity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/groups/{slug}/dashboard": {
         parameters: {
             query?: never;
@@ -268,6 +284,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["get_meta"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_item_notes"];
         put?: never;
         post?: never;
         delete?: never;
@@ -620,6 +652,31 @@ export interface components {
             repo_browser_enabled: boolean;
             work_items_mutation_enabled: boolean;
         };
+        GroupActivityFeedResponse: {
+            has_more: boolean;
+            items: components["schemas"]["GroupActivityItem"][];
+            total_count: number;
+        };
+        GroupActivityItem: {
+            activity_type: string;
+            author_avatar_url?: string | null;
+            author_name?: string | null;
+            author_username?: string | null;
+            detail?: string | null;
+            icon?: string | null;
+            id: string;
+            /** Format: int64 */
+            sprint_number?: number | null;
+            summary: string;
+            target_id: string;
+            /** Format: int64 */
+            target_iid?: number | null;
+            target_title: string;
+            target_type: string;
+            target_url?: string | null;
+            /** Format: date-time */
+            timestamp: string;
+        };
         GroupComparisonSummary: {
             /** Format: double */
             accuracy_ratio: number;
@@ -665,8 +722,10 @@ export interface components {
         };
         GroupMemberRecord: {
             access_level?: string | null;
+            avatar_url?: string | null;
             group_id: string;
             is_verified: boolean;
+            name?: string | null;
             username: string;
         };
         GroupRecord: {
@@ -685,6 +744,28 @@ export interface components {
             database: string;
             status: string;
             version: string;
+        };
+        ItemNoteRecord: {
+            author_avatar_url?: string | null;
+            author_name?: string | null;
+            author_username?: string | null;
+            body: string;
+            /** Format: date-time */
+            created_at: string;
+            discussion_id?: string | null;
+            id: string;
+            is_internal: boolean;
+            is_resolvable: boolean;
+            is_resolved: boolean;
+            is_system: boolean;
+            merge_request_id?: string | null;
+            /** Format: date-time */
+            synced_at: string;
+            system_note_icon_name?: string | null;
+            /** Format: date-time */
+            updated_at?: string | null;
+            web_url?: string | null;
+            work_item_id?: string | null;
         };
         LeaderboardEntry: {
             avatar_url?: string | null;
@@ -1237,6 +1318,42 @@ export interface operations {
             };
         };
     };
+    get_group_activity: {
+        parameters: {
+            query?: {
+                author?: string | null;
+                sprint?: number | null;
+                activity_type?: string | null;
+                limit?: number | null;
+                offset?: number | null;
+            };
+            header?: never;
+            path: {
+                /** @description Group slug or ID */
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Aggregated chronological group activity feed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupActivityFeedResponse"];
+                };
+            };
+            /** @description Group not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     get_group_dashboard: {
         parameters: {
             query?: never;
@@ -1513,6 +1630,36 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MetaResponse"];
                 };
+            };
+        };
+    };
+    get_item_notes: {
+        parameters: {
+            query?: {
+                work_item_id?: string | null;
+                merge_request_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of discussion notes and system activity for a work item or merge request */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemNoteRecord"][];
+                };
+            };
+            /** @description Neither work_item_id nor merge_request_id provided */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

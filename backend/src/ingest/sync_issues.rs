@@ -2,7 +2,10 @@ use chrono::{DateTime, Utc};
 use serde_json::json;
 
 use crate::{
-    db::{timelogs::upsert_timelog, users::upsert_user, work_items::upsert_work_item},
+    db::{
+        notes::upsert_item_note, timelogs::upsert_timelog, users::upsert_user,
+        work_items::upsert_work_item,
+    },
     error::AppError,
     gitlab::{client::GitLabClient, graphql::IssuesData},
     ingest::calculate_sprint_for_group,
@@ -15,27 +18,19 @@ pub async fn sync_group_issues(
     group_id: &str,
     group_path: &str,
 ) -> Result<usize, AppError> {
-    let query = r#"
-    query GetGroupIssues($fullPath: ID!, $after: String) {
-      group(fullPath: $fullPath) {
-        issues(includeSubgroups: true, first: 50, after: $after) {
-          pageInfo { hasNextPage endCursor }
-          nodes {
-            id iid title description state webUrl createdAt closedAt
-            timeEstimate totalTimeSpent
-            labels { nodes { id title color } }
-            epic { id iid group { id } }
-            timelogs {
-              nodes {
-                id spentAt timeSpent summary
-                user { id username name avatarUrl webUrl bot }
-              }
-            }
-          }
-        }
-      }
-    }
-    "#;
+    let query = "query GetGroupIssues($fullPath: ID!, $after: String) { \
+      group(fullPath: $fullPath) { \
+        issues(includeSubgroups: true, first: 50, after: $after) { \
+          pageInfo { hasNextPage endCursor } \
+          nodes { \
+            id iid title description state webUrl createdAt closedAt timeEstimate totalTimeSpent \
+            labels { nodes { id title color } } epic { id iid group { id } } \
+            timelogs { nodes { id spentAt timeSpent summary user { id username name avatarUrl webUrl bot } } } \
+            notes(filter: ALL_NOTES, first: 50) { nodes { id body system systemNoteIconName createdAt updatedAt url internal resolvable resolved author { id username name avatarUrl webUrl bot } discussion { id } } } \
+          } \
+        } \
+      } \
+    }";
 
     let mut cursor: Option<String> = None;
     let mut total_synced = 0;
@@ -120,9 +115,24 @@ pub async fn sync_group_issues(
                 None
             };
 
+            let work_item_id = if let Some(ref p_path) = project_path {
+                sqlx::query_scalar::<_, String>(
+                    "SELECT id FROM work_items WHERE project_path = ?1 AND iid = ?2 LIMIT 1",
+                )
+                .bind(p_path)
+                .bind(iid)
+                .fetch_optional(&state.db)
+                .await
+                .ok()
+                .flatten()
+                .unwrap_or_else(|| item.id.clone())
+            } else {
+                item.id.clone()
+            };
+
             upsert_work_item(
                 &state.db,
-                &item.id,
+                &work_item_id,
                 Some(group_id),
                 project_path.as_deref(),
                 iid,
@@ -158,30 +168,26 @@ pub async fn sync_group_issues(
                                 .unwrap_or("0")
                                 .replace("gid://gitlab/User/", "");
                         let uname = u.name.as_deref().unwrap_or(&u.username);
-                        let avatar = u.avatar_url.as_deref();
-                        let web = u.web_url.as_deref().unwrap_or("");
-                        let bot = u.bot.unwrap_or(false);
-                        let _ = upsert_user(&state.db, &uid, &u.username, uname, avatar, web, bot)
-                            .await;
-                    } else {
-                        let _ = sqlx::query(
-                            r#"
-                            INSERT INTO users (gitlab_id, username, name, web_url, is_bot)
-                            VALUES (?1, ?2, ?2, '', 0)
-                            ON CONFLICT(username) DO NOTHING
-                            "#,
+                        let _ = upsert_user(
+                            &state.db,
+                            &uid,
+                            &u.username,
+                            uname,
+                            u.avatar_url.as_deref(),
+                            u.web_url.as_deref().unwrap_or(""),
+                            u.bot.unwrap_or(false),
                         )
-                        .bind(format!("stub_{username}"))
-                        .bind(&username)
-                        .execute(&state.db)
                         .await;
+                    } else {
+                        let _ = sqlx::query("INSERT INTO users (gitlab_id, username, name, web_url, is_bot) VALUES (?1, ?2, ?2, '', 0) ON CONFLICT(username) DO NOTHING")
+                            .bind(format!("stub_{username}")).bind(&username).execute(&state.db).await;
                     }
 
                     let sprint_number = calculate_sprint_for_group(spent_at, state, group_path);
                     let _ = upsert_timelog(
                         &state.db,
                         &tl.id,
-                        Some(&item.id),
+                        Some(&work_item_id),
                         None,
                         &username,
                         spent_at,
@@ -189,6 +195,60 @@ pub async fn sync_group_issues(
                         tl.summary.as_deref(),
                         &item.web_url,
                         sprint_number,
+                        now,
+                    )
+                    .await;
+                }
+            }
+
+            if let Some(notes) = item.notes.and_then(|n| n.nodes) {
+                for note in notes {
+                    let note_created = DateTime::parse_from_rfc3339(&note.created_at)
+                        .map(|d| d.with_timezone(&Utc))
+                        .unwrap_or(now);
+                    let note_updated = note
+                        .updated_at
+                        .as_deref()
+                        .and_then(|u| DateTime::parse_from_rfc3339(u).ok())
+                        .map(|d| d.with_timezone(&Utc));
+
+                    if let Some(ref author) = note.author {
+                        let uid = author
+                            .id
+                            .as_deref()
+                            .unwrap_or(&author.username)
+                            .replace("gid://gitlab/User/", "");
+                        let uname = author.name.as_deref().unwrap_or(&author.username);
+                        let _ = upsert_user(
+                            &state.db,
+                            &uid,
+                            &author.username,
+                            uname,
+                            author.avatar_url.as_deref(),
+                            author.web_url.as_deref().unwrap_or(""),
+                            author.bot.unwrap_or(false),
+                        )
+                        .await;
+                    }
+
+                    let _ = upsert_item_note(
+                        &state.db,
+                        &note.id,
+                        Some(&work_item_id),
+                        None,
+                        note.author.as_ref().map(|u| u.username.as_str()),
+                        note.author.as_ref().and_then(|u| u.name.as_deref()),
+                        note.author.as_ref().and_then(|u| u.avatar_url.as_deref()),
+                        &note.body,
+                        note.system,
+                        note.system_note_icon_name.as_deref(),
+                        note.discussion.as_ref().map(|d| d.id.as_str()),
+                        note.internal.unwrap_or(false),
+                        note.resolvable.unwrap_or(false),
+                        note.resolved.unwrap_or(false),
+                        note.url.as_deref(),
+                        note_created,
+                        note_updated,
                         now,
                     )
                     .await;

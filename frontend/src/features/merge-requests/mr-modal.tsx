@@ -5,27 +5,26 @@ import { Button } from '@/components/ui/button'
 import { GitPullRequest, GitMerge, GitBranch, ExternalLink, Calendar, FolderGit2, CheckCircle2, MessageSquare, ThumbsUp } from 'lucide-react'
 import { getRelativePath, formatStatus } from '@/lib/format'
 import { UserProfileModal } from '@/features/profile/user-profile-modal'
+import { ItemDiscussionThread } from '@/features/notes/item-discussion-thread'
+import { Markdown } from '@/components/ui/markdown'
 
 export interface MergeRequestModalData {
-  id: string
-  iid: number
-  title: string
-  description?: string | null
-  state: string
-  author_username: string
-  project_path: string
-  source_branch: string
-  target_branch: string
-  additions: number
-  deletions: number
-  pipeline_status?: string | null
-  web_url: string
-  approved_by_json?: string
-  discussion_authors_json?: string
-  discussion_count: number
-  created_at: string
-  merged_at?: string | null
-  closed_at?: string | null
+  id: string; iid: number; title: string; description?: string | null; state: string
+  author_username: string; project_path: string; source_branch: string; target_branch: string
+  additions: number; deletions: number; pipeline_status?: string | null; web_url: string
+  approved_by_json?: string; discussion_authors_json?: string; discussion_count: number
+  created_at: string; merged_at?: string | null; closed_at?: string | null
+}
+
+function parseUserList(json?: string | null): string[] {
+  try {
+    const raw = JSON.parse(json || '[]')
+    return (Array.isArray(raw) ? raw : [])
+      .map((a: unknown) => (typeof a === 'string' ? a : (a as { username?: string })?.username || ''))
+      .filter(Boolean)
+  } catch {
+    return []
+  }
 }
 
 export function MergeRequestModal({ mr, slug, onClose }: { mr: MergeRequestModalData | null; slug?: string; onClose: () => void }) {
@@ -36,11 +35,8 @@ export function MergeRequestModal({ mr, slug, onClose }: { mr: MergeRequestModal
   const isClosed = mr.state === 'closed'
   const badgeVariant = isMerged ? 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30' : isClosed ? 'bg-muted/50 text-muted-foreground' : 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30'
 
-  let approvers: string[] = []
-  try { approvers = JSON.parse(mr.approved_by_json || '[]') } catch { approvers = [] }
-
-  let discussants: string[] = []
-  try { discussants = JSON.parse(mr.discussion_authors_json || '[]') } catch { discussants = [] }
+  const approvers = parseUserList(mr.approved_by_json)
+  const discussants = parseUserList(mr.discussion_authors_json)
 
   return (
     <>
@@ -118,10 +114,13 @@ export function MergeRequestModal({ mr, slug, onClose }: { mr: MergeRequestModal
 
           <div>
             <div className="text-xs font-medium text-muted-foreground mb-1">Description</div>
-            <div className="rounded-lg border border-border/50 bg-background/50 p-3 text-xs leading-relaxed max-h-52 overflow-y-auto whitespace-pre-wrap font-sans text-foreground">
-              {mr.description ? mr.description : <span className="italic text-muted-foreground">No description provided.</span>}
+            <div className="rounded-lg border border-border/50 bg-background/50 p-3 text-xs leading-relaxed max-h-52 overflow-y-auto font-sans text-foreground">
+              {mr.description ? <Markdown content={mr.description} /> : <span className="italic text-muted-foreground">No description provided.</span>}
             </div>
           </div>
+
+          {/* Discussions & Activity Notes */}
+          <ItemDiscussionThread mergeRequestId={mr.id} />
 
           <div className="pt-2 flex justify-end">
             <a href={mr.web_url} target="_blank" rel="noreferrer" className="w-full sm:w-auto">

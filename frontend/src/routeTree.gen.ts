@@ -15,6 +15,7 @@ import { Route as GroupsSlugRouteImport } from './routes/groups.$slug'
 import { Route as PresentSlugRouteImport } from './routes/present.$slug'
 import { Route as UsersUsernameRouteImport } from './routes/users.$username'
 import { Route as GroupsSlugIndexRouteImport } from './routes/groups.$slug.index'
+import { Route as GroupsSlugActivityRouteImport } from './routes/groups.$slug.activity'
 import { Route as GroupsSlugLeaderboardRouteImport } from './routes/groups.$slug.leaderboard'
 import { Route as GroupsSlugMergeRequestsRouteImport } from './routes/groups.$slug.merge-requests'
 import { Route as GroupsSlugRepoRouteImport } from './routes/groups.$slug.repo'
@@ -51,6 +52,11 @@ const GroupsSlugIndexRoute = GroupsSlugIndexRouteImport.update({
   path: '/',
   getParentRoute: () => GroupsSlugRoute,
 } as any)
+const GroupsSlugActivityRoute = GroupsSlugActivityRouteImport.update({
+  id: '/activity',
+  path: '/activity',
+  getParentRoute: () => GroupsSlugRoute,
+} as any)
 const GroupsSlugLeaderboardRoute = GroupsSlugLeaderboardRouteImport.update({
   id: '/leaderboard',
   path: '/leaderboard',
@@ -83,6 +89,7 @@ export interface FileRoutesByFullPath {
   '/groups/$slug': typeof GroupsSlugRouteWithChildren
   '/present/$slug': typeof PresentSlugRoute
   '/users/$username': typeof UsersUsernameRoute
+  '/groups/$slug/activity': typeof GroupsSlugActivityRoute
   '/groups/$slug/leaderboard': typeof GroupsSlugLeaderboardRoute
   '/groups/$slug/merge-requests': typeof GroupsSlugMergeRequestsRoute
   '/groups/$slug/repo': typeof GroupsSlugRepoRoute
@@ -95,6 +102,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/present/$slug': typeof PresentSlugRoute
   '/users/$username': typeof UsersUsernameRoute
+  '/groups/$slug/activity': typeof GroupsSlugActivityRoute
   '/groups/$slug/leaderboard': typeof GroupsSlugLeaderboardRoute
   '/groups/$slug/merge-requests': typeof GroupsSlugMergeRequestsRoute
   '/groups/$slug/repo': typeof GroupsSlugRepoRoute
@@ -109,6 +117,7 @@ export interface FileRoutesById {
   '/groups/$slug': typeof GroupsSlugRouteWithChildren
   '/present/$slug': typeof PresentSlugRoute
   '/users/$username': typeof UsersUsernameRoute
+  '/groups/$slug/activity': typeof GroupsSlugActivityRoute
   '/groups/$slug/leaderboard': typeof GroupsSlugLeaderboardRoute
   '/groups/$slug/merge-requests': typeof GroupsSlugMergeRequestsRoute
   '/groups/$slug/repo': typeof GroupsSlugRepoRoute
@@ -124,6 +133,7 @@ export interface FileRouteTypes {
     | '/groups/$slug'
     | '/present/$slug'
     | '/users/$username'
+    | '/groups/$slug/activity'
     | '/groups/$slug/leaderboard'
     | '/groups/$slug/merge-requests'
     | '/groups/$slug/repo'
@@ -136,6 +146,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/present/$slug'
     | '/users/$username'
+    | '/groups/$slug/activity'
     | '/groups/$slug/leaderboard'
     | '/groups/$slug/merge-requests'
     | '/groups/$slug/repo'
@@ -149,6 +160,7 @@ export interface FileRouteTypes {
     | '/groups/$slug'
     | '/present/$slug'
     | '/users/$username'
+    | '/groups/$slug/activity'
     | '/groups/$slug/leaderboard'
     | '/groups/$slug/merge-requests'
     | '/groups/$slug/repo'
@@ -209,6 +221,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GroupsSlugIndexRouteImport
       parentRoute: typeof GroupsSlugRoute
     }
+    '/groups/$slug/activity': {
+      id: '/groups/$slug/activity'
+      path: '/activity'
+      fullPath: '/groups/$slug/activity'
+      preLoaderRoute: typeof GroupsSlugActivityRouteImport
+      parentRoute: typeof GroupsSlugRoute
+    }
     '/groups/$slug/leaderboard': {
       id: '/groups/$slug/leaderboard'
       path: '/leaderboard'
@@ -248,6 +267,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface GroupsSlugRouteChildren {
+  GroupsSlugActivityRoute: typeof GroupsSlugActivityRoute
   GroupsSlugLeaderboardRoute: typeof GroupsSlugLeaderboardRoute
   GroupsSlugMergeRequestsRoute: typeof GroupsSlugMergeRequestsRoute
   GroupsSlugRepoRoute: typeof GroupsSlugRepoRoute
@@ -257,6 +277,7 @@ interface GroupsSlugRouteChildren {
 }
 
 const GroupsSlugRouteChildren: GroupsSlugRouteChildren = {
+  GroupsSlugActivityRoute: GroupsSlugActivityRoute,
   GroupsSlugLeaderboardRoute: GroupsSlugLeaderboardRoute,
   GroupsSlugMergeRequestsRoute: GroupsSlugMergeRequestsRoute,
   GroupsSlugRepoRoute: GroupsSlugRepoRoute,

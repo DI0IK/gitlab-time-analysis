@@ -104,20 +104,32 @@ pub async fn get_work_items_by_group(
     sqlx::query_as::<_, WorkItemRecord>(
         r#"
         WITH RECURSIVE descendant_groups AS (
-            SELECT id FROM groups WHERE id = ?1
+            SELECT id, full_path FROM groups WHERE id = ?1
             UNION ALL
-            SELECT g.id FROM groups g
+            SELECT g.id, g.full_path FROM groups g
             JOIN descendant_groups d ON g.parent_id = d.id
+        ),
+        ranked_items AS (
+            SELECT w.id, w.group_id,
+                   COALESCE(w.project_path, g.full_path) as project_path,
+                   w.iid, w.work_item_type, w.parent_id,
+                   w.title, w.description, w.state, w.time_estimate, w.total_time_spent,
+                   w.web_url, w.labels_json, w.created_at, w.closed_at, w.synced_at,
+                   ROW_NUMBER() OVER (
+                       PARTITION BY COALESCE(w.project_path, g.full_path, ''), w.iid, w.work_item_type
+                       ORDER BY CASE WHEN w.id LIKE '%WorkItem%' THEN 0 ELSE 1 END, w.synced_at DESC
+                   ) as rn
+            FROM work_items w
+            LEFT JOIN groups g ON w.group_id = g.id
+            WHERE w.group_id IN (SELECT id FROM descendant_groups)
+               OR EXISTS (SELECT 1 FROM descendant_groups dg WHERE w.project_path LIKE dg.full_path || '/%' OR w.project_path = dg.full_path)
         )
-        SELECT w.id, w.group_id,
-               COALESCE(w.project_path, g.full_path) as project_path,
-               w.iid, w.work_item_type, w.parent_id,
-               w.title, w.description, w.state, w.time_estimate, w.total_time_spent,
-               w.web_url, w.labels_json, w.created_at, w.closed_at, w.synced_at
-        FROM work_items w
-        LEFT JOIN groups g ON w.group_id = g.id
-        WHERE w.group_id IN (SELECT id FROM descendant_groups)
-        ORDER BY w.created_at DESC
+        SELECT id, group_id, project_path, iid, work_item_type, parent_id,
+               title, description, state, time_estimate, total_time_spent,
+               web_url, labels_json, created_at, closed_at, synced_at
+        FROM ranked_items
+        WHERE rn = 1
+        ORDER BY created_at DESC
         "#,
     )
     .bind(group_id)
@@ -137,6 +149,7 @@ pub async fn get_work_item(pool: &DbPool, id: &str) -> Result<Option<WorkItemRec
         FROM work_items w
         LEFT JOIN groups g ON w.group_id = g.id
         WHERE w.id = ?1
+           OR (w.project_path, w.iid) = (SELECT project_path, iid FROM work_items WHERE id = ?1)
         LIMIT 1
         "#,
     )

@@ -4,6 +4,8 @@ import { Badge, ScopedBadge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Clock, ExternalLink, Calendar, Folder, FolderGit2, CheckCircle2, CircleDot, Code2 } from 'lucide-react'
 import { getRelativePath, formatStatus } from '@/lib/format'
+import { ItemDiscussionThread } from '@/features/notes/item-discussion-thread'
+import { Markdown } from '@/components/ui/markdown'
 
 export interface WorkItemModalData {
   id: string
@@ -145,10 +147,13 @@ export function WorkItemModal({
         {/* Description */}
         <div>
           <div className="text-xs font-medium text-muted-foreground mb-1">Description</div>
-          <div className="rounded-lg border border-border/50 bg-background/50 p-3 text-xs leading-relaxed max-h-56 overflow-y-auto whitespace-pre-wrap font-sans text-foreground">
-            {item.description ? item.description : <span className="italic text-muted-foreground">No description provided.</span>}
+          <div className="rounded-lg border border-border/50 bg-background/50 p-3 text-xs leading-relaxed max-h-56 overflow-y-auto font-sans text-foreground">
+            {item.description ? <Markdown content={item.description} /> : <span className="italic text-muted-foreground">No description provided.</span>}
           </div>
         </div>
+
+        {/* Discussions & Activity Notes */}
+        <ItemDiscussionThread workItemId={item.id} />
 
         {/* Footer actions */}
         <div className="pt-2 flex flex-wrap items-center justify-between gap-2">

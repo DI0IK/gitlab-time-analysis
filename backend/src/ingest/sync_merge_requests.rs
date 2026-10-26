@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use serde_json::json;
 
 use crate::{
-    db::{merge_requests::upsert_merge_request, users::upsert_user},
+    db::{merge_requests::upsert_merge_request, notes::upsert_item_note, users::upsert_user},
     error::AppError,
     gitlab::{client::GitLabClient, mr_types::MergeRequestsData},
     state::AppState,
@@ -26,6 +26,13 @@ pub async fn sync_group_merge_requests(
             project { fullPath }
             diffStatsSummary { additions deletions }
             approvedBy { nodes { username } }
+            notes(first: 30) {
+              nodes {
+                id body system systemNoteIconName createdAt updatedAt url internal resolvable resolved
+                author { id username name avatarUrl webUrl bot }
+                discussion { id }
+              }
+            }
           }
         }
       }
@@ -124,6 +131,63 @@ pub async fn sync_group_merge_requests(
                 now,
             )
             .await?;
+
+            if let Some(notes_nodes) = item.notes.and_then(|c| c.nodes) {
+                for note in notes_nodes {
+                    let note_created = DateTime::parse_from_rfc3339(&note.created_at)
+                        .map(|d| d.with_timezone(&Utc))
+                        .unwrap_or(now);
+                    let note_updated = note
+                        .updated_at
+                        .as_deref()
+                        .and_then(|u| DateTime::parse_from_rfc3339(u).ok())
+                        .map(|d| d.with_timezone(&Utc));
+
+                    let author_username = note.author.as_ref().map(|u| u.username.as_str());
+                    let author_name = note.author.as_ref().and_then(|u| u.name.as_deref());
+                    let author_avatar = note.author.as_ref().and_then(|u| u.avatar_url.as_deref());
+
+                    if let Some(author) = &note.author {
+                        let uid = author
+                            .id
+                            .as_deref()
+                            .unwrap_or(&author.username)
+                            .replace("gid://gitlab/User/", "");
+                        let _ = upsert_user(
+                            &state.db,
+                            &uid,
+                            &author.username,
+                            author.name.as_deref().unwrap_or(&author.username),
+                            author.avatar_url.as_deref(),
+                            author.web_url.as_deref().unwrap_or(""),
+                            author.bot.unwrap_or(false),
+                        )
+                        .await;
+                    }
+
+                    let _ = upsert_item_note(
+                        &state.db,
+                        &note.id,
+                        None,
+                        Some(&item.id),
+                        author_username,
+                        author_name,
+                        author_avatar,
+                        &note.body,
+                        note.system,
+                        note.system_note_icon_name.as_deref(),
+                        note.discussion.as_ref().map(|d| d.id.as_str()),
+                        note.internal.unwrap_or(false),
+                        note.resolvable.unwrap_or(false),
+                        note.resolved.unwrap_or(false),
+                        note.url.as_deref(),
+                        note_created,
+                        note_updated,
+                        now,
+                    )
+                    .await;
+                }
+            }
 
             total_synced += 1;
         }

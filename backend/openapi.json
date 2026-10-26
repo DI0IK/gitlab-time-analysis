@@ -145,6 +145,98 @@
         }
       }
     },
+    "/api/groups/{slug}/activity": {
+      "get": {
+        "tags": [
+          "Groups"
+        ],
+        "operationId": "get_group_activity",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "description": "Group slug or ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "author",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "sprint",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            }
+          },
+          {
+            "name": "activity_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Aggregated chronological group activity feed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupActivityFeedResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Group not found"
+          }
+        }
+      }
+    },
     "/api/groups/{slug}/dashboard": {
       "get": {
         "tags": [
@@ -470,6 +562,56 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/notes": {
+      "get": {
+        "tags": [
+          "Discussions"
+        ],
+        "operationId": "get_item_notes",
+        "parameters": [
+          {
+            "name": "work_item_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "merge_request_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of discussion notes and system activity for a work item or merge request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ItemNoteRecord"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Neither work_item_id nor merge_request_id provided"
           }
         }
       }
@@ -1458,6 +1600,115 @@
           }
         }
       },
+      "GroupActivityFeedResponse": {
+        "type": "object",
+        "required": [
+          "items",
+          "total_count",
+          "has_more"
+        ],
+        "properties": {
+          "has_more": {
+            "type": "boolean"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GroupActivityItem"
+            }
+          },
+          "total_count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "GroupActivityItem": {
+        "type": "object",
+        "required": [
+          "id",
+          "activity_type",
+          "timestamp",
+          "summary",
+          "target_id",
+          "target_type",
+          "target_title"
+        ],
+        "properties": {
+          "activity_type": {
+            "type": "string"
+          },
+          "author_avatar_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "author_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "author_username": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "detail": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "icon": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "sprint_number": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "target_id": {
+            "type": "string"
+          },
+          "target_iid": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "target_title": {
+            "type": "string"
+          },
+          "target_type": {
+            "type": "string"
+          },
+          "target_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "GroupComparisonSummary": {
         "type": "object",
         "required": [
@@ -1623,11 +1874,23 @@
               "null"
             ]
           },
+          "avatar_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "group_id": {
             "type": "string"
           },
           "is_verified": {
             "type": "boolean"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "username": {
             "type": "string"
@@ -1695,6 +1958,102 @@
           },
           "version": {
             "type": "string"
+          }
+        }
+      },
+      "ItemNoteRecord": {
+        "type": "object",
+        "required": [
+          "id",
+          "body",
+          "is_system",
+          "is_internal",
+          "is_resolvable",
+          "is_resolved",
+          "created_at",
+          "synced_at"
+        ],
+        "properties": {
+          "author_avatar_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "author_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "author_username": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "body": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "discussion_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "is_internal": {
+            "type": "boolean"
+          },
+          "is_resolvable": {
+            "type": "boolean"
+          },
+          "is_resolved": {
+            "type": "boolean"
+          },
+          "is_system": {
+            "type": "boolean"
+          },
+          "merge_request_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "synced_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "system_note_icon_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "web_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "work_item_id": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
