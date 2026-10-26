@@ -3,7 +3,10 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::{
-    db::{groups::get_all_groups, sync_state::set_sync_state},
+    db::{
+        groups::get_all_groups,
+        sync_state::{get_sync_state, set_sync_state},
+    },
     error::AppError,
     gitlab::client::GitLabClient,
     ingest::{
@@ -124,10 +127,49 @@ pub async fn run_sync(state: &AppState) -> Result<SyncSummary, AppError> {
     }
 
     // 3. Sync bare mirrors for all discovered repositories and wikis across all root groups
-    let (repos_synced, wikis_synced) = match sync_all_bare_mirrors(state).await {
-        Ok(res) => res,
-        Err(e) => {
-            tracing::warn!("Bare mirrors sync encountered an error: {e}");
+    // Throttled by state.config.git_mirror_interval_secs (defaults to 900s / 15 minutes)
+    let should_sync_mirrors = match get_sync_state(&state.db, "git_mirrors").await? {
+        Some(record) => {
+            let elapsed = Utc::now().signed_duration_since(record.last_synced_at);
+            elapsed.num_seconds() >= state.config.git_mirror_interval_secs as i64
+        }
+        None => true,
+    };
+
+    let (repos_synced, wikis_synced) = if should_sync_mirrors {
+        tracing::info!(
+            "Running bare mirrors sync (scheduled every {}s / {} min)",
+            state.config.git_mirror_interval_secs,
+            state.config.git_mirror_interval_secs / 60
+        );
+        match sync_all_bare_mirrors(state).await {
+            Ok((r, w)) => {
+                let meta = serde_json::json!({
+                    "repos_synced": r,
+                    "wikis_synced": w,
+                })
+                .to_string();
+                let _ = set_sync_state(&state.db, "git_mirrors", None, &meta).await;
+                (r, w)
+            }
+            Err(e) => {
+                tracing::warn!("Bare mirrors sync encountered an error: {e}");
+                (0, 0)
+            }
+        }
+    } else {
+        tracing::debug!(
+            "Skipping bare mirrors sync: interval is {}s; last sync was recent",
+            state.config.git_mirror_interval_secs
+        );
+        if let Ok(Some(rec)) = get_sync_state(&state.db, "git_mirrors").await
+            && let Ok(v) = serde_json::from_str::<serde_json::Value>(&rec.metadata_json)
+        {
+            (
+                v.get("repos_synced").and_then(|n| n.as_u64()).unwrap_or(0) as usize,
+                v.get("wikis_synced").and_then(|n| n.as_u64()).unwrap_or(0) as usize,
+            )
+        } else {
             (0, 0)
         }
     };

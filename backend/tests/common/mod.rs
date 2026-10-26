@@ -14,6 +14,7 @@ pub async fn setup_test_state() -> (AppState, SqlitePool) {
         )],
         frontend_dist: "frontend/dist".to_string(),
         sync_interval_secs: 300,
+        git_mirror_interval_secs: 900,
         project_start_date: None,
         project_end_date: None,
         sprint_start_weekday: "Monday".to_string(),

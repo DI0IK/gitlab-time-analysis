@@ -151,6 +151,7 @@ pub struct Config {
     pub root_groups: Vec<RootGroupConfig>,
     pub frontend_dist: String,
     pub sync_interval_secs: u64,
+    pub git_mirror_interval_secs: u64,
     pub project_start_date: Option<NaiveDate>,
     pub project_end_date: Option<NaiveDate>,
     pub sprint_start_weekday: String,
@@ -292,6 +293,11 @@ impl Config {
             .and_then(|s| s.parse().ok())
             .unwrap_or(300);
 
+        let git_mirror_interval_secs = env::var("GIT_MIRROR_INTERVAL_SECS")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(900);
+
         let gitlab_oauth_client_id = env::var("GITLAB_OAUTH_CLIENT_ID")
             .ok()
             .filter(|id| !id.is_empty());
@@ -336,6 +342,7 @@ impl Config {
             root_groups,
             frontend_dist,
             sync_interval_secs,
+            git_mirror_interval_secs,
             project_start_date,
             project_end_date,
             sprint_start_weekday,
