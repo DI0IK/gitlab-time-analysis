@@ -86,8 +86,13 @@ export function filterActivityItems(rawItems: GroupActivityItem[], search: strin
   )
 }
 
-export function groupActivityItems(items: GroupActivityItem[]): Array<{ header: string; items: GroupActivityItem[] }> {
-  const groups: Array<{ header: string; items: GroupActivityItem[] }> = []
+export interface ActivityGroup {
+  header: string
+  items: GroupActivityItem[]
+}
+
+export function groupActivityItems(items: GroupActivityItem[]): ActivityGroup[] {
+  const groups: ActivityGroup[] = []
   let currentHeader = ''
   let currentGroup: GroupActivityItem[] = []
 

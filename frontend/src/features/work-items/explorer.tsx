@@ -31,6 +31,7 @@ export function WorkItemsExplorer({ slug }: { slug: string }) {
     const seen = new Set<string>()
     const result: WorkItemModalData[] = []
     for (const item of data || []) {
+      if (item.title === 'Pending Sync') continue
       const key = `${item.project_path || ''}:${item.iid}:${item.work_item_type}`
       if (seen.has(key)) continue
       seen.add(key)

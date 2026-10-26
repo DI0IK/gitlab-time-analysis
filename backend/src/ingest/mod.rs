@@ -1,3 +1,4 @@
+pub mod item_details;
 pub mod scheduler;
 pub mod sync_groups;
 pub mod sync_issues;

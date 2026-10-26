@@ -58,7 +58,7 @@ pub async fn upsert_work_item(
             project_path = excluded.project_path,
             iid = excluded.iid,
             work_item_type = excluded.work_item_type,
-            parent_id = excluded.parent_id,
+            parent_id = COALESCE(excluded.parent_id, work_items.parent_id),
             title = excluded.title,
             description = excluded.description,
             state = excluded.state,
@@ -121,8 +121,9 @@ pub async fn get_work_items_by_group(
                    ) as rn
             FROM work_items w
             LEFT JOIN groups g ON w.group_id = g.id
-            WHERE w.group_id IN (SELECT id FROM descendant_groups)
-               OR EXISTS (SELECT 1 FROM descendant_groups dg WHERE w.project_path LIKE dg.full_path || '/%' OR w.project_path = dg.full_path)
+            WHERE (w.group_id IN (SELECT id FROM descendant_groups)
+               OR EXISTS (SELECT 1 FROM descendant_groups dg WHERE w.project_path LIKE dg.full_path || '/%' OR w.project_path = dg.full_path))
+              AND w.title != 'Pending Sync'
         )
         SELECT id, group_id, project_path, iid, work_item_type, parent_id,
                title, description, state, time_estimate, total_time_spent,

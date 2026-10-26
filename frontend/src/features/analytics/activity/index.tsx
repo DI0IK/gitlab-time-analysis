@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useInfiniteQuery } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api/client'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -7,7 +7,7 @@ import { Activity, RefreshCw } from 'lucide-react'
 import type { components } from '@/lib/api/schema'
 import { filterActivityItems, groupActivityItems } from './activity-helpers'
 import { ActivityToolbar } from './activity-toolbar'
-import { ActivityItemCard } from './activity-item-card'
+import { ActivityGroupList } from './activity-list'
 import { ActivityModals } from './activity-modals'
 
 type GroupActivityItem = components['schemas']['GroupActivityItem']
@@ -17,7 +17,6 @@ export function GroupActivityView({ slug }: { slug: string }) {
   const [sprint, setSprint] = React.useState('')
   const [activityType, setActivityType] = React.useState('all')
   const [search, setSearch] = React.useState('')
-  const [offset, setOffset] = React.useState(0)
   const [selectedTarget, setSelectedTarget] = React.useState<GroupActivityItem | null>(null)
   const limit = 50
 
@@ -29,9 +28,19 @@ export function GroupActivityView({ slug }: { slug: string }) {
     },
   })
 
-  const { data, isLoading, error, refetch, isFetching } = useQuery({
-    queryKey: ['group-activity', slug, author, sprint, activityType, offset],
-    queryFn: async () => {
+  const {
+    data,
+    isLoading,
+    error,
+    refetch,
+    isFetching,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: ['group-activity', slug, author, sprint, activityType],
+    initialPageParam: 0,
+    queryFn: async ({ pageParam = 0 }) => {
       const { data, error } = await apiClient.GET('/api/groups/{slug}/activity', {
         params: {
           path: { slug },
@@ -40,16 +49,22 @@ export function GroupActivityView({ slug }: { slug: string }) {
             sprint: sprint ? Number(sprint) : undefined,
             activity_type: activityType === 'all' ? undefined : activityType,
             limit,
-            offset,
+            offset: pageParam,
           },
         },
       })
       if (error || !data) throw new Error((error as unknown as { error?: string })?.error || 'Failed to load activity')
       return data
     },
+    getNextPageParam: (lastPage, allPages) => {
+      if (!lastPage.has_more) return undefined
+      return allPages.length * limit
+    },
   })
 
-  const filteredItems = React.useMemo(() => filterActivityItems(data?.items || [], search), [data?.items, search])
+  const allItems = React.useMemo(() => data?.pages.flatMap((p) => p.items) || [], [data?.pages])
+  const totalCount = data?.pages[0]?.total_count || 0
+  const filteredItems = React.useMemo(() => filterActivityItems(allItems, search), [allItems, search])
   const groupedItems = React.useMemo(() => groupActivityItems(filteredItems), [filteredItems])
 
   return (
@@ -62,7 +77,7 @@ export function GroupActivityView({ slug }: { slug: string }) {
               Group Activity
             </h1>
             <Badge variant="outline" className="text-xs font-mono bg-primary/10 text-primary border-primary/30">
-              {data?.total_count || 0} events
+              {totalCount} events
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground mt-1">
@@ -77,15 +92,15 @@ export function GroupActivityView({ slug }: { slug: string }) {
 
       <ActivityToolbar
         activityType={activityType}
-        onActivityTypeChange={(t) => { setActivityType(t); setOffset(0); }}
+        onActivityTypeChange={setActivityType}
         author={author}
-        onAuthorChange={(a) => { setAuthor(a); setOffset(0); }}
+        onAuthorChange={setAuthor}
         sprint={sprint}
-        onSprintChange={(s) => { setSprint(s); setOffset(0); }}
+        onSprintChange={setSprint}
         search={search}
         onSearchChange={setSearch}
         members={members || []}
-        onReset={() => { setAuthor(''); setSprint(''); setActivityType('all'); setSearch(''); setOffset(0); }}
+        onReset={() => { setAuthor(''); setSprint(''); setActivityType('all'); setSearch(''); }}
       />
 
       {isLoading ? (
@@ -107,25 +122,18 @@ export function GroupActivityView({ slug }: { slug: string }) {
           <h3 className="text-sm font-semibold text-foreground">No Activity Events Found</h3>
         </div>
       ) : (
-        <div className="space-y-8">
-          {groupedItems.map((group) => (
-            <div key={group.header} className="space-y-3">
-              <div className="flex items-center gap-2 sticky top-28 z-20 bg-background/90 backdrop-blur-xs py-1">
-                <span className="text-xs font-bold tracking-wide uppercase text-muted-foreground font-mono">{group.header}</span>
-                <div className="h-px flex-1 bg-border/40" />
-              </div>
-              <div className="relative pl-6 space-y-3 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-px before:bg-border/50">
-                {group.items.map((item) => (
-                  <ActivityItemCard key={item.id} item={item} onSelectTarget={setSelectedTarget} />
-                ))}
-              </div>
-            </div>
-          ))}
-
-          {data?.has_more && (
-            <div className="text-center pt-4">
-              <Button variant="outline" size="sm" onClick={() => setOffset((p) => p + limit)} disabled={isFetching} className="gap-2 text-xs font-mono">
-                {isFetching && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
+        <div className="space-y-6">
+          <ActivityGroupList groups={groupedItems} onSelectTarget={setSelectedTarget} />
+          {hasNextPage && (
+            <div className="text-center pt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => fetchNextPage()}
+                disabled={isFetchingNextPage}
+                className="gap-2 text-xs font-mono"
+              >
+                {isFetchingNextPage && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
                 Load More Activities
               </Button>
             </div>

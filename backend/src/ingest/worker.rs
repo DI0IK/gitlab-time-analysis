@@ -93,6 +93,12 @@ pub async fn run_sync(state: &AppState) -> Result<SyncSummary, AppError> {
             .filter(|g| g.full_path == root_group.path || g.full_path.starts_with(&root_prefix))
             .collect();
 
+        // Clean up any obsolete Pending Sync items from legacy syncs
+        let _ = sqlx::query("DELETE FROM work_items WHERE title = 'Pending Sync'")
+            .execute(&state.db)
+            .await;
+
+        // 3a. Sync all work items (epics, issues, tasks) across all groups first
         for g in &groups {
             match sync_group_work_items(&client, state, &g.id, &g.full_path).await {
                 Ok(count) => {
@@ -102,7 +108,10 @@ pub async fn run_sync(state: &AppState) -> Result<SyncSummary, AppError> {
                     tracing::error!("Failed to sync work items for group {}: {e}", g.full_path);
                 }
             }
+        }
 
+        // 3b. Sync issues (timelogs and issue notes) across all groups
+        for g in &groups {
             match sync_group_issues(&client, state, &g.id, &g.full_path).await {
                 Ok(count) => {
                     total_work_items_synced += count;
@@ -111,7 +120,10 @@ pub async fn run_sync(state: &AppState) -> Result<SyncSummary, AppError> {
                     tracing::error!("Failed to sync issues for group {}: {e}", g.full_path);
                 }
             }
+        }
 
+        // 3c. Sync merge requests across all groups
+        for g in &groups {
             match sync_group_merge_requests(&client, state, &g.full_path).await {
                 Ok(count) => {
                     total_merge_requests_synced += count;

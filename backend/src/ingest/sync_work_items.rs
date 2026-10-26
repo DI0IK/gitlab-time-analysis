@@ -1,17 +1,11 @@
 use chrono::{DateTime, Utc};
 use serde_json::json;
 
-use super::calculate_sprint_for_group;
+use super::item_details::{save_raw_notes, save_raw_timelogs};
 use crate::{
-    db::{
-        notes::upsert_item_note, timelogs::upsert_timelog, users::upsert_user,
-        work_items::upsert_work_item,
-    },
+    db::work_items::upsert_work_item,
     error::AppError,
-    gitlab::{
-        client::GitLabClient,
-        graphql::{GitLabNoteNode, WorkItemsData},
-    },
+    gitlab::{client::GitLabClient, graphql::WorkItemsData},
     state::AppState,
 };
 
@@ -60,6 +54,7 @@ pub async fn sync_group_work_items(
 
     let mut cursor: Option<String> = None;
     let mut total_synced = 0;
+    let mut parent_links: Vec<(String, String)> = Vec::new();
     let now = Utc::now();
 
     loop {
@@ -76,6 +71,7 @@ pub async fn sync_group_work_items(
                 .work_item_type
                 .map(|t| t.name.to_lowercase())
                 .unwrap_or_else(|| "issue".to_string());
+
             let created = DateTime::parse_from_rfc3339(&item.created_at)
                 .map(|d| d.with_timezone(&Utc))
                 .unwrap_or(now);
@@ -136,20 +132,25 @@ pub async fn sync_group_work_items(
                 }
             }
 
-            // Ensure parent stub exists if parent_id is specified to satisfy foreign key constraints
-            if let Some(pid) = parent_id.as_deref() {
-                let _ = sqlx::query(
-                    r#"
-                    INSERT INTO work_items (id, iid, work_item_type, title, state, web_url, created_at, synced_at)
-                    VALUES (?1, 0, 'epic', 'Pending Sync', 'opened', '', ?2, ?2)
-                    ON CONFLICT(id) DO NOTHING
-                    "#,
-                )
-                .bind(pid)
-                .bind(now)
-                .execute(&state.db)
-                .await;
+            if let Some(ref pid) = parent_id {
+                parent_links.push((item.id.clone(), pid.clone()));
             }
+
+            let initial_parent_id = if let Some(ref pid) = parent_id {
+                let parent_exists: bool =
+                    sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM work_items WHERE id = ?1)")
+                        .bind(pid)
+                        .fetch_one(&state.db)
+                        .await
+                        .unwrap_or(false);
+                if parent_exists {
+                    Some(pid.as_str())
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
 
             let item_project_path = if let Some((base, _)) = item.web_url.split_once("/-/") {
                 let clean = base
@@ -167,7 +168,7 @@ pub async fn sync_group_work_items(
                 item_project_path.as_deref().or(Some(group_path)),
                 iid,
                 &w_type,
-                parent_id.as_deref(),
+                initial_parent_id,
                 &item.title,
                 item.description.as_deref(),
                 &item.state.to_lowercase(),
@@ -181,148 +182,17 @@ pub async fn sync_group_work_items(
             )
             .await?;
 
-            if w_type == "epic" && iid > 0 {
-                let _ = sqlx::query(
-                    r#"
-                    UPDATE work_items
-                    SET parent_id = ?1
-                    WHERE parent_id IN (
-                        SELECT id FROM work_items WHERE group_id = ?2 AND iid = ?3 AND id != ?1
-                    )
-                    "#,
-                )
-                .bind(&item.id)
-                .bind(group_id)
-                .bind(iid)
-                .execute(&state.db)
-                .await;
+            save_raw_timelogs(
+                state,
+                &item.id,
+                &item.web_url,
+                group_path,
+                timelogs_to_save,
+                now,
+            )
+            .await;
 
-                let _ = sqlx::query(
-                    "DELETE FROM work_items WHERE group_id = ?1 AND iid = ?2 AND id != ?3 AND title = 'Pending Sync'",
-                )
-                .bind(group_id)
-                .bind(iid)
-                .bind(&item.id)
-                .execute(&state.db)
-                .await;
-            }
-
-            for tl in timelogs_to_save {
-                if let (Some(t_id), Some(spent_at_raw), Some(spent)) = (
-                    tl.get("id").and_then(|v| v.as_str()),
-                    tl.get("spentAt").and_then(|v| v.as_str()),
-                    tl.get("timeSpent").and_then(|v| v.as_i64()),
-                ) {
-                    let spent_at = DateTime::parse_from_rfc3339(spent_at_raw)
-                        .map(|d| d.with_timezone(&Utc))
-                        .unwrap_or(now);
-                    let summary = tl.get("summary").and_then(|v| v.as_str());
-                    let user_node = tl.get("user");
-                    let username = user_node
-                        .and_then(|u| u.get("username"))
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("unknown");
-
-                    if let Some(u) = user_node {
-                        let uid = u
-                            .get("id")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("0")
-                            .replace("gid://gitlab/User/", "");
-                        let uname = u.get("name").and_then(|v| v.as_str()).unwrap_or(username);
-                        let avatar = u.get("avatarUrl").and_then(|v| v.as_str());
-                        let web = u.get("webUrl").and_then(|v| v.as_str()).unwrap_or("");
-                        let bot = u.get("bot").and_then(|v| v.as_bool()).unwrap_or(false);
-                        let _ =
-                            upsert_user(&state.db, &uid, username, uname, avatar, web, bot).await;
-                    } else {
-                        let _ = sqlx::query(
-                            r#"
-                            INSERT INTO users (gitlab_id, username, name, web_url, is_bot)
-                            VALUES (?1, ?2, ?2, '', 0)
-                            ON CONFLICT(username) DO NOTHING
-                            "#,
-                        )
-                        .bind(format!("stub_{username}"))
-                        .bind(username)
-                        .execute(&state.db)
-                        .await;
-                    }
-
-                    let sprint_number = calculate_sprint_for_group(spent_at, state, group_path);
-                    let _ = upsert_timelog(
-                        &state.db,
-                        t_id,
-                        Some(&item.id),
-                        None,
-                        username,
-                        spent_at,
-                        spent,
-                        summary,
-                        &item.web_url,
-                        sprint_number,
-                        now,
-                    )
-                    .await;
-                }
-            }
-
-            for note_val in notes_to_save {
-                if let Ok(note) = serde_json::from_value::<GitLabNoteNode>(note_val) {
-                    let note_created = DateTime::parse_from_rfc3339(&note.created_at)
-                        .map(|d| d.with_timezone(&Utc))
-                        .unwrap_or(now);
-                    let note_updated = note
-                        .updated_at
-                        .as_deref()
-                        .and_then(|u| DateTime::parse_from_rfc3339(u).ok())
-                        .map(|d| d.with_timezone(&Utc));
-
-                    let author_username = note.author.as_ref().map(|u| u.username.as_str());
-                    let author_name = note.author.as_ref().and_then(|u| u.name.as_deref());
-                    let author_avatar = note.author.as_ref().and_then(|u| u.avatar_url.as_deref());
-
-                    if let Some(author) = &note.author {
-                        let uid = author
-                            .id
-                            .as_deref()
-                            .unwrap_or(&author.username)
-                            .replace("gid://gitlab/User/", "");
-                        let _ = upsert_user(
-                            &state.db,
-                            &uid,
-                            &author.username,
-                            author.name.as_deref().unwrap_or(&author.username),
-                            author.avatar_url.as_deref(),
-                            author.web_url.as_deref().unwrap_or(""),
-                            author.bot.unwrap_or(false),
-                        )
-                        .await;
-                    }
-
-                    let _ = upsert_item_note(
-                        &state.db,
-                        &note.id,
-                        Some(&item.id),
-                        None,
-                        author_username,
-                        author_name,
-                        author_avatar,
-                        &note.body,
-                        note.system,
-                        note.system_note_icon_name.as_deref(),
-                        note.discussion.as_ref().map(|d| d.id.as_str()),
-                        note.internal.unwrap_or(false),
-                        note.resolvable.unwrap_or(false),
-                        note.resolved.unwrap_or(false),
-                        note.url.as_deref(),
-                        note_created,
-                        note_updated,
-                        now,
-                    )
-                    .await;
-                }
-            }
+            save_raw_notes(state, &item.id, notes_to_save, now).await;
 
             total_synced += 1;
         }
@@ -332,6 +202,27 @@ pub async fn sync_group_work_items(
         } else {
             break;
         }
+    }
+
+    // Pass 2: Link all parents now that all items in this group exist in the database
+    if !parent_links.is_empty()
+        && let Ok(mut tx) = state.db.begin().await
+    {
+        for (child_id, pid) in parent_links {
+            let _ = sqlx::query(
+                r#"
+                    UPDATE work_items
+                    SET parent_id = ?1
+                    WHERE id = ?2
+                      AND EXISTS (SELECT 1 FROM work_items WHERE id = ?1)
+                    "#,
+            )
+            .bind(&pid)
+            .bind(&child_id)
+            .execute(&mut *tx)
+            .await;
+        }
+        let _ = tx.commit().await;
     }
 
     Ok(total_synced)

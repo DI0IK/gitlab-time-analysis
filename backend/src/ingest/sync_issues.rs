@@ -1,14 +1,11 @@
 use chrono::{DateTime, Utc};
 use serde_json::json;
 
+use super::item_details::{save_issue_notes, save_issue_timelogs};
 use crate::{
-    db::{
-        notes::upsert_item_note, timelogs::upsert_timelog, users::upsert_user,
-        work_items::upsert_work_item,
-    },
+    db::work_items::upsert_work_item,
     error::AppError,
     gitlab::{client::GitLabClient, graphql::IssuesData},
-    ingest::calculate_sprint_for_group,
     state::AppState,
 };
 
@@ -69,10 +66,17 @@ pub async fn sync_group_issues(
                     .unwrap_or(group_id);
 
                 let real_epic: Option<String> = sqlx::query_scalar(
-                    "SELECT id FROM work_items WHERE group_id = ?1 AND iid = ?2 AND work_item_type = 'epic' AND id LIKE 'gid://gitlab/WorkItem/%' LIMIT 1",
+                    r#"
+                    SELECT id FROM work_items
+                    WHERE work_item_type = 'epic'
+                      AND iid = ?1
+                      AND title != 'Pending Sync'
+                    ORDER BY CASE WHEN (group_id = ?2 OR group_id IS NULL) THEN 0 ELSE 1 END
+                    LIMIT 1
+                    "#,
                 )
-                .bind(epic_group_id)
                 .bind(epic_iid)
+                .bind(epic_group_id)
                 .fetch_optional(&state.db)
                 .await
                 .ok()
@@ -80,20 +84,6 @@ pub async fn sync_group_issues(
 
                 if let Some(real_id) = real_epic {
                     parent_id = Some(real_id);
-                } else {
-                    let _ = sqlx::query(
-                        r#"
-                        INSERT INTO work_items (id, iid, work_item_type, title, state, web_url, created_at, synced_at)
-                        VALUES (?1, ?2, 'epic', 'Pending Sync', 'opened', '', ?3, ?3)
-                        ON CONFLICT(id) DO NOTHING
-                        "#,
-                    )
-                    .bind(&epic.id)
-                    .bind(epic_iid)
-                    .bind(now)
-                    .execute(&state.db)
-                    .await;
-                    parent_id = Some(epic.id.clone());
                 }
             }
 
@@ -152,107 +142,19 @@ pub async fn sync_group_issues(
             .await?;
 
             if let Some(timelogs) = item.timelogs.and_then(|tl| tl.nodes) {
-                for tl in timelogs {
-                    let spent_at = DateTime::parse_from_rfc3339(&tl.spent_at)
-                        .map(|d| d.with_timezone(&Utc))
-                        .unwrap_or(now);
-                    let username = tl
-                        .user
-                        .as_ref()
-                        .map(|u| u.username.clone())
-                        .unwrap_or_else(|| "unknown".to_string());
-
-                    if let Some(u) = tl.user {
-                        let uid =
-                            u.id.as_deref()
-                                .unwrap_or("0")
-                                .replace("gid://gitlab/User/", "");
-                        let uname = u.name.as_deref().unwrap_or(&u.username);
-                        let _ = upsert_user(
-                            &state.db,
-                            &uid,
-                            &u.username,
-                            uname,
-                            u.avatar_url.as_deref(),
-                            u.web_url.as_deref().unwrap_or(""),
-                            u.bot.unwrap_or(false),
-                        )
-                        .await;
-                    } else {
-                        let _ = sqlx::query("INSERT INTO users (gitlab_id, username, name, web_url, is_bot) VALUES (?1, ?2, ?2, '', 0) ON CONFLICT(username) DO NOTHING")
-                            .bind(format!("stub_{username}")).bind(&username).execute(&state.db).await;
-                    }
-
-                    let sprint_number = calculate_sprint_for_group(spent_at, state, group_path);
-                    let _ = upsert_timelog(
-                        &state.db,
-                        &tl.id,
-                        Some(&work_item_id),
-                        None,
-                        &username,
-                        spent_at,
-                        tl.time_spent,
-                        tl.summary.as_deref(),
-                        &item.web_url,
-                        sprint_number,
-                        now,
-                    )
-                    .await;
-                }
+                save_issue_timelogs(
+                    state,
+                    &work_item_id,
+                    &item.web_url,
+                    group_path,
+                    timelogs,
+                    now,
+                )
+                .await;
             }
 
             if let Some(notes) = item.notes.and_then(|n| n.nodes) {
-                for note in notes {
-                    let note_created = DateTime::parse_from_rfc3339(&note.created_at)
-                        .map(|d| d.with_timezone(&Utc))
-                        .unwrap_or(now);
-                    let note_updated = note
-                        .updated_at
-                        .as_deref()
-                        .and_then(|u| DateTime::parse_from_rfc3339(u).ok())
-                        .map(|d| d.with_timezone(&Utc));
-
-                    if let Some(ref author) = note.author {
-                        let uid = author
-                            .id
-                            .as_deref()
-                            .unwrap_or(&author.username)
-                            .replace("gid://gitlab/User/", "");
-                        let uname = author.name.as_deref().unwrap_or(&author.username);
-                        let _ = upsert_user(
-                            &state.db,
-                            &uid,
-                            &author.username,
-                            uname,
-                            author.avatar_url.as_deref(),
-                            author.web_url.as_deref().unwrap_or(""),
-                            author.bot.unwrap_or(false),
-                        )
-                        .await;
-                    }
-
-                    let _ = upsert_item_note(
-                        &state.db,
-                        &note.id,
-                        Some(&work_item_id),
-                        None,
-                        note.author.as_ref().map(|u| u.username.as_str()),
-                        note.author.as_ref().and_then(|u| u.name.as_deref()),
-                        note.author.as_ref().and_then(|u| u.avatar_url.as_deref()),
-                        &note.body,
-                        note.system,
-                        note.system_note_icon_name.as_deref(),
-                        note.discussion.as_ref().map(|d| d.id.as_str()),
-                        note.internal.unwrap_or(false),
-                        note.resolvable.unwrap_or(false),
-                        note.resolved.unwrap_or(false),
-                        note.url.as_deref(),
-                        note_created,
-                        note_updated,
-                        now,
-                    )
-                    .await;
-                }
+                save_issue_notes(state, &work_item_id, notes, now).await;
             }
 
             total_synced += 1;

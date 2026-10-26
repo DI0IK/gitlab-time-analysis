@@ -1,6 +1,7 @@
 import * as React from 'react'
-import { FileText, Home, Folder, ChevronRight, ChevronDown, Search, BookOpen } from 'lucide-react'
+import { Search, BookOpen } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+import { buildWikiTree, WikiItemNode } from './wiki-tree-node'
 
 export interface WikiPageItem {
   slug: string
@@ -25,14 +26,13 @@ export function WikiSidebar({
   const [filter, setFilter] = React.useState('')
   const [expandedFolders, setExpandedFolders] = React.useState<Record<string, boolean>>({})
 
-  const toggleFolder = (folder: string) => {
+  const toggleFolder = (slug: string) => {
     setExpandedFolders((prev) => ({
       ...prev,
-      [folder]: !prev[folder],
+      [slug]: !(prev[slug] ?? true),
     }))
   }
 
-  // Filter pages by search query
   const filteredPages = React.useMemo(() => {
     if (!filter.trim()) return pages
     const q = filter.toLowerCase()
@@ -41,24 +41,10 @@ export function WikiSidebar({
     )
   }, [pages, filter])
 
-  // Group pages into root pages and folders
-  const { rootPages, folderGroups } = React.useMemo(() => {
-    const root: WikiPageItem[] = []
-    const groups: Record<string, WikiPageItem[]> = {}
-
-    for (const page of filteredPages) {
-      const parts = page.slug.split('/')
-      if (parts.length > 1) {
-        const folder = parts.slice(0, -1).join('/')
-        if (!groups[folder]) groups[folder] = []
-        groups[folder].push(page)
-      } else {
-        root.push(page)
-      }
-    }
-
-    return { rootPages: root, folderGroups: groups }
-  }, [filteredPages])
+  const treeNodes = React.useMemo(
+    () => buildWikiTree(filteredPages),
+    [filteredPages]
+  )
 
   if (isLoading) {
     return (
@@ -86,7 +72,7 @@ export function WikiSidebar({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-2 space-y-1">
+      <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
         {pages.length === 0 ? (
           <div className="text-center py-8 text-xs text-muted-foreground space-y-1">
             <BookOpen className="h-6 w-6 mx-auto opacity-40 mb-1" />
@@ -98,77 +84,16 @@ export function WikiSidebar({
             No pages match "{filter}"
           </div>
         ) : (
-          <>
-            {/* Root pages */}
-            {rootPages.map((page) => {
-              const isSelected = selectedSlug === page.slug
-              const isHome = page.slug.toLowerCase() === 'home'
-              return (
-                <button
-                  key={page.slug}
-                  onClick={() => onSelectPage(page.slug)}
-                  className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs transition-colors text-left font-medium ${
-                    isSelected
-                      ? 'bg-primary/15 text-primary font-semibold'
-                      : 'hover:bg-muted/50 text-foreground/90'
-                  }`}
-                >
-                  {isHome ? (
-                    <Home className="h-3.5 w-3.5 text-primary shrink-0" />
-                  ) : (
-                    <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  )}
-                  <span className="truncate">{page.title}</span>
-                </button>
-              )
-            })}
-
-            {/* Folder groups */}
-            {Object.entries(folderGroups).map(([folder, folderPages]) => {
-              const isExpanded = expandedFolders[folder] ?? true
-              return (
-                <div key={folder} className="pt-1">
-                  <button
-                    onClick={() => toggleFolder(folder)}
-                    className="w-full flex items-center gap-1.5 px-2 py-1 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors text-left"
-                  >
-                    {isExpanded ? (
-                      <ChevronDown className="h-3 w-3 shrink-0" />
-                    ) : (
-                      <ChevronRight className="h-3 w-3 shrink-0" />
-                    )}
-                    <Folder className="h-3.5 w-3.5 text-blue-400 shrink-0" />
-                    <span className="truncate">{folder}</span>
-                    <span className="ml-auto text-[10px] opacity-60">
-                      {folderPages.length}
-                    </span>
-                  </button>
-
-                  {isExpanded && (
-                    <div className="pl-4 space-y-0.5 border-l border-border/30 ml-2 mt-0.5">
-                      {folderPages.map((page) => {
-                        const isSelected = selectedSlug === page.slug
-                        return (
-                          <button
-                            key={page.slug}
-                            onClick={() => onSelectPage(page.slug)}
-                            className={`w-full flex items-center gap-2 px-2 py-1 rounded text-xs transition-colors text-left ${
-                              isSelected
-                                ? 'bg-primary/15 text-primary font-semibold'
-                                : 'hover:bg-muted/50 text-foreground/80'
-                            }`}
-                          >
-                            <FileText className="h-3 w-3 text-muted-foreground shrink-0" />
-                            <span className="truncate">{page.title}</span>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </>
+          treeNodes.map((node) => (
+            <WikiItemNode
+              key={node.slug}
+              node={node}
+              selectedSlug={selectedSlug}
+              expandedFolders={expandedFolders}
+              onToggleFolder={toggleFolder}
+              onSelectPage={onSelectPage}
+            />
+          ))
         )}
       </div>
     </div>
