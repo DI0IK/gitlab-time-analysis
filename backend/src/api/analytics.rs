@@ -222,7 +222,7 @@ pub async fn get_cohort_comparison(
         return Ok(Json(res));
     }
 
-    let comparison = compute_comparison(&state.db).await?;
+    let comparison = compute_comparison(&state.db, &state.config).await?;
     if let Ok(serialized) = serde_json::to_string(&comparison) {
         state.cache.insert(cache_key, serialized).await;
     }

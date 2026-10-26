@@ -22,4 +22,5 @@ export const apiKeys = {
   wikiTargets: (slug: string) => ['wiki-targets', slug] as const,
   authMe: ['auth', 'me'] as const,
   userProfile: ['user', 'profile'] as const,
+  userDetails: (username: string) => ['user-details', username] as const,
 }

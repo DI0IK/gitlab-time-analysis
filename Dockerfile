@@ -1,7 +1,7 @@
 # ==============================================================================
 # Stage 1: Build Frontend SPA
 # ==============================================================================
-FROM node:24-alpine AS frontend-builder
+FROM docker.io/library/node:24-alpine AS frontend-builder
 WORKDIR /app/frontend
 
 RUN corepack enable && corepack prepare pnpm@latest --activate
@@ -14,9 +14,9 @@ RUN pnpm build
 # ==============================================================================
 # Stage 2: Cargo Chef Planner
 # ==============================================================================
-FROM lukemathwalker/cargo-chef:latest-rust-alpine AS chef
+FROM docker.io/lukemathwalker/cargo-chef:latest-rust-alpine AS chef
 WORKDIR /app
-RUN apk add --no-cache musl-dev
+RUN apk add --no-cache musl-dev openssl-dev openssl-libs-static pkgconfig curl
 
 FROM chef AS planner
 COPY Cargo.toml Cargo.lock ./
@@ -36,10 +36,13 @@ COPY backend backend
 RUN cargo build --release --target x86_64-unknown-linux-musl --bin gitlab-platform
 
 # ==============================================================================
-# Stage 4: Minimal Distroless Static Runtime
+# Stage 4: Minimal Runtime with Git & CA Certificates
 # ==============================================================================
-FROM gcr.io/distroless/static-debian12:nonroot
+FROM docker.io/library/alpine:3.20
 WORKDIR /app
+
+RUN apk add --no-cache git ca-certificates tzdata \
+    && mkdir -p /app /data/repos
 
 COPY --from=backend-builder /app/target/x86_64-unknown-linux-musl/release/gitlab-platform /app/gitlab-platform
 COPY --from=frontend-builder /app/frontend/dist /app/public
@@ -48,10 +51,10 @@ ENV PORT=3000 \
     HOST=0.0.0.0 \
     FRONTEND_DIST=/app/public \
     DATABASE_URL=sqlite:///data/platform.db?mode=rwc \
+    REPOS_DIR=/data/repos \
     RUST_LOG=info,gitlab_platform=info
 
 VOLUME ["/data"]
 EXPOSE 3000
 
-USER nonroot:nonroot
 ENTRYPOINT ["/app/gitlab-platform"]

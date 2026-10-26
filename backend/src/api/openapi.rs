@@ -8,7 +8,10 @@ use crate::{
         health::{self, HealthResponse},
         leaderboard::{self},
         meta::{self, FeatureFlags, MetaResponse, RootGroupMeta},
-        profile::{self, UpdateProfileRequest},
+        profile::{
+            self, SprintHourSummary, UpdateProfileRequest, UserMetricsSummary, UserMrSummary,
+            UserProfileDetailsResponse, UserTimelogItem,
+        },
         render::{self},
         repo::{self, RepoBranch, RepoBranchCommit, RepoCommit, RepoFileContent, RepoTreeItem},
         sync::{self},
@@ -34,7 +37,7 @@ use crate::{
         categories::{CategoryId, CategoryMeta},
         gamification::{
             catalog::BadgeMeta,
-            evaluator::{LeaderboardEntry, UserGamificationSummary},
+            evaluator::{BadgeProgressItem, LeaderboardEntry, UserGamificationSummary},
             levels::{LevelProgress, Tier, TierMeta},
         },
     },
@@ -55,6 +58,7 @@ use crate::{
         profile::get_profile,
         profile::update_profile,
         profile::get_user_gamification,
+        profile::get_user_profile_details,
         groups::list_groups,
         groups::get_group,
         groups::list_members,
@@ -124,6 +128,12 @@ use crate::{
             WikiPageItem,
             WikiPageContent,
             WikiTarget,
+            BadgeProgressItem,
+            UserMetricsSummary,
+            UserTimelogItem,
+            UserMrSummary,
+            SprintHourSummary,
+            UserProfileDetailsResponse,
         )
     ),
     tags(

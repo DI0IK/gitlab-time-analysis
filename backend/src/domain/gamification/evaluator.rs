@@ -47,14 +47,45 @@ pub struct LeaderboardEntry {
     pub badge_icons: Vec<String>,
 }
 
-pub async fn evaluate_user_gamification(
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct BadgeProgressItem {
+    pub id: String,
+    pub track: String,
+    pub title: String,
+    pub description: String,
+    pub threshold: u64,
+    pub current_value: u64,
+    pub progress_pct: f32,
+    pub is_unlocked: bool,
+    pub reward_xp: u64,
+    pub icon: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct UserContributionStats {
+    pub total_hours: f64,
+    pub total_seconds: i64,
+    pub timelog_count: usize,
+    pub streak_days: u32,
+    pub merged_mrs_count: i64,
+    pub reviews_count: i64,
+    pub closed_wi_count: i64,
+    pub max_closed_est_hours: f64,
+    pub total_closed_est_hours: u64,
+    pub sharp_shooter_count: i64,
+    pub sprint_count: u64,
+}
+
+pub async fn fetch_user_contribution_stats(
     pool: &DbPool,
     username: &str,
-) -> Result<UserGamificationSummary, AppError> {
-    let user_rec = get_user_by_username(pool, username)
-        .await?
-        .ok_or_else(|| AppError::NotFound(format!("User '{username}' not found")))?;
-
+) -> Result<
+    (
+        UserContributionStats,
+        Vec<crate::db::timelogs::TimelogRecord>,
+    ),
+    AppError,
+> {
     let timelogs = get_timelogs_by_user(pool, username).await?;
     let total_seconds: i64 = timelogs.iter().map(|t| t.time_spent).sum();
     let total_hours = (total_seconds as f64 / 3600.0 * 10.0).round() / 10.0;
@@ -122,39 +153,142 @@ pub async fn evaluate_user_gamification(
     let distinct_sprints: HashSet<i64> = timelogs.iter().filter_map(|t| t.sprint_number).collect();
     let sprint_count = distinct_sprints.len() as u64;
 
+    let stats = UserContributionStats {
+        total_hours,
+        total_seconds,
+        timelog_count: timelogs.len(),
+        streak_days,
+        merged_mrs_count,
+        reviews_count,
+        closed_wi_count,
+        max_closed_est_hours,
+        total_closed_est_hours,
+        sharp_shooter_count,
+        sprint_count,
+    };
+
+    Ok((stats, timelogs))
+}
+
+pub fn evaluate_badges_progress(
+    stats: &UserContributionStats,
+) -> (Vec<BadgeMeta>, Vec<BadgeProgressItem>, u64) {
     let all = all_badges();
     let mut unlocked = Vec::new();
+    let mut all_progress = Vec::with_capacity(all.len());
     let mut badge_xp = 0u64;
 
     for b in all {
-        let is_unlocked = match b.track.as_str() {
-            "Endurance" => (total_hours as u64) >= b.threshold,
-            "Velocity" => total_closed_est_hours >= b.threshold,
-            "Consistency" => streak_days as u64 >= b.threshold,
-            "Cadence" => timelogs.len() as u64 >= b.threshold,
-            "Shipping" => (merged_mrs_count as u64) >= b.threshold,
-            "Quality" => (reviews_count as u64) >= b.threshold,
-            "Momentum" => sprint_count >= b.threshold,
+        let (current_value, is_unlocked) = match b.track.as_str() {
+            "Endurance" => {
+                let cur = stats.total_hours as u64;
+                (cur, cur >= b.threshold)
+            }
+            "Velocity" => {
+                let cur = stats.total_closed_est_hours;
+                (cur, cur >= b.threshold)
+            }
+            "Consistency" => {
+                let cur = stats.streak_days as u64;
+                (cur, cur >= b.threshold)
+            }
+            "Cadence" => {
+                let cur = stats.timelog_count as u64;
+                (cur, cur >= b.threshold)
+            }
+            "Shipping" => {
+                let cur = stats.merged_mrs_count as u64;
+                (cur, cur >= b.threshold)
+            }
+            "Quality" => {
+                let cur = stats.reviews_count as u64;
+                (cur, cur >= b.threshold)
+            }
+            "Momentum" => {
+                if b.id.starts_with("momentum_streak") {
+                    let cur = stats.streak_days as u64;
+                    (cur, cur >= b.threshold)
+                } else {
+                    let cur = stats.sprint_count;
+                    (cur, cur >= b.threshold)
+                }
+            }
             "Achievement" => match b.id.as_str() {
-                "achievement_first_steps" => closed_wi_count >= 1,
-                "achievement_pr_pioneer" => merged_mrs_count >= 1,
-                "achievement_team_player" => reviews_count >= 3,
-                "achievement_sharp_shooter" => sharp_shooter_count >= 1,
-                "achievement_heavy_lifter" => max_closed_est_hours >= 8.0,
-                "achievement_colossal_lifter" => max_closed_est_hours >= 10.0,
-                "achievement_titan_lifter" => max_closed_est_hours >= 12.0,
-                _ => false,
+                "achievement_first_steps" => {
+                    let cur = (stats.closed_wi_count as u64).min(1);
+                    (cur, stats.closed_wi_count >= 1)
+                }
+                "achievement_pr_pioneer" => {
+                    let cur = (stats.merged_mrs_count as u64).min(1);
+                    (cur, stats.merged_mrs_count >= 1)
+                }
+                "achievement_team_player" => {
+                    let cur = stats.reviews_count as u64;
+                    (cur, stats.reviews_count >= 3)
+                }
+                "achievement_sharp_shooter" => {
+                    let cur = (stats.sharp_shooter_count as u64).min(1);
+                    (cur, stats.sharp_shooter_count >= 1)
+                }
+                "achievement_heavy_lifter" => {
+                    let cur = stats.max_closed_est_hours as u64;
+                    (cur, stats.max_closed_est_hours >= 8.0)
+                }
+                "achievement_colossal_lifter" => {
+                    let cur = stats.max_closed_est_hours as u64;
+                    (cur, stats.max_closed_est_hours >= 10.0)
+                }
+                "achievement_titan_lifter" => {
+                    let cur = stats.max_closed_est_hours as u64;
+                    (cur, stats.max_closed_est_hours >= 12.0)
+                }
+                _ => (0, false),
             },
-            _ => false,
+            _ => (0, false),
+        };
+
+        let progress_pct = if b.threshold > 0 {
+            ((current_value as f32 / b.threshold as f32) * 100.0).min(100.0)
+        } else if is_unlocked {
+            100.0
+        } else {
+            0.0
         };
 
         if is_unlocked {
             badge_xp += b.reward_xp;
-            unlocked.push(b);
+            unlocked.push(b.clone());
         }
+
+        all_progress.push(BadgeProgressItem {
+            id: b.id,
+            track: b.track,
+            title: b.title,
+            description: b.description,
+            threshold: b.threshold,
+            current_value,
+            progress_pct,
+            is_unlocked,
+            reward_xp: b.reward_xp,
+            icon: b.icon,
+        });
     }
 
-    let base_xp = (total_hours * 10.0) as u64 + (timelogs.len() as u64 * 2);
+    (unlocked, all_progress, badge_xp)
+}
+
+pub async fn evaluate_user_gamification(
+    pool: &DbPool,
+    username: &str,
+) -> Result<UserGamificationSummary, AppError> {
+    let user_rec = get_user_by_username(pool, username)
+        .await?
+        .ok_or_else(|| AppError::NotFound(format!("User '{username}' not found")))?;
+
+    let (stats, _timelogs) = fetch_user_contribution_stats(pool, username).await?;
+    let (unlocked, _all_progress, badge_xp) = evaluate_badges_progress(&stats);
+
+    let base_xp = (stats.total_hours * 10.0) as u64 + (stats.timelog_count as u64 * 2);
     let total_xp = base_xp + badge_xp;
     let level_progress = calculate_level(total_xp);
 
@@ -165,9 +299,9 @@ pub async fn evaluate_user_gamification(
         avatar_url: user_rec.avatar_url,
         level_progress,
         unlocked_badges: unlocked,
-        total_hours,
-        total_seconds,
-        streak_days,
+        total_hours: stats.total_hours,
+        total_seconds: stats.total_seconds,
+        streak_days: stats.streak_days,
     })
 }
 

@@ -41,6 +41,10 @@ pub fn router(state: AppState) -> Router {
             "/users/:username/gamification",
             get(profile::get_user_gamification),
         )
+        .route(
+            "/users/:username/details",
+            get(profile::get_user_profile_details),
+        )
         .route("/groups", get(groups::list_groups))
         .route("/groups/:slug", get(groups::get_group))
         .route("/groups/:slug/members", get(groups::list_members))

@@ -183,13 +183,35 @@ pub async fn compute_group_dashboard(
     })
 }
 
-pub async fn compute_comparison(pool: &DbPool) -> Result<ComparisonResponse, AppError> {
+pub async fn compute_comparison(
+    pool: &DbPool,
+    config: &Config,
+) -> Result<ComparisonResponse, AppError> {
     let all_groups = get_all_groups(pool).await?;
     let mut summaries = Vec::new();
     let mut cohort_seconds = 0i64;
-    let mut group_hours_list = Vec::new();
+    let mut team_hours_list = Vec::new();
 
-    for g in all_groups {
+    let root_paths: std::collections::HashSet<String> = config
+        .root_groups
+        .iter()
+        .map(|r| r.path.trim().trim_matches('/').to_lowercase())
+        .collect();
+
+    let parent_ids: std::collections::HashSet<String> = all_groups
+        .iter()
+        .filter_map(|g| g.parent_id.clone())
+        .collect();
+
+    for g in &all_groups {
+        let is_root = if !root_paths.is_empty() {
+            root_paths.contains(&g.full_path.trim().trim_matches('/').to_lowercase())
+        } else {
+            g.parent_id.is_none()
+        };
+
+        let is_leaf = !parent_ids.contains(&g.id);
+
         let timelogs = get_timelogs_for_group(pool, &g.id).await?;
         let work_items = get_work_items_by_group(pool, &g.id).await?;
         let mut all_members: std::collections::BTreeSet<String> = get_group_members(pool, &g.id)
@@ -223,9 +245,9 @@ pub async fn compute_comparison(pool: &DbPool) -> Result<ComparisonResponse, App
         let categories = compute_categories(&work_items, &timelogs, total_secs);
 
         summaries.push(GroupComparisonSummary {
-            group_id: g.id,
+            group_id: g.id.clone(),
             slug: g.full_path.replace('/', "-"),
-            name: g.name,
+            name: g.name.clone(),
             level: g.level,
             member_count,
             total_seconds: total_secs,
@@ -236,17 +258,41 @@ pub async fn compute_comparison(pool: &DbPool) -> Result<ComparisonResponse, App
             categories,
         });
 
-        cohort_seconds += total_secs;
-        group_hours_list.push(hours);
+        // Sum tracked time only for root cohorts to prevent double counting descendant time
+        if is_root {
+            cohort_seconds += total_secs;
+        }
+
+        // Teams evaluated for team average and fairness: leaf groups or active units (exclude root cohorts unless they are leaves)
+        if (is_leaf || (!is_root && !parent_ids.contains(&g.id)))
+            && (hours > 0.0 || member_count > 0)
+        {
+            team_hours_list.push(hours);
+        }
+    }
+
+    // Fallback: If no root groups matched config paths, sum top-level groups without parents
+    if cohort_seconds == 0 && !summaries.is_empty() {
+        cohort_seconds = summaries
+            .iter()
+            .zip(all_groups.iter())
+            .filter(|(_, g)| g.parent_id.is_none())
+            .map(|(s, _)| s.total_seconds)
+            .sum();
+    }
+
+    if team_hours_list.is_empty() {
+        team_hours_list = summaries.iter().map(|s| s.total_hours).collect();
     }
 
     let cohort_hours = (cohort_seconds as f64 / 3600.0 * 10.0).round() / 10.0;
-    let avg_hours = if !summaries.is_empty() {
-        (cohort_hours / summaries.len() as f64 * 10.0).round() / 10.0
+    let avg_hours = if !team_hours_list.is_empty() {
+        let sum_team_hours: f64 = team_hours_list.iter().sum();
+        (sum_team_hours / team_hours_list.len() as f64 * 10.0).round() / 10.0
     } else {
         0.0
     };
-    let cohort_fairness = FairnessMetric::calculate(&group_hours_list);
+    let cohort_fairness = FairnessMetric::calculate(&team_hours_list);
 
     Ok(ComparisonResponse {
         total_cohort_seconds: cohort_seconds,

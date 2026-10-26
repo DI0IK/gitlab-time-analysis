@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as GroupsSlugRouteImport } from './routes/groups.$slug'
 import { Route as PresentSlugRouteImport } from './routes/present.$slug'
+import { Route as UsersUsernameRouteImport } from './routes/users.$username'
 import { Route as GroupsSlugIndexRouteImport } from './routes/groups.$slug.index'
 import { Route as GroupsSlugLeaderboardRouteImport } from './routes/groups.$slug.leaderboard'
 import { Route as GroupsSlugMergeRequestsRouteImport } from './routes/groups.$slug.merge-requests'
@@ -38,6 +39,11 @@ const GroupsSlugRoute = GroupsSlugRouteImport.update({
 const PresentSlugRoute = PresentSlugRouteImport.update({
   id: '/present/$slug',
   path: '/present/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UsersUsernameRoute = UsersUsernameRouteImport.update({
+  id: '/users/$username',
+  path: '/users/$username',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GroupsSlugIndexRoute = GroupsSlugIndexRouteImport.update({
@@ -76,6 +82,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/groups/$slug': typeof GroupsSlugRouteWithChildren
   '/present/$slug': typeof PresentSlugRoute
+  '/users/$username': typeof UsersUsernameRoute
   '/groups/$slug/leaderboard': typeof GroupsSlugLeaderboardRoute
   '/groups/$slug/merge-requests': typeof GroupsSlugMergeRequestsRoute
   '/groups/$slug/repo': typeof GroupsSlugRepoRoute
@@ -87,6 +94,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/settings': typeof SettingsRoute
   '/present/$slug': typeof PresentSlugRoute
+  '/users/$username': typeof UsersUsernameRoute
   '/groups/$slug/leaderboard': typeof GroupsSlugLeaderboardRoute
   '/groups/$slug/merge-requests': typeof GroupsSlugMergeRequestsRoute
   '/groups/$slug/repo': typeof GroupsSlugRepoRoute
@@ -100,6 +108,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/groups/$slug': typeof GroupsSlugRouteWithChildren
   '/present/$slug': typeof PresentSlugRoute
+  '/users/$username': typeof UsersUsernameRoute
   '/groups/$slug/leaderboard': typeof GroupsSlugLeaderboardRoute
   '/groups/$slug/merge-requests': typeof GroupsSlugMergeRequestsRoute
   '/groups/$slug/repo': typeof GroupsSlugRepoRoute
@@ -114,6 +123,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/groups/$slug'
     | '/present/$slug'
+    | '/users/$username'
     | '/groups/$slug/leaderboard'
     | '/groups/$slug/merge-requests'
     | '/groups/$slug/repo'
@@ -125,6 +135,7 @@ export interface FileRouteTypes {
     | '/'
     | '/settings'
     | '/present/$slug'
+    | '/users/$username'
     | '/groups/$slug/leaderboard'
     | '/groups/$slug/merge-requests'
     | '/groups/$slug/repo'
@@ -137,6 +148,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/groups/$slug'
     | '/present/$slug'
+    | '/users/$username'
     | '/groups/$slug/leaderboard'
     | '/groups/$slug/merge-requests'
     | '/groups/$slug/repo'
@@ -150,6 +162,7 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   GroupsSlugRoute: typeof GroupsSlugRouteWithChildren
   PresentSlugRoute: typeof PresentSlugRoute
+  UsersUsernameRoute: typeof UsersUsernameRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -180,6 +193,13 @@ declare module '@tanstack/react-router' {
       path: '/present/$slug'
       fullPath: '/present/$slug'
       preLoaderRoute: typeof PresentSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/users/$username': {
+      id: '/users/$username'
+      path: '/users/$username'
+      fullPath: '/users/$username'
+      preLoaderRoute: typeof UsersUsernameRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/groups/$slug/': {
@@ -254,6 +274,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   GroupsSlugRoute: GroupsSlugRouteWithChildren,
   PresentSlugRoute: PresentSlugRoute,
+  UsersUsernameRoute: UsersUsernameRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

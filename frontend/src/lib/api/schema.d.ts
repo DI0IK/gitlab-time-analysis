@@ -452,6 +452,22 @@ export interface paths {
         patch: operations["update_profile"];
         trace?: never;
     };
+    "/api/users/{username}/details": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_user_profile_details"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/users/{username}/gamification": {
         parameters: {
             query?: never;
@@ -528,6 +544,22 @@ export interface components {
             description: string;
             icon: string;
             id: string;
+            /** Format: int64 */
+            reward_xp: number;
+            /** Format: int64 */
+            threshold: number;
+            title: string;
+            track: string;
+        };
+        BadgeProgressItem: {
+            /** Format: int64 */
+            current_value: number;
+            description: string;
+            icon: string;
+            id: string;
+            is_unlocked: boolean;
+            /** Format: float */
+            progress_pct: number;
             /** Format: int64 */
             reward_xp: number;
             /** Format: int64 */
@@ -820,6 +852,12 @@ export interface components {
             sprint_duration_weeks: number;
             sprint_start_weekday: string;
         };
+        SprintHourSummary: {
+            /** Format: double */
+            hours: number;
+            /** Format: int64 */
+            sprint_number: number;
+        };
         SprintMetric: {
             active_members: number;
             /** Format: double */
@@ -898,6 +936,56 @@ export interface components {
             unlocked_badges: components["schemas"]["BadgeMeta"][];
             username: string;
         };
+        UserMetricsSummary: {
+            active_sprints_count: number;
+            /** Format: int64 */
+            closed_work_items_count: number;
+            /** Format: double */
+            current_sprint_hours: number;
+            /** Format: float */
+            estimation_accuracy_pct?: number | null;
+            /** Format: int64 */
+            merged_mrs_count: number;
+            /** Format: int64 */
+            reviews_count: number;
+            /** Format: int64 */
+            sharp_shooter_count: number;
+            /** Format: double */
+            total_hours: number;
+        };
+        UserMrSummary: {
+            /** Format: int64 */
+            additions: number;
+            /** Format: date-time */
+            closed_at?: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: int64 */
+            deletions: number;
+            /** Format: int64 */
+            discussion_count: number;
+            id: string;
+            /** Format: int64 */
+            iid: number;
+            /** Format: date-time */
+            merged_at?: string | null;
+            project_path: string;
+            source_branch: string;
+            state: string;
+            target_branch: string;
+            title: string;
+            web_url: string;
+        };
+        UserProfileDetailsResponse: {
+            badges: components["schemas"]["BadgeProgressItem"][];
+            gamification: components["schemas"]["UserGamificationSummary"];
+            leaderboard_rank?: number | null;
+            metrics: components["schemas"]["UserMetricsSummary"];
+            recent_merge_requests: components["schemas"]["UserMrSummary"][];
+            recent_timelogs: components["schemas"]["UserTimelogItem"][];
+            sprint_hours: components["schemas"]["SprintHourSummary"][];
+            user: components["schemas"]["UserRecord"];
+        };
         UserRecord: {
             avatar_url?: string | null;
             /** Format: date-time */
@@ -909,6 +997,23 @@ export interface components {
             /** Format: date-time */
             updated_at?: string | null;
             username: string;
+            web_url: string;
+        };
+        UserTimelogItem: {
+            /** Format: double */
+            hours: number;
+            id: string;
+            item_state?: string | null;
+            item_title?: string | null;
+            item_type?: string | null;
+            item_web_url?: string | null;
+            /** Format: date-time */
+            spent_at: string;
+            /** Format: int64 */
+            sprint_number?: number | null;
+            summary?: string | null;
+            /** Format: int64 */
+            time_spent_seconds: number;
             web_url: string;
         };
         WeekdayHeatmapCell: {
@@ -1754,6 +1859,36 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
+            };
+        };
+    };
+    get_user_profile_details: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description GitLab username */
+                username: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Complete user profile details, metrics, timelogs, MRs, and badges */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserProfileDetailsResponse"];
+                };
+            };
+            /** @description User not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

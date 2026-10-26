@@ -13,6 +13,7 @@ services:
     environment:
       - DATABASE_URL=sqlite:///data/platform.db?mode=rwc
       - FRONTEND_DIST=/app/public
+      - REPOS_DIR=/data/repos
     volumes:
       - platform-data:/data
 
