@@ -10,10 +10,8 @@ use tower::ServiceExt;
 
 use gitlab_platform::{
     api,
-    config::Config,
     db::{
         groups::{upsert_group, upsert_group_member},
-        init_db,
         timelogs::upsert_timelog,
         work_items::upsert_work_item,
     },
