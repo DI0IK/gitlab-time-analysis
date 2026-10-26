@@ -98,8 +98,8 @@ jobs:
       - name: Check OpenAPI generation drift
         run: |
           if [ -f "backend/src/bin/export-openapi.rs" ]; then
-            cargo run --bin export-openapi > backend/openapi.json
-            pnpm --dir frontend exec openapi-typescript backend/openapi.json -o frontend/src/lib/api/schema.d.ts
+            cargo run --bin export-openapi backend/openapi.json
+            pnpm --dir frontend exec openapi-typescript ../backend/openapi.json -o ./src/lib/api/schema.d.ts
             git diff --exit-code backend/openapi.json frontend/src/lib/api/schema.d.ts || (echo "Generated OpenAPI artifacts are out of date. Run 'just gen-api'." && exit 1)
           fi
 

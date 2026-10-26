@@ -20,12 +20,12 @@ use gitlab_platform::{
     state::AppState,
 };
 
-async fn setup_test_app() -> (axum::Router, SqlitePool, AppState) {
-    let mut config = Config::from_env().unwrap();
-    config.database_url = "sqlite::memory:".to_string();
-    config.root_groups = vec![]; // No root groups in unit tests, graceful skip
+mod common;
 
-    let pool = init_db(&config.database_url).await.unwrap();
+async fn setup_test_app() -> (axum::Router, SqlitePool, AppState) {
+    let (state, pool) = common::setup_test_state().await;
+    let mut config = (*state.config).clone();
+    config.root_groups = vec![]; // No root groups in unit tests, graceful skip
     let state = AppState {
         config: Arc::new(config),
         db: pool.clone(),
