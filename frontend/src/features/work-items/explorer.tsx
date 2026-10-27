@@ -3,9 +3,10 @@ import { useQuery } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ListTodo, Search, RefreshCw, FolderTree, List, FolderGit2 } from 'lucide-react'
+import { ListTodo, Search, RefreshCw, FolderTree, List, FolderGit2, CalendarRange } from 'lucide-react'
 import { WorkItemModal, type WorkItemModalData } from './work-item-modal'
 import { WorkItemTreeNode } from './work-item-tree-node'
+import { WorkItemsRoadmap } from './roadmap'
 
 import { useTenant } from '@/features/tenant/tenant-context'
 import { apiKeys } from '@/lib/api/keys'
@@ -28,7 +29,7 @@ export function WorkItemsExplorer({
   const [typeFilter, setTypeFilter] = React.useState<string>('all')
   const [stateFilter, setStateFilter] = React.useState<string>('all')
   const [repoFilter, setRepoFilter] = React.useState<string>('all')
-  const [viewMode, setViewMode] = React.useState<'tree' | 'flat'>('tree')
+  const [viewMode, setViewMode] = React.useState<'tree' | 'flat' | 'roadmap'>('tree')
   const [selectedItem, setSelectedItem] = React.useState<WorkItemModalData | null>(null)
   const [expanded, setExpanded] = React.useState<Set<string>>(new Set())
 
@@ -122,8 +123,9 @@ export function WorkItemsExplorer({
         </div>
         <div className="flex items-center gap-2">
           <div className="inline-flex rounded-lg border border-border p-1 bg-muted/40">
-            <button onClick={() => setViewMode('tree')} className={`px-2.5 py-1 text-xs font-medium rounded-md flex items-center gap-1.5 min-h-[36px] ${viewMode === 'tree' ? 'bg-background text-foreground shadow-xs font-semibold' : 'text-muted-foreground'}`}><FolderTree className="h-3.5 w-3.5" /> Tree</button>
-            <button onClick={() => setViewMode('flat')} className={`px-2.5 py-1 text-xs font-medium rounded-md flex items-center gap-1.5 min-h-[36px] ${viewMode === 'flat' ? 'bg-background text-foreground shadow-xs font-semibold' : 'text-muted-foreground'}`}><List className="h-3.5 w-3.5" /> Flat</button>
+            <button onClick={() => setViewMode('tree')} className={`px-2.5 py-1 text-xs font-medium rounded-md flex items-center gap-1.5 min-h-[36px] ${viewMode === 'tree' ? 'bg-background text-foreground shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground'}`}><FolderTree className="h-3.5 w-3.5" /> Tree</button>
+            <button onClick={() => setViewMode('flat')} className={`px-2.5 py-1 text-xs font-medium rounded-md flex items-center gap-1.5 min-h-[36px] ${viewMode === 'flat' ? 'bg-background text-foreground shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground'}`}><List className="h-3.5 w-3.5" /> List</button>
+            <button onClick={() => setViewMode('roadmap')} className={`px-2.5 py-1 text-xs font-medium rounded-md flex items-center gap-1.5 min-h-[36px] ${viewMode === 'roadmap' ? 'bg-background text-foreground shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground'}`}><CalendarRange className="h-3.5 w-3.5" /> Roadmap</button>
           </div>
           <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching} className="min-h-[44px] sm:min-h-[36px]">
             <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
@@ -180,6 +182,19 @@ export function WorkItemsExplorer({
         <div className="p-8 text-center rounded-lg border border-border text-muted-foreground">Failed to load work items.</div>
       ) : filtered.length === 0 ? (
         <div className="p-12 text-center rounded-lg border border-dashed border-border/60 text-muted-foreground text-sm">No work items match criteria.</div>
+      ) : viewMode === 'roadmap' ? (
+        <WorkItemsRoadmap
+          items={filtered}
+          rootItems={rootItems}
+          childrenMap={childrenMap}
+          expanded={expanded}
+          onToggle={handleToggle}
+          onExpandAll={expandAll}
+          onCollapseAll={collapseAll}
+          onSelect={setSelectedItem}
+          slug={effectiveGroupSlug}
+          rootGroupPath={tenant.activeRoot?.gitlab_group_path}
+        />
       ) : (
         <Card className="border-border/60 bg-card/60 backdrop-blur-xs">
           <CardHeader className="pb-2">

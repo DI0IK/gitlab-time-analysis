@@ -20,6 +20,8 @@ pub struct WorkItemRecord {
     pub total_time_spent: i64,
     pub web_url: String,
     pub labels_json: String,
+    pub start_date: Option<DateTime<Utc>>,
+    pub due_date: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub closed_at: Option<DateTime<Utc>>,
     pub synced_at: DateTime<Utc>,
@@ -41,6 +43,8 @@ pub async fn upsert_work_item(
     total_time_spent: i64,
     web_url: &str,
     labels_json: &str,
+    start_date: Option<DateTime<Utc>>,
+    due_date: Option<DateTime<Utc>>,
     created_at: DateTime<Utc>,
     closed_at: Option<DateTime<Utc>>,
     synced_at: DateTime<Utc>,
@@ -50,9 +54,9 @@ pub async fn upsert_work_item(
         INSERT INTO work_items (
             id, group_id, project_path, iid, work_item_type, parent_id,
             title, description, state, time_estimate, total_time_spent,
-            web_url, labels_json, created_at, closed_at, synced_at
+            web_url, labels_json, start_date, due_date, created_at, closed_at, synced_at
         )
-        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)
         ON CONFLICT(id) DO UPDATE SET
             group_id = excluded.group_id,
             project_path = excluded.project_path,
@@ -66,12 +70,14 @@ pub async fn upsert_work_item(
             total_time_spent = excluded.total_time_spent,
             web_url = excluded.web_url,
             labels_json = excluded.labels_json,
+            start_date = COALESCE(excluded.start_date, work_items.start_date),
+            due_date = COALESCE(excluded.due_date, work_items.due_date),
             closed_at = excluded.closed_at,
             synced_at = excluded.synced_at
         RETURNING
             id, group_id, project_path, iid, work_item_type, parent_id,
             title, description, state, time_estimate, total_time_spent,
-            web_url, labels_json, created_at, closed_at, synced_at
+            web_url, labels_json, start_date, due_date, created_at, closed_at, synced_at
         "#,
     )
     .bind(id)
@@ -87,6 +93,8 @@ pub async fn upsert_work_item(
     .bind(total_time_spent)
     .bind(web_url)
     .bind(labels_json)
+    .bind(start_date)
+    .bind(due_date)
     .bind(created_at)
     .bind(closed_at)
     .bind(synced_at)
@@ -114,7 +122,7 @@ pub async fn get_work_items_by_group(
                    COALESCE(w.project_path, g.full_path) as project_path,
                    w.iid, w.work_item_type, w.parent_id,
                    w.title, w.description, w.state, w.time_estimate, w.total_time_spent,
-                   w.web_url, w.labels_json, w.created_at, w.closed_at, w.synced_at,
+                   w.web_url, w.labels_json, w.start_date, w.due_date, w.created_at, w.closed_at, w.synced_at,
                    ROW_NUMBER() OVER (
                        PARTITION BY COALESCE(w.project_path, g.full_path, ''), w.iid, w.work_item_type
                        ORDER BY CASE WHEN w.id LIKE '%WorkItem%' THEN 0 ELSE 1 END, w.synced_at DESC
@@ -127,7 +135,7 @@ pub async fn get_work_items_by_group(
         )
         SELECT id, group_id, project_path, iid, work_item_type, parent_id,
                title, description, state, time_estimate, total_time_spent,
-               web_url, labels_json, created_at, closed_at, synced_at
+               web_url, labels_json, start_date, due_date, created_at, closed_at, synced_at
         FROM ranked_items
         WHERE rn = 1
         ORDER BY created_at DESC
@@ -146,7 +154,7 @@ pub async fn get_work_item(pool: &DbPool, id: &str) -> Result<Option<WorkItemRec
                COALESCE(w.project_path, g.full_path) as project_path,
                w.iid, w.work_item_type, w.parent_id,
                w.title, w.description, w.state, w.time_estimate, w.total_time_spent,
-               w.web_url, w.labels_json, w.created_at, w.closed_at, w.synced_at
+               w.web_url, w.labels_json, w.start_date, w.due_date, w.created_at, w.closed_at, w.synced_at
         FROM work_items w
         LEFT JOIN groups g ON w.group_id = g.id
         WHERE w.id = ?1

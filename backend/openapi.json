@@ -4262,6 +4262,13 @@
               "null"
             ]
           },
+          "due_date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
           "group_id": {
             "type": [
               "string",
@@ -4289,6 +4296,13 @@
               "string",
               "null"
             ]
+          },
+          "start_date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
           },
           "state": {
             "type": "string"

@@ -136,6 +136,7 @@ pub struct GitLabIssueNode {
     pub web_url: String,
     pub created_at: String,
     pub closed_at: Option<String>,
+    pub due_date: Option<String>,
     pub time_estimate: Option<i64>,
     pub total_time_spent: Option<i64>,
     pub labels: Option<GitLabLabelConnection>,

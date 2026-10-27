@@ -19,6 +19,8 @@ export interface WorkItemModalData {
   total_time_spent: number
   web_url: string
   labels_json: string
+  start_date?: string | null
+  due_date?: string | null
   created_at: string
   closed_at?: string | null
   project_path?: string | null
@@ -96,6 +98,18 @@ export function WorkItemModal({
                 <span>{getRelativePath(item.project_path, slug, effectiveRootPath)}</span>
               </div>
             )
+          )}
+          {item.start_date && (
+            <div className="inline-flex items-center gap-1 text-primary">
+              <Calendar className="h-3.5 w-3.5" />
+              <span>Start {new Date(item.start_date).toLocaleDateString()}</span>
+            </div>
+          )}
+          {item.due_date && (
+            <div className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
+              <Calendar className="h-3.5 w-3.5" />
+              <span>Due {new Date(item.due_date).toLocaleDateString()}</span>
+            </div>
           )}
           <div className="inline-flex items-center gap-1">
             <Calendar className="h-3.5 w-3.5" />

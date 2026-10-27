@@ -35,6 +35,8 @@ pub async fn sync_group_work_items(
                   }
                 }
               }
+              ... on WorkItemWidgetStartAndDueDate { type startDate dueDate }
+              ... on WorkItemWidgetMilestone { type milestone { startDate dueDate } }
               ... on WorkItemWidgetNotes {
                 type
                 notes(filter: ALL_NOTES, first: 30) {
@@ -85,6 +87,8 @@ pub async fn sync_group_work_items(
             let mut labels_json = "[]".to_string();
             let mut time_estimate: i64 = 0;
             let mut total_time_spent: i64 = 0;
+            let mut start_date: Option<DateTime<Utc>> = None;
+            let mut due_date: Option<DateTime<Utc>> = None;
             let mut timelogs_to_save = Vec::new();
             let mut notes_to_save = Vec::new();
 
@@ -116,6 +120,28 @@ pub async fn sync_group_work_items(
                                 .and_then(|n| n.as_array())
                             {
                                 timelogs_to_save = logs.clone();
+                            }
+                        }
+                        "START_AND_DUE_DATE" => {
+                            if let Some(s) = w.get("startDate").and_then(|v| v.as_str()) {
+                                start_date = parse_date_str(s);
+                            }
+                            if let Some(d) = w.get("dueDate").and_then(|v| v.as_str()) {
+                                due_date = parse_date_str(d);
+                            }
+                        }
+                        "MILESTONE" => {
+                            if let Some(m) = w.get("milestone") {
+                                if start_date.is_none() {
+                                    if let Some(s) = m.get("startDate").and_then(|v| v.as_str()) {
+                                        start_date = parse_date_str(s);
+                                    }
+                                }
+                                if due_date.is_none() {
+                                    if let Some(d) = m.get("dueDate").and_then(|v| v.as_str()) {
+                                        due_date = parse_date_str(d);
+                                    }
+                                }
                             }
                         }
                         "NOTES" => {
@@ -176,6 +202,8 @@ pub async fn sync_group_work_items(
                 total_time_spent,
                 &item.web_url,
                 &labels_json,
+                start_date,
+                due_date,
                 created,
                 closed,
                 now,
@@ -226,4 +254,18 @@ pub async fn sync_group_work_items(
     }
 
     Ok(total_synced)
+}
+
+fn parse_date_str(s: &str) -> Option<DateTime<Utc>> {
+    let s = s.trim();
+    if s.is_empty() {
+        return None;
+    }
+    if let Ok(dt) = DateTime::parse_from_rfc3339(s) {
+        return Some(dt.with_timezone(&Utc));
+    }
+    if let Ok(d) = chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d") {
+        return d.and_hms_opt(0, 0, 0).map(|dt| dt.and_utc());
+    }
+    None
 }

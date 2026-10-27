@@ -1281,6 +1281,8 @@ export interface components {
             /** Format: date-time */
             created_at: string;
             description?: string | null;
+            /** Format: date-time */
+            due_date?: string | null;
             group_id?: string | null;
             id: string;
             /** Format: int64 */
@@ -1288,6 +1290,8 @@ export interface components {
             labels_json: string;
             parent_id?: string | null;
             project_path?: string | null;
+            /** Format: date-time */
+            start_date?: string | null;
             state: string;
             /** Format: date-time */
             synced_at: string;

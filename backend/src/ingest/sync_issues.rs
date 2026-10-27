@@ -20,7 +20,7 @@ pub async fn sync_group_issues(
         issues(includeSubgroups: true, first: 50, after: $after) { \
           pageInfo { hasNextPage endCursor } \
           nodes { \
-            id iid title description state webUrl createdAt closedAt timeEstimate totalTimeSpent \
+            id iid title description state webUrl createdAt closedAt dueDate timeEstimate totalTimeSpent \
             labels { nodes { id title color } } epic { id iid group { id } } \
             timelogs { nodes { id spentAt timeSpent summary user { id username name avatarUrl webUrl bot } } } \
             notes(filter: ALL_NOTES, first: 50) { nodes { id body system systemNoteIconName createdAt updatedAt url internal resolvable resolved author { id username name avatarUrl webUrl bot } discussion { id } } } \
@@ -51,6 +51,19 @@ pub async fn sync_group_issues(
                 .as_deref()
                 .and_then(|c| DateTime::parse_from_rfc3339(c).ok())
                 .map(|d| d.with_timezone(&Utc));
+            let due_date = item
+                .due_date
+                .as_deref()
+                .and_then(|d| {
+                    if let Ok(dt) = DateTime::parse_from_rfc3339(d) {
+                        Some(dt.with_timezone(&Utc))
+                    } else {
+                        chrono::NaiveDate::parse_from_str(d, "%Y-%m-%d")
+                            .ok()
+                            .and_then(|nd| nd.and_hms_opt(0, 0, 0))
+                            .map(|dt| dt.and_utc())
+                    }
+                });
 
             let mut parent_id = None;
             if let Some(epic) = &item.epic {
@@ -135,6 +148,8 @@ pub async fn sync_group_issues(
                 total_time_spent,
                 &item.web_url,
                 &labels_json,
+                None,
+                due_date,
                 created,
                 closed,
                 now,
