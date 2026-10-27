@@ -40,11 +40,11 @@ pub struct WikiHistoryQuery {
     pub limit: Option<usize>,
 }
 
-fn get_token(state: &AppState, target: &str, auth: &OptionalAuthUser) -> Option<String> {
-    auth.0
-        .as_ref()
-        .map(|u| u.access_token.clone())
-        .or_else(|| state.config.get_token_for_path(target))
+async fn get_token(state: &AppState, target: &str, auth: &OptionalAuthUser) -> Option<String> {
+    if let Some(u) = auth.0.as_ref() {
+        return Some(u.access_token.clone());
+    }
+    state.resolve_token_for_path(target).await
 }
 
 #[utoipa::path(
@@ -66,7 +66,7 @@ pub async fn list_wiki_pages(
 
     // If wiki mirror does not exist yet, try to sync it
     if !git_dir.join("HEAD").exists() {
-        let token = get_token(&state, &query.project, &auth);
+        let token = get_token(&state, &query.project, &auth).await;
         match sync_bare_repo(
             &state.config.repos_dir,
             &state.config.gitlab_domain,
@@ -107,7 +107,7 @@ pub async fn get_wiki_page(
     let git_dir = get_repo_dir(&state.config.repos_dir, &query.project, true);
 
     if !git_dir.join("HEAD").exists() {
-        let token = get_token(&state, &query.project, &auth);
+        let token = get_token(&state, &query.project, &auth).await;
         sync_bare_repo(
             &state.config.repos_dir,
             &state.config.gitlab_domain,
@@ -140,7 +140,7 @@ pub async fn get_wiki_history(
     let git_dir = get_repo_dir(&state.config.repos_dir, &query.project, true);
 
     if !git_dir.join("HEAD").exists() {
-        let token = get_token(&state, &query.project, &auth);
+        let token = get_token(&state, &query.project, &auth).await;
         sync_bare_repo(
             &state.config.repos_dir,
             &state.config.gitlab_domain,
@@ -251,7 +251,7 @@ pub async fn get_group_wiki_targets(
         r#"
         SELECT DISTINCT path FROM (
             SELECT DISTINCT full_path as path FROM projects
-            WHERE (full_path LIKE ?1 OR full_path = ?2) AND archived = 0
+            WHERE (full_path LIKE ?1 OR full_path = ?2)
             UNION
             SELECT DISTINCT project_path as path FROM work_items 
             WHERE project_path IS NOT NULL 

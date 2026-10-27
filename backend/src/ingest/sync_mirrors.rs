@@ -7,7 +7,7 @@ pub async fn sync_all_bare_mirrors(state: &AppState) -> Result<(usize, usize), A
     let project_paths = sqlx::query_scalar::<_, String>(
         r#"
         SELECT DISTINCT path FROM (
-            SELECT DISTINCT full_path as path FROM projects WHERE archived = 0
+            SELECT DISTINCT full_path as path FROM projects
             UNION
             SELECT DISTINCT project_path as path FROM work_items 
             WHERE project_path IS NOT NULL 
@@ -33,7 +33,7 @@ pub async fn sync_all_bare_mirrors(state: &AppState) -> Result<(usize, usize), A
 
     // 2. Sync code and wiki bare mirrors for each project
     for project in &project_paths {
-        let token = state.config.get_token_for_path(project);
+        let token = state.resolve_token_for_path(project).await;
 
         // Sync code mirror
         match sync_bare_repo(
@@ -96,7 +96,7 @@ pub async fn sync_all_bare_mirrors(state: &AppState) -> Result<(usize, usize), A
     }
 
     for gp in all_group_paths {
-        let token = state.config.get_token_for_path(&gp);
+        let token = state.resolve_token_for_path(&gp).await;
         match sync_bare_repo(
             &state.config.repos_dir,
             &state.config.gitlab_domain,

@@ -16,7 +16,7 @@ pub async fn sync_group_merge_requests(
     let query = r#"
     query GetGroupMRs($fullPath: ID!, $after: String) {
       group(fullPath: $fullPath) {
-        mergeRequests(includeSubgroups: true, first: 50, after: $after) {
+        mergeRequests(includeSubgroups: true, includeArchived: true, first: 50, after: $after) {
           pageInfo { hasNextPage endCursor }
           nodes {
             id iid title description state webUrl createdAt mergedAt closedAt

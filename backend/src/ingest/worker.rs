@@ -40,10 +40,13 @@ pub async fn run_sync_for_path(
         ));
     }
 
-    let token = token_override
-        .map(|t| t.to_string())
-        .or_else(|| state.config.get_token_for_path(clean_path))
-        .unwrap_or_default();
+    let token = match token_override {
+        Some(t) if !t.is_empty() => t.to_string(),
+        _ => state
+            .resolve_token_for_path(clean_path)
+            .await
+            .unwrap_or_default(),
+    };
 
     let client = GitLabClient::new(
         state.http.clone(),
@@ -163,9 +166,13 @@ pub async fn run_sync(state: &AppState) -> Result<SyncSummary, AppError> {
     let mut total_merge_requests_synced = 0;
 
     for (target_path, maybe_token) in targets_map {
-        let token = maybe_token
-            .or_else(|| state.config.get_token_for_path(&target_path))
-            .unwrap_or_default();
+        let token = match maybe_token {
+            Some(t) if !t.is_empty() => t,
+            _ => state
+                .resolve_token_for_path(&target_path)
+                .await
+                .unwrap_or_default(),
+        };
 
         let client = GitLabClient::new(
             state.http.clone(),

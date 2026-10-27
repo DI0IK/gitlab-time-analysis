@@ -19,15 +19,19 @@ use crate::{
     state::AppState,
 };
 
-fn get_token(state: &AppState, project: &str, auth: &OptionalAuthUser) -> Option<String> {
-    auth.0
-        .as_ref()
-        .map(|u| u.access_token.clone())
-        .or_else(|| state.config.get_token_for_path(project))
+async fn get_token(state: &AppState, project: &str, auth: &OptionalAuthUser) -> Option<String> {
+    if let Some(u) = auth.0.as_ref() {
+        return Some(u.access_token.clone());
+    }
+    state.resolve_token_for_path(project).await
 }
 
-fn get_gitlab_client(state: &AppState, project: &str, auth: &OptionalAuthUser) -> GitLabClient {
-    let token = get_token(state, project, auth);
+async fn get_gitlab_client(
+    state: &AppState,
+    project: &str,
+    auth: &OptionalAuthUser,
+) -> GitLabClient {
+    let token = get_token(state, project, auth).await;
     GitLabClient::new(
         state.http.clone(),
         state.config.gitlab_domain.clone(),
@@ -77,11 +81,11 @@ pub async fn list_branches(
     }
 
     // 2. Trigger async background clone to populate mirror for future calls
-    let token = get_token(&state, &query.project, &auth);
+    let token = get_token(&state, &query.project, &auth).await;
     trigger_background_sync(state.clone(), query.project.clone(), token);
 
     // 3. Fallback to GitLab REST API
-    let client = get_gitlab_client(&state, &query.project, &auth);
+    let client = get_gitlab_client(&state, &query.project, &auth).await;
     let encoded_project = encode_path(&query.project);
     let endpoint = format!("projects/{encoded_project}/repository/branches?per_page=100");
     let branches: Vec<RepoBranch> = match client.get_rest(&endpoint).await {
@@ -118,7 +122,7 @@ pub async fn get_tree(
     }
 
     // 2. Fallback to GitLab REST API
-    let client = get_gitlab_client(&state, &query.project, &auth);
+    let client = get_gitlab_client(&state, &query.project, &auth).await;
     let encoded_project = encode_path(&query.project);
 
     let mut params = vec!["per_page=100".to_string()];
@@ -172,7 +176,7 @@ pub async fn get_blob(
     }
 
     // 2. Fallback to GitLab REST API
-    let client = get_gitlab_client(&state, &query.project, &auth);
+    let client = get_gitlab_client(&state, &query.project, &auth).await;
     let encoded_project = encode_path(&query.project);
     let encoded_file_path = encode_path(query.file_path.trim_matches('/'));
 
@@ -246,7 +250,7 @@ pub async fn list_commits(
     }
 
     // 2. Fallback to GitLab REST API
-    let client = get_gitlab_client(&state, &query.project, &auth);
+    let client = get_gitlab_client(&state, &query.project, &auth).await;
     let encoded_project = encode_path(&query.project);
 
     let limit = query.limit.unwrap_or(30).clamp(1, 100);
@@ -290,7 +294,7 @@ pub async fn trigger_repo_sync(
     auth: OptionalAuthUser,
     Query(query): Query<RepoProjectQuery>,
 ) -> Result<Json<String>, AppError> {
-    let token = get_token(&state, &query.project, &auth);
+    let token = get_token(&state, &query.project, &auth).await;
     sync_bare_repo(
         &state.config.repos_dir,
         &state.config.gitlab_domain,

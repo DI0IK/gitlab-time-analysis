@@ -363,7 +363,13 @@ impl Config {
             .iter()
             .filter(|rg| clean == rg.path || clean.starts_with(&format!("{}/", rg.path)))
             .max_by_key(|rg| rg.path.len())
-            .or_else(|| self.root_groups.first())
+            .or_else(|| {
+                if self.root_groups.len() == 1 {
+                    self.root_groups.first()
+                } else {
+                    None
+                }
+            })
     }
 
     pub fn get_token_for_path(&self, path: &str) -> Option<String> {
