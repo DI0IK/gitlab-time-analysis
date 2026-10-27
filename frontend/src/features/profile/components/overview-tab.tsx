@@ -134,7 +134,7 @@ export function OverviewTab({ details }: OverviewTabProps) {
             {gamification.streak_days > 0 && (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-500 font-semibold">
                 <Flame className="h-3.5 w-3.5 fill-amber-500" />
-                {gamification.streak_days}d active streak
+                {gamification.streak_days} sprint{gamification.streak_days > 1 ? 's' : ''} streak
               </span>
             )}
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/60 border border-border text-muted-foreground">

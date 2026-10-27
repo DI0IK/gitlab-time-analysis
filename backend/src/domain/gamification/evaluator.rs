@@ -1,4 +1,3 @@
-use chrono::Datelike;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use utoipa::ToSchema;
@@ -225,16 +224,12 @@ pub async fn fetch_user_contribution_stats_scoped(
     let total_hours = (total_seconds as f64 / 3600.0 * 10.0).round() / 10.0;
     let hours_xp = (total_hours * 20.0).floor() as u64;
 
-    let mut active_days = HashSet::new();
     let mut sprint_hours_map: HashMap<i64, f64> = HashMap::new();
     for t in &timelogs {
-        let d = t.spent_at.date_naive();
-        active_days.insert((d.year(), d.ordinal()));
         if let Some(sp) = t.sprint_number {
             *sprint_hours_map.entry(sp).or_default() += t.time_spent as f64 / 3600.0;
         }
     }
-    let streak_days = active_days.len() as u32;
 
     let mut active_sprints: Vec<i64> = sprint_hours_map.keys().copied().collect();
     active_sprints.sort_unstable();
@@ -523,7 +518,7 @@ pub async fn fetch_user_contribution_stats_scoped(
         total_hours,
         total_seconds,
         timelog_count: timelogs.len(),
-        streak_days,
+        streak_days: longest_sprint_streak as u32,
         merged_mrs_count,
         reviews_count,
         closed_wi_count,

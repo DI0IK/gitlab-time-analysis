@@ -149,7 +149,7 @@ export function UserProfileContent({
               {details.gamification.streak_days > 0 && (
                 <span className="inline-flex items-center gap-1 text-xs font-mono font-semibold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
                   <Flame className="h-3.5 w-3.5 fill-amber-500" />
-                  {details.gamification.streak_days}d
+                  {details.gamification.streak_days} sprint{details.gamification.streak_days > 1 ? 's' : ''}
                 </span>
               )}
             </div>

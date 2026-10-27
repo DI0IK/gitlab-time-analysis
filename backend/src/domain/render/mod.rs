@@ -69,7 +69,7 @@ pub fn render_user_card_svg(user: &UserRecord, summary: &UserGamificationSummary
   <rect x="36" y="130" width="368" height="6" rx="3" fill="#27272a"/>
   <rect x="36" y="130" width="{bar_width}" height="6" rx="3" fill="{tier_color}"/>
   <text x="36" y="162" font-family="system-ui, sans-serif" font-size="12" font-weight="600" fill="#fafafa">{hours}h Logged</text>
-  <text x="140" y="162" font-family="system-ui, sans-serif" font-size="12" fill="#71717a">• {streak} Active Days</text>
+  <text x="140" y="162" font-family="system-ui, sans-serif" font-size="12" fill="#71717a">• {streak} Sprint Streak</text>
   <text x="404" y="162" font-family="system-ui, sans-serif" font-size="11" font-weight="600" text-anchor="end" fill="#f59e0b">{badge_count} Badges Unlocked</text>
 </svg>"##,
         badge_count = summary.unlocked_badges.len()
