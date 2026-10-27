@@ -324,12 +324,14 @@ export function WorkItemsRoadmap({
 
   // Synchronize vertical scroll between left items list and right timeline
   const handleTimelineScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    setHoveredItem(null)
     if (leftPanelScrollRef.current) {
       leftPanelScrollRef.current.scrollTop = e.currentTarget.scrollTop
     }
   }
 
   const handleLeftPanelScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    setHoveredItem(null)
     if (timelineScrollRef.current) {
       timelineScrollRef.current.scrollTop = e.currentTarget.scrollTop
     }
@@ -460,7 +462,7 @@ export function WorkItemsRoadmap({
           <div
             ref={leftPanelScrollRef}
             onScroll={handleLeftPanelScroll}
-            className="overflow-y-auto overflow-x-hidden divide-y divide-border/40 max-h-[600px] flex-1"
+            className="overflow-y-auto overflow-x-hidden divide-y divide-border/40 flex-1"
             style={{ scrollbarWidth: 'none' }}
           >
             {processedItems.map((p) => {
@@ -553,7 +555,7 @@ export function WorkItemsRoadmap({
         <div
           ref={timelineScrollRef}
           onScroll={handleTimelineScroll}
-          className="flex-1 overflow-x-auto overflow-y-auto max-h-[600px] relative bg-background/50 flex flex-col"
+          className="flex-1 overflow-x-auto overflow-y-auto relative bg-background/50 flex flex-col"
         >
           <div style={{ width: `${totalGridWidth}px` }} className="flex flex-col min-h-full">
             {/* Right Column Sticky Header */}
@@ -647,8 +649,10 @@ export function WorkItemsRoadmap({
                       onClick={() => onSelect(item)}
                       onMouseEnter={(e) => {
                         setHoveredItem(p)
-                        const rect = e.currentTarget.getBoundingClientRect()
-                        setTooltipPos({ x: rect.left + rect.width / 2, y: rect.top })
+                        setTooltipPos({ x: e.clientX, y: e.clientY })
+                      }}
+                      onMouseMove={(e) => {
+                        setTooltipPos({ x: e.clientX, y: e.clientY })
                       }}
                       onMouseLeave={() => setHoveredItem(null)}
                       className={`absolute h-7 rounded-md border flex items-center px-2 cursor-pointer transition-all duration-150 hover:brightness-110 hover:shadow-md hover:scale-[1.01] overflow-hidden z-10 ${barGradient}`}
@@ -701,10 +705,10 @@ export function WorkItemsRoadmap({
       {/* Rich Hover Floating Tooltip */}
       {hoveredItem && tooltipPos && (
         <div
-          className="fixed z-50 pointer-events-none transform -translate-x-1/2 -translate-y-full mb-2 w-72 rounded-lg border border-border/80 bg-popover/95 backdrop-blur-md p-3 text-popover-foreground shadow-xl transition-opacity animate-in fade-in-0 zoom-in-95"
+          className="fixed z-50 pointer-events-none transform -translate-x-1/2 -translate-y-full mb-3 w-72 rounded-lg border border-border/80 bg-popover/95 backdrop-blur-md p-3 text-popover-foreground shadow-xl transition-opacity animate-in fade-in-0 zoom-in-95"
           style={{
-            left: `${tooltipPos.x}px`,
-            top: `${tooltipPos.y - 8}px`,
+            left: `${Math.max(160, Math.min(typeof window !== 'undefined' ? window.innerWidth - 160 : 1000, tooltipPos.x))}px`,
+            top: `${tooltipPos.y - 12}px`,
           }}
         >
           <div className="flex items-center gap-2 mb-1.5 flex-wrap">
