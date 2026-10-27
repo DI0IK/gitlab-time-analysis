@@ -36,6 +36,54 @@ pub async fn upsert_user(
         }
     });
 
+    // Check if user exists with this gitlab_id and a different username (e.g. casing change or handle update)
+    let existing_username = sqlx::query_scalar::<_, String>(
+        "SELECT username FROM users WHERE gitlab_id = ?1",
+    )
+    .bind(gitlab_id)
+    .fetch_optional(pool)
+    .await?;
+
+    if let Some(old_uname) = existing_username
+        && old_uname != username
+    {
+        let mut tx = pool.begin().await?;
+        sqlx::query("PRAGMA defer_foreign_keys = ON;")
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query("UPDATE users SET username = ?1 WHERE gitlab_id = ?2")
+            .bind(username)
+            .bind(gitlab_id)
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query("UPDATE group_members SET username = ?1 WHERE username = ?2")
+            .bind(username)
+            .bind(&old_uname)
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query("UPDATE timelogs SET username = ?1 WHERE username = ?2")
+            .bind(username)
+            .bind(&old_uname)
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query("UPDATE merge_requests SET author_username = ?1 WHERE author_username = ?2")
+            .bind(username)
+            .bind(&old_uname)
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query("UPDATE item_notes SET author_username = ?1 WHERE author_username = ?2")
+            .bind(username)
+            .bind(&old_uname)
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query("UPDATE user_badges SET username = ?1 WHERE username = ?2")
+            .bind(username)
+            .bind(&old_uname)
+            .execute(&mut *tx)
+            .await?;
+        tx.commit().await?;
+    }
+
     let row = sqlx::query_as::<_, UserRecord>(
         r#"
         INSERT INTO users (gitlab_id, username, name, avatar_url, web_url, is_bot, updated_at)
