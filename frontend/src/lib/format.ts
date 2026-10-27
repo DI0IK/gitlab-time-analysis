@@ -43,38 +43,66 @@ export function resolveDisplayName(user: UserDisplayIdentifiable): string {
   return `@${user.username}`
 }
 
-export function getRelativePath(path?: string | null, parentSlug?: string): string {
+export function getRelativePath(
+  path?: string | null,
+  parentSlug?: string,
+  rootPath?: string
+): string {
   if (!path) return '/'
-  if (!parentSlug) return path
   const cleanPath = path.trim().replace(/^\/+|\/+$/g, '')
-  const cleanSlug = parentSlug.trim().replace(/^\/+|\/+$/g, '').toLowerCase()
-  const parts = cleanPath.split('/').filter(Boolean)
+  // Strip leading "groups/" if present
+  const pathWithoutGroups = cleanPath.replace(/^groups\//i, '')
+  const parts = pathWithoutGroups.split('/').filter(Boolean)
+  if (parts.length === 0) return '/'
 
-  for (let len = parts.length; len >= 1; len--) {
-    for (let start = 0; start <= parts.length - len; start++) {
-      const sub = parts.slice(start, start + len)
-      const candHyphen = sub.join('-').toLowerCase()
-      const candSlash = sub.join('/').toLowerCase()
-      if (candHyphen === cleanSlug || candSlash === cleanSlug) {
-        const remaining = parts.slice(start + len)
-        return remaining.length > 0 ? remaining.join('/') : '/'
+  const candidates = [parentSlug, rootPath].filter((s): s is string => Boolean(s && s.trim()))
+
+  for (const candidate of candidates) {
+    const cleanSlug = candidate.trim().replace(/^\/+|\/+$/g, '').toLowerCase()
+    const slugWithoutGroups = cleanSlug.replace(/^groups\//i, '')
+
+    // Check matching sub-slices of parts against candidate
+    for (let len = parts.length; len >= 1; len--) {
+      for (let start = 0; start <= parts.length - len; start++) {
+        const sub = parts.slice(start, start + len)
+        const candHyphen = sub.join('-').toLowerCase()
+        const candSlash = sub.join('/').toLowerCase()
+        if (
+          candHyphen === cleanSlug ||
+          candSlash === cleanSlug ||
+          candHyphen === slugWithoutGroups ||
+          candSlash === slugWithoutGroups
+        ) {
+          const remaining = parts.slice(start + len)
+          if (remaining.length > 0) {
+            return remaining.join('/')
+          }
+          // If the path matches the parent group exactly, return the last segment (the group name)
+          return sub[sub.length - 1] || parts[parts.length - 1]
+        }
+      }
+    }
+
+    // Normalized alphanumeric match
+    const normSlug = slugWithoutGroups.replace(/[^a-z0-9]/g, '')
+    if (normSlug.length > 0) {
+      for (let len = parts.length; len >= 1; len--) {
+        for (let start = 0; start <= parts.length - len; start++) {
+          const sub = parts.slice(start, start + len)
+          const normSub = sub.join('').toLowerCase().replace(/[^a-z0-9]/g, '')
+          if (normSub === normSlug) {
+            const remaining = parts.slice(start + len)
+            if (remaining.length > 0) {
+              return remaining.join('/')
+            }
+            return sub[sub.length - 1] || parts[parts.length - 1]
+          }
+        }
       }
     }
   }
 
-  const normSlug = cleanSlug.replace(/[^a-z0-9]/g, '')
-  for (let len = parts.length; len >= 1; len--) {
-    for (let start = 0; start <= parts.length - len; start++) {
-      const sub = parts.slice(start, start + len)
-      const normSub = sub.join('').toLowerCase().replace(/[^a-z0-9]/g, '')
-      if (normSub === normSlug) {
-        const remaining = parts.slice(start + len)
-        return remaining.length > 0 ? remaining.join('/') : '/'
-      }
-    }
-  }
-
-  return cleanPath
+  return pathWithoutGroups
 }
 
 export function formatStatus(state?: string | null): string {

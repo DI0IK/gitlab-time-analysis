@@ -11,6 +11,7 @@ interface TreeNodeProps {
   depth: number
   expanded: Set<string>
   slug?: string
+  rootGroupPath?: string
   onToggle: (id: string) => void
   onSelect: (item: WorkItemModalData) => void
 }
@@ -21,10 +22,12 @@ export function WorkItemTreeNode({
   depth,
   expanded,
   slug,
+  rootGroupPath,
   onToggle,
   onSelect,
 }: TreeNodeProps) {
-  const { rootSlug } = useTenant()
+  const { rootSlug, activeRoot } = useTenant()
+  const effectiveRootPath = rootGroupPath || activeRoot?.gitlab_group_path
   const children = childrenMap.get(item.id) || []
   const hasChildren = children.length > 0
   const isExpanded = expanded.has(item.id)
@@ -32,6 +35,7 @@ export function WorkItemTreeNode({
   const isClosed = item.state.toLowerCase() === 'closed'
   const isEpic = item.work_item_type.toLowerCase() === 'epic'
   const isTask = item.work_item_type.toLowerCase() === 'task'
+  const isGroup = isEpic || (item.project_path?.startsWith('groups/') ?? false)
   const typeBadgeVariant = isEpic
     ? 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30'
     : isTask
@@ -79,7 +83,7 @@ export function WorkItemTreeNode({
           <span className="text-xs font-mono text-muted-foreground shrink-0">#{item.iid}</span>
 
           {item.project_path && (
-            slug && !isEpic ? (
+            slug && !isGroup ? (
               <Link
                 to="/$rootSlug/$groupSlug/repo"
                 params={{ rootSlug, groupSlug: slug }}
@@ -89,7 +93,7 @@ export function WorkItemTreeNode({
                 title={`Browse code in ${item.project_path}`}
               >
                 <FolderGit2 className="h-3 w-3 text-primary shrink-0" />
-                <span className="truncate">{getRelativePath(item.project_path, slug)}</span>
+                <span className="truncate">{getRelativePath(item.project_path, slug, effectiveRootPath)}</span>
               </Link>
             ) : (
               <span
@@ -97,7 +101,7 @@ export function WorkItemTreeNode({
                 title={item.project_path}
               >
                 <Folder className="h-3 w-3 text-purple-500 shrink-0" />
-                <span className="truncate">{getRelativePath(item.project_path, slug)}</span>
+                <span className="truncate">{getRelativePath(item.project_path, slug, effectiveRootPath)}</span>
               </span>
             )
           )}
@@ -154,6 +158,7 @@ export function WorkItemTreeNode({
               depth={depth + 1}
               expanded={expanded}
               slug={slug}
+              rootGroupPath={effectiveRootPath}
               onToggle={onToggle}
               onSelect={onSelect}
             />

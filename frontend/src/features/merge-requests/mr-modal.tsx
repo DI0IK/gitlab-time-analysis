@@ -7,6 +7,7 @@ import { getRelativePath, formatStatus } from '@/lib/format'
 import { UserProfileModal } from '@/features/profile/user-profile-modal'
 import { ItemDiscussionThread } from '@/features/notes/item-discussion-thread'
 import { Markdown } from '@/components/ui/markdown'
+import { useTenant } from '@/features/tenant/tenant-context'
 
 export interface MergeRequestModalData {
   id: string; iid: number; title: string; description?: string | null; state: string
@@ -28,6 +29,7 @@ function parseUserList(json?: string | null): string[] {
 }
 
 export function MergeRequestModal({ mr, slug, onClose }: { mr: MergeRequestModalData | null; slug?: string; onClose: () => void }) {
+  const { activeRoot } = useTenant()
   const [modalUser, setModalUser] = React.useState<string | null>(null)
   if (!mr) return null
 
@@ -59,7 +61,7 @@ export function MergeRequestModal({ mr, slug, onClose }: { mr: MergeRequestModal
             <div className="flex items-center justify-between flex-wrap gap-2 text-xs">
               <div className="inline-flex items-center gap-1.5 font-mono text-primary font-medium" title={mr.project_path}>
                 <FolderGit2 className="h-4 w-4" />
-                <span>{getRelativePath(mr.project_path, slug)}</span>
+                <span>{getRelativePath(mr.project_path, slug, activeRoot?.gitlab_group_path)}</span>
               </div>
               <div className="flex items-center gap-2 font-mono text-xs">
                 <span className="text-emerald-500 font-semibold">+{mr.additions}</span>

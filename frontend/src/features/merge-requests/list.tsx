@@ -97,8 +97,16 @@ export function MergeRequestsView({
               {filtered.map((mr) => {
                 const isMerged = mr.state === 'merged'
                 const isClosed = mr.state === 'closed'
-                const badgeVariant = isMerged ? 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/20' : isClosed ? 'bg-muted/50 text-muted-foreground' : 'bg-emerald-500/15 text-emerald-600 border-emerald-500/20'
-                const relRepo = getRelativePath(mr.project_path, slug)
+                const badgeVariant = isMerged
+                  ? 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/20'
+                  : isClosed
+                    ? 'bg-muted/50 text-muted-foreground'
+                    : 'bg-emerald-500/15 text-emerald-600 border-emerald-500/20'
+                const relRepo = getRelativePath(
+                  mr.project_path,
+                  effectiveGroupSlug,
+                  tenant.activeRoot?.gitlab_group_path
+                )
 
                 return (
                   <div
@@ -160,7 +168,7 @@ export function MergeRequestsView({
         </Card>
       )}
 
-      <MergeRequestModal mr={selectedMr} slug={slug} onClose={() => setSelectedMr(null)} />
+      <MergeRequestModal mr={selectedMr} slug={effectiveGroupSlug} onClose={() => setSelectedMr(null)} />
     </div>
   )
 }

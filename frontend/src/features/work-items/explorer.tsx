@@ -9,6 +9,7 @@ import { WorkItemTreeNode } from './work-item-tree-node'
 
 import { useTenant } from '@/features/tenant/tenant-context'
 import { apiKeys } from '@/lib/api/keys'
+import { getRelativePath } from '@/lib/format'
 
 export function WorkItemsExplorer({
   slug,
@@ -164,7 +165,7 @@ export function WorkItemsExplorer({
                 <option value="all">All Repositories</option>
                 {availableRepos.map((repo) => (
                   <option key={repo} value={repo}>
-                    {repo.split('/').pop() || repo}
+                    {getRelativePath(repo, effectiveGroupSlug, tenant.activeRoot?.gitlab_group_path)}
                   </option>
                 ))}
               </select>
@@ -201,7 +202,8 @@ export function WorkItemsExplorer({
                 childrenMap={viewMode === 'tree' ? childrenMap : new Map()}
                 depth={0}
                 expanded={expanded}
-                slug={slug}
+                slug={effectiveGroupSlug}
+                rootGroupPath={tenant.activeRoot?.gitlab_group_path}
                 onToggle={handleToggle}
                 onSelect={setSelectedItem}
               />
@@ -210,7 +212,12 @@ export function WorkItemsExplorer({
         </Card>
       )}
 
-      <WorkItemModal item={selectedItem} slug={slug} onClose={() => setSelectedItem(null)} />
+      <WorkItemModal
+        item={selectedItem}
+        slug={effectiveGroupSlug}
+        rootGroupPath={tenant.activeRoot?.gitlab_group_path}
+        onClose={() => setSelectedItem(null)}
+      />
     </div>
   )
 }

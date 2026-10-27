@@ -14,26 +14,37 @@ import { useTenant } from '@/features/tenant/tenant-context'
 export function GroupSubnav() {
   const routerState = useRouterState()
   const pathname = routerState.location.pathname
-  const { rootSlug, groupSlug } = useTenant()
+  const { rootSlug, groupSlug, activeRoot } = useTenant()
 
-  // Don't show subnav on global admin/settings pages or root group stats page
+  // Don't show subnav on global admin/settings/auth pages or user profile pages
   if (
     pathname.startsWith('/admin') ||
     pathname.startsWith('/settings') ||
-    !groupSlug ||
-    groupSlug === rootSlug
+    pathname.startsWith('/auth') ||
+    pathname.includes('/users/')
   ) {
     return null
   }
 
-  // Team subgroup tabs
-  const basePath = `/${rootSlug}/${groupSlug}`
+  const rootGroupSlug = activeRoot?.gitlab_group_path
+    ? activeRoot.gitlab_group_path.replace(/\//g, '-')
+    : rootSlug
+
+  const isRootLevel = !groupSlug || groupSlug === rootSlug || groupSlug === rootGroupSlug
+  const effectiveGroupSlug = isRootLevel ? rootGroupSlug : groupSlug
+
+  const analyticsPath = isRootLevel ? `/${rootSlug}` : `/${rootSlug}/${groupSlug}`
+  const basePath = `/${rootSlug}/${effectiveGroupSlug}`
+
   const tabs = [
     {
-      href: basePath,
+      href: analyticsPath,
       label: 'Analytics',
       icon: BarChart3,
-      active: pathname === basePath || pathname === `${basePath}/`,
+      active:
+        pathname === analyticsPath ||
+        pathname === `${analyticsPath}/` ||
+        (isRootLevel && (pathname === basePath || pathname === `${basePath}/`)),
     },
     {
       href: `${basePath}/activity`,
@@ -43,7 +54,7 @@ export function GroupSubnav() {
     },
     {
       href: `${basePath}/leaderboard`,
-      label: 'Leaderboard',
+      label: isRootLevel ? 'Global Leaderboard' : 'Leaderboard',
       icon: Trophy,
       active: pathname.startsWith(`${basePath}/leaderboard`),
     },
