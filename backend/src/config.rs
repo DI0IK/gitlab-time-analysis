@@ -206,84 +206,75 @@ impl Config {
             .and_then(|w| w.parse().ok())
             .unwrap_or(1);
 
-        let root_groups_str = env::var("GITLAB_ROOT_GROUPS").map_err(|_| {
-            AppError::Config(
-                "GITLAB_ROOT_GROUPS is required (JSON array or 'group1:pat1,group2:pat2')"
-                    .to_string(),
-            )
-        })?;
-
-        let trimmed_root = root_groups_str
-            .trim()
-            .trim_matches('\'')
-            .trim_matches('"')
-            .trim();
-
         let mut root_groups = Vec::new();
 
-        if trimmed_root.starts_with('[') {
-            // JSON array format
-            let raw_list: Vec<RawRootGroupConfig> =
-                serde_json::from_str(trimmed_root).map_err(|e| {
-                    AppError::Config(format!(
-                        "Failed to parse GITLAB_ROOT_GROUPS as JSON array: {e}"
-                    ))
-                })?;
-            for item in raw_list {
-                root_groups.push(item.into_root_group_config(
-                    global_project_start_date,
-                    global_project_end_date,
-                    &global_sprint_start_weekday,
-                    global_sprint_duration_weeks,
-                )?);
-            }
-        } else if trimmed_root.starts_with('{') {
-            // Single JSON object format
-            let item: RawRootGroupConfig = serde_json::from_str(trimmed_root).map_err(|e| {
-                AppError::Config(format!(
-                    "Failed to parse GITLAB_ROOT_GROUPS as JSON object: {e}"
-                ))
-            })?;
-            root_groups.push(item.into_root_group_config(
-                global_project_start_date,
-                global_project_end_date,
-                &global_sprint_start_weekday,
-                global_sprint_duration_weeks,
-            )?);
-        } else {
-            // Fallback comma-separated format "path1:token1,path2:token2"
-            for item in trimmed_root.split(',') {
-                let trimmed = item.trim().trim_matches('"').trim_matches('\'');
-                if trimmed.is_empty() {
-                    continue;
-                }
-                let (path, token) = trimmed.split_once(':').ok_or_else(|| {
-                    AppError::Config(format!(
-                        "Invalid GITLAB_ROOT_GROUPS entry '{trimmed}'. Expected format 'path:token' or JSON"
-                    ))
-                })?;
-                let clean_path = path.trim().trim_matches('/').to_string();
-                let clean_token = token.trim().to_string();
-                if clean_path.is_empty() || clean_token.is_empty() {
-                    return Err(AppError::Config(format!(
-                        "Invalid GITLAB_ROOT_GROUPS entry '{trimmed}'. Both path and token must be non-empty"
-                    )));
-                }
-                root_groups.push(RootGroupConfig {
-                    path: clean_path,
-                    token: clean_token,
-                    project_start_date: global_project_start_date,
-                    project_end_date: global_project_end_date,
-                    sprint_start_weekday: global_sprint_start_weekday.clone(),
-                    sprint_duration_weeks: global_sprint_duration_weeks,
-                });
-            }
-        }
+        if let Ok(root_groups_str) = env::var("GITLAB_ROOT_GROUPS") {
+            let trimmed_root = root_groups_str
+                .trim()
+                .trim_matches('\'')
+                .trim_matches('"')
+                .trim();
 
-        if root_groups.is_empty() {
-            return Err(AppError::Config(
-                "GITLAB_ROOT_GROUPS must contain at least one valid root group".to_string(),
-            ));
+            if !trimmed_root.is_empty() {
+                if trimmed_root.starts_with('[') {
+                    // JSON array format
+                    let raw_list: Vec<RawRootGroupConfig> =
+                        serde_json::from_str(trimmed_root).map_err(|e| {
+                            AppError::Config(format!(
+                                "Failed to parse GITLAB_ROOT_GROUPS as JSON array: {e}"
+                            ))
+                        })?;
+                    for item in raw_list {
+                        root_groups.push(item.into_root_group_config(
+                            global_project_start_date,
+                            global_project_end_date,
+                            &global_sprint_start_weekday,
+                            global_sprint_duration_weeks,
+                        )?);
+                    }
+                } else if trimmed_root.starts_with('{') {
+                    // Single JSON object format
+                    let item: RawRootGroupConfig = serde_json::from_str(trimmed_root).map_err(|e| {
+                        AppError::Config(format!(
+                            "Failed to parse GITLAB_ROOT_GROUPS as JSON object: {e}"
+                        ))
+                    })?;
+                    root_groups.push(item.into_root_group_config(
+                        global_project_start_date,
+                        global_project_end_date,
+                        &global_sprint_start_weekday,
+                        global_sprint_duration_weeks,
+                    )?);
+                } else {
+                    // Fallback comma-separated format "path1:token1,path2:token2"
+                    for item in trimmed_root.split(',') {
+                        let trimmed = item.trim().trim_matches('"').trim_matches('\'');
+                        if trimmed.is_empty() {
+                            continue;
+                        }
+                        let (path, token) = trimmed.split_once(':').ok_or_else(|| {
+                            AppError::Config(format!(
+                                "Invalid GITLAB_ROOT_GROUPS entry '{trimmed}'. Expected format 'path:token' or JSON"
+                            ))
+                        })?;
+                        let clean_path = path.trim().trim_matches('/').to_string();
+                        let clean_token = token.trim().to_string();
+                        if clean_path.is_empty() || clean_token.is_empty() {
+                            return Err(AppError::Config(format!(
+                                "Invalid GITLAB_ROOT_GROUPS entry '{trimmed}'. Both path and token must be non-empty"
+                            )));
+                        }
+                        root_groups.push(RootGroupConfig {
+                            path: clean_path,
+                            token: clean_token,
+                            project_start_date: global_project_start_date,
+                            project_end_date: global_project_end_date,
+                            sprint_start_weekday: global_sprint_start_weekday.clone(),
+                            sprint_duration_weeks: global_sprint_duration_weeks,
+                        });
+                    }
+                }
+            }
         }
 
         let frontend_dist =

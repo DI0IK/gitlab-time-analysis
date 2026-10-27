@@ -65,73 +65,88 @@ export function MobileNav() {
             </div>
 
             <div className="py-4 space-y-1">
-              <p className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                {isRootLevel ? `Root: ${activeRoot?.name ?? rootSlug}` : `Team: ${groupSlug}`}
-              </p>
-              <Link
-                to={(isRootLevel ? `/${rootSlug}` : `/${rootSlug}/${effectiveGroupSlug}`) as any}
-                onClick={closeMenu}
-                className="flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-muted/60 transition"
-              >
-                <BarChart3 className="h-4 w-4 text-primary" />
-                <span>Analytics</span>
-              </Link>
-              <Link
-                to={`/${rootSlug}/${effectiveGroupSlug}/activity` as any}
-                onClick={closeMenu}
-                className="flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-muted/60 transition"
-              >
-                <BarChart3 className="h-4 w-4 text-muted-foreground" />
-                <span>Activity</span>
-              </Link>
-              <Link
-                to={`/${rootSlug}/${effectiveGroupSlug}/leaderboard` as any}
-                onClick={closeMenu}
-                className="flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-muted/60 transition"
-              >
-                <Trophy className="h-4 w-4 text-muted-foreground" />
-                <span>{isRootLevel ? 'Global Leaderboard' : 'Leaderboard'}</span>
-              </Link>
-              <Link
-                to={`/${rootSlug}/${effectiveGroupSlug}/work-items` as any}
-                onClick={closeMenu}
-                className="flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-muted/60 transition"
-              >
-                <ListTodo className="h-4 w-4 text-muted-foreground" />
-                <span>Work Items</span>
-              </Link>
-              <Link
-                to={`/${rootSlug}/${effectiveGroupSlug}/repo` as any}
-                onClick={closeMenu}
-                className="flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-muted/60 transition"
-              >
-                <FolderGit2 className="h-4 w-4 text-muted-foreground" />
-                <span>Code Browser</span>
-              </Link>
-              <Link
-                to={`/${rootSlug}/${effectiveGroupSlug}/wiki` as any}
-                onClick={closeMenu}
-                className="flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-muted/60 transition"
-              >
-                <BookOpen className="h-4 w-4 text-muted-foreground" />
-                <span>Wiki</span>
-              </Link>
-              <Link
-                to={`/${rootSlug}/${effectiveGroupSlug}/merge-requests` as any}
-                onClick={closeMenu}
-                className="flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-muted/60 transition"
-              >
-                <GitPullRequest className="h-4 w-4 text-muted-foreground" />
-                <span>MR Suite</span>
-              </Link>
-              <Link
-                to={`/${rootSlug}/${effectiveGroupSlug}/present` as any}
-                onClick={closeMenu}
-                className="flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-primary hover:bg-primary/10 transition"
-              >
-                <Presentation className="h-4 w-4 text-primary" />
-                <span>Kiosk / Presentation</span>
-              </Link>
+              {!rootSlug ? (
+                <div className="px-3 py-6 text-center space-y-2">
+                  <p className="text-xs text-muted-foreground">No workspaces configured</p>
+                  <Link
+                    to="/admin"
+                    onClick={closeMenu}
+                    className="inline-block text-xs text-primary hover:underline font-semibold"
+                  >
+                    Go to Admin Settings &rarr;
+                  </Link>
+                </div>
+              ) : (
+                <>
+                  <p className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                    {isRootLevel ? `Root: ${activeRoot?.name ?? rootSlug}` : `Team: ${groupSlug}`}
+                  </p>
+                  <Link
+                    to={(isRootLevel ? `/${rootSlug}` : `/${rootSlug}/${effectiveGroupSlug}`) as any}
+                    onClick={closeMenu}
+                    className="flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-muted/60 transition"
+                  >
+                    <BarChart3 className="h-4 w-4 text-primary" />
+                    <span>Analytics</span>
+                  </Link>
+                  <Link
+                    to={`/${rootSlug}/${effectiveGroupSlug}/activity` as any}
+                    onClick={closeMenu}
+                    className="flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-muted/60 transition"
+                  >
+                    <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                    <span>Activity</span>
+                  </Link>
+                  <Link
+                    to={`/${rootSlug}/${effectiveGroupSlug}/leaderboard` as any}
+                    onClick={closeMenu}
+                    className="flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-muted/60 transition"
+                  >
+                    <Trophy className="h-4 w-4 text-muted-foreground" />
+                    <span>{isRootLevel ? 'Global Leaderboard' : 'Leaderboard'}</span>
+                  </Link>
+                  <Link
+                    to={`/${rootSlug}/${effectiveGroupSlug}/work-items` as any}
+                    onClick={closeMenu}
+                    className="flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-muted/60 transition"
+                  >
+                    <ListTodo className="h-4 w-4 text-muted-foreground" />
+                    <span>Work Items</span>
+                  </Link>
+                  <Link
+                    to={`/${rootSlug}/${effectiveGroupSlug}/repo` as any}
+                    onClick={closeMenu}
+                    className="flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-muted/60 transition"
+                  >
+                    <FolderGit2 className="h-4 w-4 text-muted-foreground" />
+                    <span>Code Browser</span>
+                  </Link>
+                  <Link
+                    to={`/${rootSlug}/${effectiveGroupSlug}/wiki` as any}
+                    onClick={closeMenu}
+                    className="flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-muted/60 transition"
+                  >
+                    <BookOpen className="h-4 w-4 text-muted-foreground" />
+                    <span>Wiki</span>
+                  </Link>
+                  <Link
+                    to={`/${rootSlug}/${effectiveGroupSlug}/merge-requests` as any}
+                    onClick={closeMenu}
+                    className="flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-muted/60 transition"
+                  >
+                    <GitPullRequest className="h-4 w-4 text-muted-foreground" />
+                    <span>MR Suite</span>
+                  </Link>
+                  <Link
+                    to={`/${rootSlug}/${effectiveGroupSlug}/present` as any}
+                    onClick={closeMenu}
+                    className="flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-primary hover:bg-primary/10 transition"
+                  >
+                    <Presentation className="h-4 w-4 text-primary" />
+                    <span>Kiosk / Presentation</span>
+                  </Link>
+                </>
+              )}
             </div>
 
             <div className="mt-auto border-t border-border/40 pt-4 space-y-3">

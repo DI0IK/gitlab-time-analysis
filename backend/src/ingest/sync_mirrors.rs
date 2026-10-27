@@ -82,6 +82,15 @@ pub async fn sync_all_bare_mirrors(state: &AppState) -> Result<(usize, usize), A
     for rg in &state.config.root_groups {
         all_group_paths.insert(rg.path.clone());
     }
+    let managed_paths = sqlx::query_scalar::<_, String>(
+        "SELECT gitlab_group_path FROM managed_root_groups WHERE gitlab_group_path IS NOT NULL AND gitlab_group_path != ''",
+    )
+    .fetch_all(&state.db)
+    .await
+    .unwrap_or_default();
+    for mp in managed_paths {
+        all_group_paths.insert(mp);
+    }
     for gp in group_paths {
         all_group_paths.insert(gp);
     }

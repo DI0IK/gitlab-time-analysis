@@ -61,8 +61,9 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   }
 
   // Fallback root slug if on global route or root
-  const fallbackRootSlug =
-    localStorage.getItem(SAVED_ROOT_KEY) || roots[0]?.slug || 'tinf24'
+  const savedSlug = typeof window !== 'undefined' ? localStorage.getItem(SAVED_ROOT_KEY) : null
+  const isSavedValid = Boolean(savedSlug && roots.some((r) => r.slug === savedSlug))
+  const fallbackRootSlug = (isSavedValid ? savedSlug : null) || roots[0]?.slug || ''
 
   const effectiveRootSlug = extractedRootSlug || fallbackRootSlug
 

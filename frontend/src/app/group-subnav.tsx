@@ -18,6 +18,7 @@ export function GroupSubnav() {
 
   // Don't show subnav on global admin/settings/auth pages or user profile pages
   if (
+    !rootSlug ||
     pathname.startsWith('/admin') ||
     pathname.startsWith('/settings') ||
     pathname.startsWith('/auth') ||

@@ -164,10 +164,16 @@ export function GroupSwitcher() {
         </div>
         <div className="flex flex-col text-left min-w-0">
           <span className="max-w-[120px] sm:max-w-[160px] truncate font-semibold leading-tight">
-            {isRootLevel ? activeRoot?.name ?? 'Root Group' : activeGroupRecord?.name ?? groupSlug}
+            {isRootLevel
+              ? activeRoot?.name ?? (roots.length === 0 ? 'No Workspaces' : 'Root Group')
+              : activeGroupRecord?.name ?? groupSlug}
           </span>
           <span className="text-[10px] text-muted-foreground leading-none truncate max-w-[120px] sm:max-w-[160px]">
-            {isRootLevel ? 'Root Group' : activeRoot?.name}
+            {isRootLevel
+              ? roots.length === 0
+                ? 'Configure in Admin'
+                : 'Root Group'
+              : activeRoot?.name}
           </span>
         </div>
         <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground ml-0.5 opacity-60 shrink-0" />
@@ -176,21 +182,39 @@ export function GroupSwitcher() {
       {/* Tree Dropdown Menu */}
       {open && (
         <div className="glass-dropdown absolute left-0 mt-2 w-88 max-h-[520px] flex flex-col rounded-xl p-2 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-100">
-          {/* Search Bar */}
-          <div className="relative mb-2 px-1 shrink-0">
-            <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search workspaces or teams..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-md border border-border/50 bg-background/50 pl-8 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-              autoFocus
-            />
-          </div>
+          {roots.length === 0 ? (
+            <div className="py-8 px-4 text-center space-y-2">
+              <Building2 className="h-6 w-6 text-muted-foreground/40 mx-auto" />
+              <p className="text-xs text-muted-foreground font-medium">
+                No workspaces configured yet
+              </p>
+              <button
+                onClick={() => {
+                  setOpen(false)
+                  navigate({ to: '/admin' })
+                }}
+                className="text-xs text-primary hover:underline font-semibold cursor-pointer"
+              >
+                Go to Admin Settings &rarr;
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* Search Bar */}
+              <div className="relative mb-2 px-1 shrink-0">
+                <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Search workspaces or teams..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full rounded-md border border-border/50 bg-background/50 pl-8 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  autoFocus
+                />
+              </div>
 
-          {/* Tree Structure */}
-          <div className="overflow-y-auto space-y-1 flex-1 pr-1">
+              {/* Tree Structure */}
+              <div className="overflow-y-auto space-y-1 flex-1 pr-1">
             {tenantTrees.map(({ root, subgroupNodes }) => {
               // Filtering logic
               const rootMatches =
@@ -309,7 +333,9 @@ export function GroupSwitcher() {
                   No matching workspaces or teams found.
                 </div>
               )}
-          </div>
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>

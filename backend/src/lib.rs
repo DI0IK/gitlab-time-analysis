@@ -44,12 +44,16 @@ pub async fn run() -> anyhow::Result<()> {
     telemetry::init_tracing();
 
     let config = Config::from_env().map_err(|e| anyhow::anyhow!("{e}"))?;
-    let root_groups_str = config
-        .root_groups
-        .iter()
-        .map(|rg| rg.path.as_str())
-        .collect::<Vec<_>>()
-        .join(", ");
+    let root_groups_str = if config.root_groups.is_empty() {
+        "(none in env; managed via DB)".to_string()
+    } else {
+        config
+            .root_groups
+            .iter()
+            .map(|rg| rg.path.as_str())
+            .collect::<Vec<_>>()
+            .join(", ")
+    };
     tracing::info!(
         host = %config.host,
         port = config.port,
