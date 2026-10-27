@@ -218,8 +218,8 @@ impl Config {
             if !trimmed_root.is_empty() {
                 if trimmed_root.starts_with('[') {
                     // JSON array format
-                    let raw_list: Vec<RawRootGroupConfig> =
-                        serde_json::from_str(trimmed_root).map_err(|e| {
+                    let raw_list: Vec<RawRootGroupConfig> = serde_json::from_str(trimmed_root)
+                        .map_err(|e| {
                             AppError::Config(format!(
                                 "Failed to parse GITLAB_ROOT_GROUPS as JSON array: {e}"
                             ))
@@ -234,11 +234,12 @@ impl Config {
                     }
                 } else if trimmed_root.starts_with('{') {
                     // Single JSON object format
-                    let item: RawRootGroupConfig = serde_json::from_str(trimmed_root).map_err(|e| {
-                        AppError::Config(format!(
-                            "Failed to parse GITLAB_ROOT_GROUPS as JSON object: {e}"
-                        ))
-                    })?;
+                    let item: RawRootGroupConfig =
+                        serde_json::from_str(trimmed_root).map_err(|e| {
+                            AppError::Config(format!(
+                                "Failed to parse GITLAB_ROOT_GROUPS as JSON object: {e}"
+                            ))
+                        })?;
                     root_groups.push(item.into_root_group_config(
                         global_project_start_date,
                         global_project_end_date,
