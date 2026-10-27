@@ -212,6 +212,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/render/group/{slug}/matrix.svg": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["render_sprint_matrix"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/render/user/{username}.svg": {
         parameters: {
             query?: never;
@@ -1722,6 +1738,39 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Rendered SVG group summary banner */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/svg+xml": unknown;
+                };
+            };
+            /** @description Group not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    render_sprint_matrix: {
+        parameters: {
+            query?: {
+                /** @description Sprint number or 'all' */
+                sprint?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Group slug or ID */
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Rendered SVG sprint time matrix */
             200: {
                 headers: {
                     [name: string]: unknown;
