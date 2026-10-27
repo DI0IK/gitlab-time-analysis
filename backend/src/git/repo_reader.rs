@@ -96,6 +96,8 @@ pub async fn get_local_tree(
     }
 
     let output = Command::new("git")
+        .arg("-c")
+        .arg("core.quotePath=false")
         .arg(format!("--git-dir={}", git_dir.display()))
         .arg("ls-tree")
         .arg("-l")
@@ -128,7 +130,11 @@ pub async fn get_local_tree(
             continue;
         }
 
-        let name = tab_parts[1].trim();
+        let raw_name = tab_parts[1].trim();
+        let name = raw_name
+            .strip_prefix('"')
+            .and_then(|p| p.strip_suffix('"'))
+            .unwrap_or(raw_name);
         let meta_parts: Vec<&str> = tab_parts[0].split_whitespace().collect();
         if meta_parts.len() < 3 {
             continue;
@@ -165,6 +171,8 @@ pub async fn get_local_blob(
     let target = format!("{rev}:{clean_path}");
 
     let output = Command::new("git")
+        .arg("-c")
+        .arg("core.quotePath=false")
         .arg(format!("--git-dir={}", git_dir.display()))
         .arg("cat-file")
         .arg("-p")
@@ -191,6 +199,8 @@ pub async fn get_local_blob(
 
     // Get last commit for this file
     let commit_output = Command::new("git")
+        .arg("-c")
+        .arg("core.quotePath=false")
         .arg(format!("--git-dir={}", git_dir.display()))
         .arg("log")
         .arg("-n")
@@ -236,7 +246,9 @@ pub async fn list_local_commits(
     let limit_str = limit.clamp(1, 100).to_string();
 
     let mut cmd = Command::new("git");
-    cmd.arg(format!("--git-dir={}", git_dir.display()))
+    cmd.arg("-c")
+        .arg("core.quotePath=false")
+        .arg(format!("--git-dir={}", git_dir.display()))
         .arg("log")
         .arg("-n")
         .arg(&limit_str)

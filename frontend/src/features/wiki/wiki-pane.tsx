@@ -12,29 +12,47 @@ interface WikiPaneProps {
   targetPath: string
   title?: string
   gitlabDomain?: string
+  page?: string
+  rev?: string
+  onPageChange?: (slug: string) => void
+  onRevisionChange?: (rev: string) => void
 }
 
-export function WikiPane({ targetPath, title, gitlabDomain = 'https://gitlab.com' }: WikiPaneProps) {
-  const [selectedSlug, setSelectedSlug] = React.useState<string | null>(() => {
+export function WikiPane({
+  targetPath,
+  title,
+  gitlabDomain = 'https://gitlab.com',
+  page: controlledPage,
+  rev: controlledRev,
+  onPageChange,
+  onRevisionChange,
+}: WikiPaneProps) {
+  // If controlled, use prop; otherwise fallback to URL or internal state
+  const [internalSlug, setInternalSlug] = React.useState<string | null>(() => {
     if (typeof window === 'undefined') return null
     const param = new URLSearchParams(window.location.search).get('page')
     if (param) return param
     const hash = window.location.hash
     return hash.startsWith('#wiki:') ? hash.replace('#wiki:', '') : null
   })
-  const [selectedRevision, setSelectedRevision] = React.useState<string>(() => {
-    return typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('rev') || '' : ''
+
+  const [internalRevision, setInternalRevision] = React.useState<string>(() => {
+    return typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search).get('rev') || ''
+      : ''
   })
+
   const [historyOpen, setHistoryOpen] = React.useState(false)
 
-  // Intermediate state for pages to calculate activeSlug
-  const [activeSlug, setActiveSlug] = React.useState<string>('')
+  const activeSelectedSlug = controlledPage !== undefined ? controlledPage : internalSlug
+  const activeSelectedRevision = controlledRev !== undefined ? controlledRev : internalRevision
 
   const {
     wikiCommits,
     isCommitsLoading,
     refetchCommits,
     pages,
+    activeSlug,
     isPagesLoading,
     isPagesFetching,
     refetchPages,
@@ -43,38 +61,46 @@ export function WikiPane({ targetPath, title, gitlabDomain = 'https://gitlab.com
     refetchContent,
     pageCommits,
     isHistoryLoading,
-  } = useWikiQueries({ targetPath, activeSlug, selectedRevision, historyOpen })
-
-  React.useEffect(() => {
-    if (pages.length === 0) return
-    if (selectedSlug) {
-      const resolved = resolveWikiSlug(selectedSlug, selectedSlug, pages)
-      const found = pages.find((p) => p.slug === resolved || p.slug.toLowerCase() === resolved.toLowerCase())
-      if (found) {
-        setActiveSlug(found.slug)
-        return
-      }
-    }
-    const home = pages.find((p) => p.slug.toLowerCase() === 'home') || pages[0]
-    if (home) setActiveSlug(home.slug)
-  }, [pages, selectedSlug])
+  } = useWikiQueries({
+    targetPath,
+    activeSelectedSlug,
+    selectedRevision: activeSelectedRevision,
+    historyOpen,
+  })
 
   const handleSelectPage = React.useCallback(
     (target: string) => {
       const resolved = resolveWikiSlug(target, activeSlug, pages)
-      setSelectedSlug(resolved || target)
+      const nextSlug = resolved || target
+      if (onPageChange) {
+        onPageChange(nextSlug)
+      } else {
+        setInternalSlug(nextSlug)
+      }
     },
-    [activeSlug, pages]
+    [activeSlug, pages, onPageChange]
   )
 
+  const handleSelectRevision = React.useCallback(
+    (rev: string) => {
+      if (onRevisionChange) {
+        onRevisionChange(rev)
+      } else {
+        setInternalRevision(rev)
+      }
+    },
+    [onRevisionChange]
+  )
+
+  // Sync to URL only when in uncontrolled mode
   React.useEffect(() => {
-    if (typeof window === 'undefined' || !activeSlug) return
+    if (controlledPage !== undefined || typeof window === 'undefined' || !activeSlug) return
     const params = new URLSearchParams(window.location.search)
     params.set('page', activeSlug)
-    if (selectedRevision) params.set('rev', selectedRevision)
+    if (activeSelectedRevision) params.set('rev', activeSelectedRevision)
     else params.delete('rev')
     window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`)
-  }, [activeSlug, selectedRevision])
+  }, [controlledPage, activeSlug, activeSelectedRevision])
 
   return (
     <div className="space-y-3">
@@ -84,19 +110,28 @@ export function WikiPane({ targetPath, title, gitlabDomain = 'https://gitlab.com
         gitlabDomain={gitlabDomain}
         pageCount={pages.length}
         commits={wikiCommits}
-        selectedRevision={selectedRevision}
-        onSelectRevision={(rev) => setSelectedRevision(rev)}
+        selectedRevision={activeSelectedRevision}
+        onSelectRevision={handleSelectRevision}
         isCommitsLoading={isCommitsLoading}
         isPagesFetching={isPagesFetching}
-        onRefresh={() => { refetchCommits(); refetchPages(); refetchContent() }}
+        onRefresh={() => {
+          refetchCommits()
+          refetchPages()
+          refetchContent()
+        }}
       />
 
-      <Card className="border-border/60 overflow-hidden shadow-sm flex flex-col md:flex-row h-[calc(100vh-250px)] min-h-[480px]">
-        <div className="w-full md:w-64 md:shrink-0 h-full">
-          <WikiSidebar pages={pages} selectedSlug={activeSlug} onSelectPage={handleSelectPage} isLoading={isPagesLoading} />
+      <Card className="border-border/60 overflow-hidden shadow-xs flex flex-col md:flex-row h-[calc(100vh-250px)] min-h-[500px] bg-card/40 backdrop-blur-xs">
+        <div className="w-full md:w-64 md:shrink-0 h-full border-r border-border/40">
+          <WikiSidebar
+            pages={pages}
+            selectedSlug={activeSlug}
+            onSelectPage={handleSelectPage}
+            isLoading={isPagesLoading}
+          />
         </div>
 
-        <div className="flex-1 h-full overflow-hidden bg-background/50">
+        <div className="flex-1 h-full overflow-hidden bg-background/40">
           {pageContent ? (
             <WikiPageViewer
               data={pageContent}
@@ -113,7 +148,9 @@ export function WikiPane({ targetPath, title, gitlabDomain = 'https://gitlab.com
                 {pages.length === 0 ? 'No Wiki Pages Available' : 'Select a page'}
               </h3>
               <p className="text-xs max-w-sm text-muted-foreground">
-                {pages.length === 0 ? 'No markdown pages initialized on GitLab.' : 'Choose a page to view documentation.'}
+                {pages.length === 0
+                  ? 'No markdown documentation pages initialized on GitLab.'
+                  : 'Choose a page from the sidebar to view documentation.'}
               </p>
             </div>
           )}

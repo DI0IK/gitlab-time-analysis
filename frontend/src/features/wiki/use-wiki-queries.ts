@@ -1,20 +1,22 @@
+import * as React from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api/client'
 import { apiKeys } from '@/lib/api/keys'
+import { resolveWikiSlug } from './wiki-slug-helpers'
 import type { WikiPageItem } from './wiki-sidebar'
 import type { WikiPageContentData } from './wiki-page-viewer'
 import type { WikiCommit } from './wiki-history-modal'
 
 interface UseWikiQueriesOptions {
   targetPath: string
-  activeSlug: string
+  activeSelectedSlug?: string | null
   selectedRevision: string
   historyOpen: boolean
 }
 
 export function useWikiQueries({
   targetPath,
-  activeSlug,
+  activeSelectedSlug,
   selectedRevision,
   historyOpen,
 }: UseWikiQueriesOptions) {
@@ -42,6 +44,21 @@ export function useWikiQueries({
     },
     enabled: Boolean(targetPath),
   })
+
+  const pages = React.useMemo(() => pagesQuery.data ?? [], [pagesQuery.data])
+
+  const activeSlug = React.useMemo(() => {
+    if (pages.length === 0) return ''
+    if (activeSelectedSlug) {
+      const resolved = resolveWikiSlug(activeSelectedSlug, activeSelectedSlug, pages)
+      const found = pages.find(
+        (p) => p.slug === resolved || p.slug.toLowerCase() === resolved.toLowerCase()
+      )
+      if (found) return found.slug
+    }
+    const home = pages.find((p) => p.slug.toLowerCase() === 'home') || pages[0]
+    return home ? home.slug : ''
+  }, [pages, activeSelectedSlug])
 
   const contentQuery = useQuery({
     queryKey: apiKeys.wikiPage(targetPath, activeSlug, selectedRevision),
@@ -72,7 +89,8 @@ export function useWikiQueries({
     wikiCommits: commitsQuery.data ?? [],
     isCommitsLoading: commitsQuery.isLoading,
     refetchCommits: commitsQuery.refetch,
-    pages: pagesQuery.data ?? [],
+    pages,
+    activeSlug,
     isPagesLoading: pagesQuery.isLoading,
     isPagesFetching: pagesQuery.isFetching,
     refetchPages: pagesQuery.refetch,

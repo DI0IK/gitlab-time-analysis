@@ -35,3 +35,49 @@ pub async fn setup_test_state() -> (AppState, SqlitePool) {
     let state = AppState::new(config, pool.clone());
     (state, pool)
 }
+
+#[allow(dead_code)]
+pub async fn create_test_session(
+    state: &AppState,
+    pool: &SqlitePool,
+) -> (gitlab_platform::db::users::UserRecord, String) {
+    use chrono::{Duration, Utc};
+    use gitlab_platform::{
+        db::{sessions::create_session, users::upsert_user},
+        session::{
+            SESSION_COOKIE_NAME, build_cookie,
+            crypto::{derive_key, encrypt},
+        },
+    };
+
+    let user = upsert_user(
+        pool,
+        "999",
+        "testadmin",
+        "Test Admin",
+        Some("https://gitlab.com/avatar.png"),
+        "https://gitlab.com/testadmin",
+        false,
+    )
+    .await
+    .expect("user upsert succeeds");
+
+    let key = derive_key(&state.config.session_secret);
+    let enc_access = encrypt("test-access-token-xyz", &key).unwrap();
+    let session_token = "valid-test-session-token-abcdef";
+    let expires_at = Utc::now() + Duration::days(1);
+
+    create_session(
+        pool,
+        session_token,
+        &user.gitlab_id,
+        &enc_access,
+        None,
+        expires_at,
+    )
+    .await
+    .expect("session created");
+
+    let cookie = build_cookie(SESSION_COOKIE_NAME, session_token, 3600, false);
+    (user, cookie)
+}

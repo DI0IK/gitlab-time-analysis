@@ -24,6 +24,7 @@ use crate::{
 
 #[derive(Debug, Deserialize, Serialize, ToSchema)]
 pub struct UpdateProfileRequest {
+    #[serde(alias = "customDisplayName")]
     pub custom_display_name: Option<String>,
 }
 

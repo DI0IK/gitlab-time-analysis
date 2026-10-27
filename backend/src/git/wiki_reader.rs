@@ -30,6 +30,8 @@ pub async fn list_local_wiki_pages(
 ) -> Result<Vec<WikiPageItem>, AppError> {
     let git_ref = ref_name.unwrap_or("HEAD");
     let output = Command::new("git")
+        .arg("-c")
+        .arg("core.quotePath=false")
         .arg(format!("--git-dir={}", git_dir.display()))
         .arg("ls-tree")
         .arg("-r")
@@ -52,7 +54,12 @@ pub async fn list_local_wiki_pages(
             continue;
         }
 
-        let path = tab_parts[1].trim();
+        let raw_path = tab_parts[1].trim();
+        let path = raw_path
+            .strip_prefix('"')
+            .and_then(|p| p.strip_suffix('"'))
+            .unwrap_or(raw_path);
+
         if path.starts_with('.') || path == "_sidebar.md" || path == "_footer.md" {
             continue;
         }
@@ -105,11 +112,23 @@ pub async fn get_local_wiki_page(
     ref_name: Option<&str>,
 ) -> Result<WikiPageContent, AppError> {
     let clean_slug = slug.trim_matches('/');
-    let candidates = [
+    let mut candidates = vec![
         format!("{clean_slug}.md"),
         format!("{clean_slug}.markdown"),
         clean_slug.to_string(),
     ];
+    let dash_var = clean_slug.replace(' ', "-");
+    let space_var = clean_slug.replace('-', " ");
+    if dash_var != clean_slug {
+        candidates.push(format!("{dash_var}.md"));
+        candidates.push(format!("{dash_var}.markdown"));
+        candidates.push(dash_var);
+    }
+    if space_var != clean_slug {
+        candidates.push(format!("{space_var}.md"));
+        candidates.push(format!("{space_var}.markdown"));
+        candidates.push(space_var);
+    }
 
     let git_ref = ref_name.unwrap_or("HEAD");
     let mut found_path = None;
@@ -118,6 +137,8 @@ pub async fn get_local_wiki_page(
     for candidate in &candidates {
         let target = format!("{git_ref}:{candidate}");
         let output = Command::new("git")
+            .arg("-c")
+            .arg("core.quotePath=false")
             .arg(format!("--git-dir={}", git_dir.display()))
             .arg("cat-file")
             .arg("-p")
@@ -154,6 +175,8 @@ pub async fn get_local_wiki_page(
         });
 
     let log_output = Command::new("git")
+        .arg("-c")
+        .arg("core.quotePath=false")
         .arg(format!("--git-dir={}", git_dir.display()))
         .arg("log")
         .arg("-n")
@@ -192,3 +215,62 @@ pub async fn get_local_wiki_page(
         last_author_name,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    #[tokio::test]
+    async fn test_emoji_wiki_pages() {
+        let tmp = std::env::temp_dir().join(format!("wiki-test-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&tmp).expect("create test dir");
+
+        let run_git = |args: &[&str]| {
+            let mut cmd = std::process::Command::new("git");
+            cmd.current_dir(&tmp);
+            cmd.args(args);
+            let res = cmd.output().expect("run git command");
+            assert!(res.status.success(), "git {:?} failed: {:?}", args, String::from_utf8_lossy(&res.stderr));
+        };
+
+        run_git(&["init"]);
+        run_git(&["config", "user.email", "test@example.com"]);
+        run_git(&["config", "user.name", "Test User"]);
+        run_git(&["config", "commit.gpgsign", "false"]);
+
+        fs::write(tmp.join("home.md"), "# Welcome Home\n\nWiki home page.").expect("write home.md");
+        fs::write(tmp.join("🚀-Roadmap.md"), "# Product Roadmap\n\nMilestones and goals.").expect("write emoji file 1");
+        fs::write(tmp.join("01-📋-Tasks.md"), "# Task List\n\nAction items.").expect("write emoji file 2");
+
+        let docs_dir = tmp.join("docs");
+        fs::create_dir_all(&docs_dir).expect("create docs dir");
+        fs::write(docs_dir.join("🎉-Release.md"), "# Release Notes\n\nV1 launch.").expect("write emoji file 3");
+
+        run_git(&["add", "."]);
+        run_git(&["commit", "-m", "initial wiki commit"]);
+
+        // 1. Test listing
+        let pages = list_local_wiki_pages(&tmp.join(".git"), None).await.expect("list pages");
+        assert_eq!(pages.len(), 4, "Expected 4 pages including emoji files, got: {:?}", pages);
+
+        let slugs: Vec<&str> = pages.iter().map(|p| p.slug.as_str()).collect();
+        assert_eq!(slugs[0], "home", "Home page should be first");
+        assert!(slugs.contains(&"🚀-Roadmap"), "Should contain 🚀-Roadmap");
+        assert!(slugs.contains(&"01-📋-Tasks"), "Should contain 01-📋-Tasks");
+        assert!(slugs.contains(&"docs/🎉-Release"), "Should contain docs/🎉-Release");
+
+        // 2. Test reading emoji page
+        let page = get_local_wiki_page(&tmp.join(".git"), "🚀-Roadmap", None).await.expect("get emoji page");
+        assert_eq!(page.title, "Product Roadmap");
+        assert!(page.content.contains("Milestones and goals"));
+
+        // 3. Test reading with space-dash variation
+        let page_space = get_local_wiki_page(&tmp.join(".git"), "🚀 Roadmap", None).await.expect("get emoji page with space");
+        assert_eq!(page_space.title, "Product Roadmap");
+
+        // Cleanup
+        let _ = fs::remove_dir_all(&tmp);
+    }
+}
+

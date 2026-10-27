@@ -37,11 +37,23 @@ async fn setup_test_app() -> (axum::Router, SqlitePool, AppState) {
 
 #[tokio::test]
 async fn test_groups_and_sync_endpoints() {
-    let (app, pool, _) = setup_test_app().await;
+    let (app, pool, state) = setup_test_app().await;
 
-    // 1. Initial /api/groups should be empty
+    // 1. Initial unauthenticated request should fail with 401 Unauthorized
+    let unauth_req = Request::builder()
+        .uri("/api/groups")
+        .body(Body::empty())
+        .unwrap();
+    let unauth_resp = app.clone().oneshot(unauth_req).await.unwrap();
+    assert_eq!(unauth_resp.status(), StatusCode::UNAUTHORIZED);
+
+    // Create active session cookie for authenticated requests
+    let (_user, cookie) = common::create_test_session(&state, &pool).await;
+
+    // 2. Authenticated initial /api/groups should be empty
     let req = Request::builder()
         .uri("/api/groups")
+        .header(axum::http::header::COOKIE, &cookie)
         .body(Body::empty())
         .unwrap();
     let resp = app.clone().oneshot(req).await.unwrap();
@@ -52,7 +64,7 @@ async fn test_groups_and_sync_endpoints() {
     let groups: Value = serde_json::from_slice(&bytes).unwrap();
     assert!(groups.as_array().unwrap().is_empty());
 
-    // 2. Insert a root group and subgroup into DB
+    // 3. Insert a root group and subgroup into DB
     let now = Utc::now();
     let root = upsert_group(
         &pool,
@@ -82,9 +94,10 @@ async fn test_groups_and_sync_endpoints() {
     .await
     .unwrap();
 
-    // 3. Query /api/groups again - should return 2 groups
+    // 4. Query /api/groups again - should return 2 groups
     let req = Request::builder()
         .uri("/api/groups")
+        .header(axum::http::header::COOKIE, &cookie)
         .body(Body::empty())
         .unwrap();
     let resp = app.clone().oneshot(req).await.unwrap();
@@ -95,9 +108,10 @@ async fn test_groups_and_sync_endpoints() {
     let groups: Value = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(groups.as_array().unwrap().len(), 2);
 
-    // 4. Query /api/groups/dhbw-tinf24 (slug matching with dashes)
+    // 5. Query /api/groups/dhbw-tinf24 (slug matching with dashes)
     let req = Request::builder()
         .uri("/api/groups/dhbw-tinf24")
+        .header(axum::http::header::COOKIE, &cookie)
         .body(Body::empty())
         .unwrap();
     let resp = app.clone().oneshot(req).await.unwrap();
@@ -108,10 +122,11 @@ async fn test_groups_and_sync_endpoints() {
     let group: Value = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(group["name"], "DHBW TINF24");
 
-    // 5. Trigger manual sync via POST /api/sync
+    // 6. Trigger manual sync via POST /api/sync
     let req = Request::builder()
         .method("POST")
         .uri("/api/sync")
+        .header(axum::http::header::COOKIE, &cookie)
         .body(Body::empty())
         .unwrap();
     let resp = app.clone().oneshot(req).await.unwrap();
@@ -127,9 +142,10 @@ async fn test_groups_and_sync_endpoints() {
             .contains("GITLAB_ROOT_GROUPS not configured")
     );
 
-    // 6. Query /api/sync/status
+    // 7. Query /api/sync/status
     let req = Request::builder()
         .uri("/api/sync/status")
+        .header(axum::http::header::COOKIE, &cookie)
         .body(Body::empty())
         .unwrap();
     let resp = app.clone().oneshot(req).await.unwrap();

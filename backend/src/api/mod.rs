@@ -1,6 +1,6 @@
 use axum::{
     Router,
-    middleware::from_fn,
+    middleware::{from_fn, from_fn_with_state},
     routing::{get, post},
 };
 use utoipa::OpenApi;
@@ -28,13 +28,18 @@ pub mod wiki;
 pub fn router(state: AppState) -> Router {
     let openapi_doc = ApiDoc::openapi();
 
-    let api_routes = Router::new()
+    let public_routes = Router::new()
         .route("/health", get(health::health_check))
         .route("/meta", get(meta::get_meta))
         .route("/auth/login", get(auth::login))
         .route("/auth/callback", get(auth::callback))
         .route("/auth/me", get(auth::me))
         .route("/auth/logout", post(auth::logout))
+        .route("/render/badge/:id", get(render::render_badge))
+        .route("/render/user/:username", get(render::render_user_card))
+        .route("/render/group/:slug", get(render::render_group_banner));
+
+    let protected_routes = Router::new()
         .route(
             "/user/profile",
             get(profile::get_profile).patch(profile::update_profile),
@@ -78,9 +83,6 @@ pub fn router(state: AppState) -> Router {
         )
         .route("/comparison", get(analytics::get_cohort_comparison))
         .route("/leaderboard", get(leaderboard::get_cohort_leaderboard))
-        .route("/render/badge/:id", get(render::render_badge))
-        .route("/render/user/:username", get(render::render_user_card))
-        .route("/render/group/:slug", get(render::render_group_banner))
         .route("/repo/branches", get(repo::list_branches))
         .route("/repo/tree", get(repo::get_tree))
         .route("/repo/blob", get(repo::get_blob))
@@ -91,6 +93,14 @@ pub fn router(state: AppState) -> Router {
         .route("/wiki/history", get(wiki::get_wiki_history))
         .route("/sync", post(sync::trigger_sync))
         .route("/sync/status", get(sync::sync_status))
+        .route_layer(from_fn_with_state(
+            state.clone(),
+            middleware::require_auth,
+        ));
+
+    let api_routes = Router::new()
+        .merge(public_routes)
+        .merge(protected_routes)
         .layer(from_fn(middleware::security_headers))
         .with_state(state);
 

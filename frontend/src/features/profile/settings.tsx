@@ -1,29 +1,96 @@
 import React, { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/features/auth/use-auth'
-import { User, Check, Sparkles } from 'lucide-react'
+import { apiKeys } from '@/lib/api/keys'
+import { User, Check, Sparkles, Loader2 } from 'lucide-react'
 
-export function SettingsView() {
-  const { user } = useAuth()
-  const [customName, setCustomName] = useState(user?.customDisplayName || '')
+function DisplayNameForm({
+  initialName,
+  placeholder,
+}: {
+  initialName: string
+  placeholder: string
+}) {
+  const queryClient = useQueryClient()
+  const [customName, setCustomName] = useState(initialName)
   const [saved, setSaved] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
+    setIsSaving(true)
+    setErrorMsg(null)
     try {
-      await fetch('/api/user/profile', {
+      const trimmed = customName.trim()
+      const res = await fetch('/api/user/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customDisplayName: customName || null }),
+        body: JSON.stringify({
+          custom_display_name: trimmed || null,
+          customDisplayName: trimmed || null,
+        }),
       })
+
+      if (!res.ok) {
+        throw new Error('Failed to update display name')
+      }
+
+      await queryClient.invalidateQueries({ queryKey: apiKeys.authMe })
+      await queryClient.invalidateQueries({ queryKey: ['groups'] })
+      await queryClient.invalidateQueries({ queryKey: ['leaderboard'] })
+
       setSaved(true)
-      setTimeout(() => setSaved(false), 2000)
-    } catch {
-      // Ignored
+      setTimeout(() => setSaved(false), 2500)
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Error updating profile')
+    } finally {
+      setIsSaving(false)
     }
   }
+
+  return (
+    <form onSubmit={handleSave} className="space-y-4">
+      <div>
+        <label htmlFor="displayName" className="block text-xs font-medium text-foreground mb-1.5">
+          Display Name
+        </label>
+        <input
+          id="displayName"
+          type="text"
+          value={customName}
+          onChange={(e) => setCustomName(e.target.value)}
+          placeholder={placeholder || 'Enter custom display name'}
+          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+        />
+        <p className="text-[11px] text-muted-foreground mt-1">
+          Leave empty to fallback to your GitLab account name ({placeholder || '@username'}).
+        </p>
+      </div>
+
+      {errorMsg && <p className="text-xs text-destructive">{errorMsg}</p>}
+
+      <div className="flex items-center gap-2">
+        <Button type="submit" size="sm" disabled={isSaving} className="gap-1.5">
+          {isSaving ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : saved ? (
+            <Check className="h-4 w-4" />
+          ) : (
+            <Sparkles className="h-4 w-4" />
+          )}
+          {isSaving ? 'Saving...' : saved ? 'Saved!' : 'Save Display Name'}
+        </Button>
+      </div>
+    </form>
+  )
+}
+
+export function SettingsView() {
+  const { user } = useAuth()
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -45,31 +112,11 @@ export function SettingsView() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSave} className="space-y-4">
-            <div>
-              <label htmlFor="displayName" className="block text-xs font-medium text-foreground mb-1.5">
-                Display Name
-              </label>
-              <input
-                id="displayName"
-                type="text"
-                value={customName}
-                onChange={(e) => setCustomName(e.target.value)}
-                placeholder={user?.name || 'Enter custom display name'}
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Leave empty to fallback to your GitLab account name ({user?.name || '@username'}).
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Button type="submit" size="sm" className="gap-1.5">
-                {saved ? <Check className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
-                {saved ? 'Saved!' : 'Save Display Name'}
-              </Button>
-            </div>
-          </form>
+          <DisplayNameForm
+            key={user?.username || 'loading'}
+            initialName={user?.customDisplayName || ''}
+            placeholder={user?.name || user?.username || ''}
+          />
         </CardContent>
       </Card>
 

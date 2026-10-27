@@ -2,10 +2,31 @@ import * as React from 'react'
 import { useRouterState } from '@tanstack/react-router'
 import { Nav } from './nav'
 import { GroupSubnav } from './group-subnav'
+import { useAuth } from '@/features/auth/use-auth'
+import { LoginGate } from '@/features/auth/login-gate'
+import { Loader2 } from 'lucide-react'
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const routerState = useRouterState()
+  const { isAuthenticated, isLoading } = useAuth()
   const isKiosk = routerState.location.pathname.startsWith('/present')
+
+  // Show a smooth splash screen while initial session status is loading
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground">
+        <Loader2 className="h-8 w-8 animate-spin text-primary opacity-80" />
+        <p className="text-xs text-muted-foreground mt-3 font-mono animate-pulse">
+          Authenticating session...
+        </p>
+      </div>
+    )
+  }
+
+  // If user is not authenticated, require GitLab login for everything
+  if (!isAuthenticated) {
+    return <LoginGate />
+  }
 
   if (isKiosk) {
     return (

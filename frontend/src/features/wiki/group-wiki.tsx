@@ -1,28 +1,24 @@
 import * as React from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { BookOpen, Folder, Layers } from 'lucide-react'
+import { useSearch, useNavigate } from '@tanstack/react-router'
+import { BookOpen, RefreshCw } from 'lucide-react'
 import { apiClient } from '@/lib/api/client'
 import { apiKeys } from '@/lib/api/keys'
+import { Button } from '@/components/ui/button'
 import { WikiPane } from './wiki-pane'
-
-interface WikiTargetItem {
-  path: string
-  name: string
-  target_type: string
-  has_wiki: boolean
-  page_count: number
-}
+import { WikiTargetTreeDropdown, type WikiTargetItem } from './wiki-target-dropdown'
 
 export function GroupWikiView({ slug }: { slug: string }) {
-  const [selectedPath, setSelectedPath] = React.useState<string | null>(() => {
-    if (typeof window !== 'undefined') {
-      return new URLSearchParams(window.location.search).get('target')
-    }
-    return null
-  })
+  const search = useSearch({ from: '/groups/$slug/wiki' })
+  const navigate = useNavigate({ from: '/groups/$slug/wiki' })
 
-  // Fetch wiki targets for this group
-  const { data: allTargets = [], isLoading } = useQuery({
+  // Fetch all wiki targets (group, subgroups, and project repos)
+  const {
+    data: allTargets = [],
+    isLoading,
+    refetch,
+    isFetching,
+  } = useQuery({
     queryKey: apiKeys.wikiTargets(slug),
     queryFn: async () => {
       const { data, error } = await apiClient.GET('/api/groups/{slug}/wiki/targets', {
@@ -33,85 +29,119 @@ export function GroupWikiView({ slug }: { slug: string }) {
     },
   })
 
-  // Filter only group & subgroup targets (projects belong in the code browser)
-  const groupTargets = React.useMemo(() => {
-    return allTargets.filter((t) => t.target_type === 'group' || t.target_type === 'subgroup')
+  // Sort targets: with wikis first, then by group -> subgroup -> project
+  const sortedTargets = React.useMemo(() => {
+    return [...allTargets].sort((a, b) => {
+      if (a.has_wiki && !b.has_wiki) return -1
+      if (!a.has_wiki && b.has_wiki) return 1
+      const order: Record<string, number> = { group: 0, subgroup: 1, project: 2 }
+      const ordA = order[a.target_type] ?? 3
+      const ordB = order[b.target_type] ?? 3
+      if (ordA !== ordB) return ordA - ordB
+      return a.name.localeCompare(b.name)
+    })
   }, [allTargets])
 
   // Derive active target path
   const activePath = React.useMemo(() => {
-    if (selectedPath && groupTargets.some((t) => t.path === selectedPath)) {
-      return selectedPath
+    if (search.target && allTargets.some((t) => t.path === search.target)) {
+      return search.target
     }
-    const withWiki = groupTargets.find((t) => t.has_wiki)
-    return withWiki ? withWiki.path : (groupTargets[0]?.path || '')
-  }, [groupTargets, selectedPath])
+    const withWiki = sortedTargets.find((t) => t.has_wiki)
+    return withWiki ? withWiki.path : sortedTargets[0]?.path || ''
+  }, [allTargets, sortedTargets, search.target])
 
-  // Sync selected target to URL search params
+  // Sync default target into router search if not set
   React.useEffect(() => {
-    if (typeof window === 'undefined' || !activePath) return
-    const params = new URLSearchParams(window.location.search)
-    params.set('target', activePath)
-    const newUrl = `${window.location.pathname}?${params.toString()}`
-    window.history.replaceState({}, '', newUrl)
-  }, [activePath])
+    if (!search.target && activePath) {
+      navigate({
+        search: (prev) => ({ ...prev, target: activePath }),
+        replace: true,
+      })
+    }
+  }, [search.target, activePath, navigate])
 
-  const activeTargetItem = groupTargets.find((t) => t.path === activePath)
+  const activeTargetItem = allTargets.find((t) => t.path === activePath)
+
+  const handleSelectTarget = (path: string) => {
+    navigate({
+      search: (prev) => ({
+        ...prev,
+        target: path,
+        page: undefined,
+        rev: undefined,
+      }),
+    })
+  }
+
+  const handlePageChange = (newPage: string) => {
+    navigate({
+      search: (prev) => ({
+        ...prev,
+        page: newPage,
+        rev: undefined,
+      }),
+    })
+  }
+
+  const handleRevisionChange = (newRev: string) => {
+    navigate({
+      search: (prev) => ({
+        ...prev,
+        rev: newRev || undefined,
+      }),
+    })
+  }
 
   if (isLoading) {
     return (
       <div className="space-y-4 animate-pulse">
-        <div className="h-10 bg-muted/40 rounded w-1/3" />
-        <div className="h-96 bg-muted/20 rounded w-full" />
+        <div className="h-10 bg-muted/40 rounded-xl w-1/3" />
+        <div className="h-96 bg-muted/20 rounded-xl w-full" />
       </div>
     )
   }
 
   return (
     <div className="space-y-4">
-      {/* Group & Subgroup Pills Selector (if more than 1 target) */}
-      {groupTargets.length > 1 && (
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
-          {groupTargets.map((t) => {
-            const isSelected = t.path === activePath
-            return (
-              <button
-                key={t.path}
-                onClick={() => setSelectedPath(t.path)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap border ${
-                  isSelected
-                    ? 'bg-primary/15 text-primary border-primary/40 shadow-xs'
-                    : 'bg-card/60 text-muted-foreground hover:text-foreground border-border/50 hover:bg-card'
-                }`}
-              >
-                {t.target_type === 'group' ? (
-                  <Folder className="h-3.5 w-3.5 text-primary" />
-                ) : (
-                  <Layers className="h-3.5 w-3.5 text-blue-400" />
-                )}
-                <span>{t.name}</span>
-                {t.has_wiki && t.page_count > 0 && (
-                  <span className="text-[10px] bg-background/80 px-1.5 py-0.2 rounded font-mono opacity-80">
-                    {t.page_count}
-                  </span>
-                )}
-              </button>
-            )
-          })}
+      {/* Top Bar with Tree Dropdown and Refresh */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-border/40">
+        <div className="flex items-center gap-3">
+          <WikiTargetTreeDropdown
+            targets={sortedTargets}
+            selectedPath={activePath}
+            onSelect={handleSelectTarget}
+          />
         </div>
-      )}
 
-      {/* Render WikiPane for the active group/subgroup */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => refetch()}
+          disabled={isFetching}
+          className="self-end sm:self-auto gap-1.5 text-xs h-9 px-3"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
+          <span>Refresh</span>
+        </Button>
+      </div>
+
+      {/* Render WikiPane for the active wiki target */}
       {activePath ? (
         <WikiPane
+          key={activePath}
           targetPath={activePath}
           title={activeTargetItem?.name || slug}
           gitlabDomain="https://gitlab.com"
+          page={search.page}
+          rev={search.rev}
+          onPageChange={handlePageChange}
+          onRevisionChange={handleRevisionChange}
         />
       ) : (
-        <div className="text-center py-16 text-muted-foreground border border-border/60 rounded-lg bg-card/40">
+        <div className="text-center py-16 text-muted-foreground border border-border/60 rounded-xl bg-card/40">
           <BookOpen className="h-10 w-10 mx-auto opacity-30 mb-2" />
-          <p className="font-semibold text-sm">No group wikis available</p>
+          <p className="font-semibold text-sm">No documentation wikis available</p>
         </div>
       )}
     </div>

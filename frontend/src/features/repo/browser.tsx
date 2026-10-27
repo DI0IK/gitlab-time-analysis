@@ -1,53 +1,38 @@
 import * as React from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useSearch, useNavigate } from '@tanstack/react-router'
 import { apiClient } from '@/lib/api/client'
 import { apiKeys } from '@/lib/api/keys'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
   FolderGit2,
-  Folder,
-  ExternalLink,
   RefreshCw,
-  GitPullRequest,
-  ListTodo,
-  Search,
   ArrowLeft,
-  Code2,
-  GitCommit,
-  BookOpen,
+  FileText,
+  ChevronDown,
 } from 'lucide-react'
-import { WikiPane } from '@/features/wiki/wiki-pane'
-import { BranchSelector, type RepoBranch } from './branch-selector'
+import { type RepoBranch } from './branch-selector'
 import { FileBreadcrumbs } from './file-breadcrumbs'
 import { FileTree, type TreeItem } from './file-tree'
 import { CodeViewer, type FileBlobData } from './code-viewer'
 import { CommitHistory, type CommitItem } from './commit-history'
-
-interface Repository {
-  name: string
-  full_path: string
-  web_url: string
-  work_items_count: number
-  merge_requests_count: number
-}
+import { RepoExplorerSidebar } from './repo-explorer-sidebar'
+import { RepoGrid, type RepositoryItem } from './repo-grid'
+import { RepoToolbar } from './repo-toolbar'
+import { Markdown } from '@/components/ui/markdown'
 
 export function RepoBrowserView({ slug }: { slug: string }) {
-  const [search, setSearch] = React.useState('')
-  const [selectedProject, setSelectedProject] = React.useState<string | null>(() => {
-    if (typeof window !== 'undefined') {
-      return new URLSearchParams(window.location.search).get('project')
-    }
-    return null
-  })
-  const [selectedBranch, setSelectedBranch] = React.useState<string>('')
-  const [currentPath, setCurrentPath] = React.useState<string>('')
-  const [selectedFile, setSelectedFile] = React.useState<string | null>(null)
-  const [activeTab, setActiveTab] = React.useState<'code' | 'commits' | 'wiki'>('code')
+  const search = useSearch({ from: '/groups/$slug/repo' })
+  const navigate = useNavigate({ from: '/groups/$slug/repo' })
+
+  const [sidebarOpen, setSidebarOpen] = React.useState(true)
+  const [projectDropdownOpen, setProjectDropdownOpen] = React.useState(false)
+  const dropdownRef = React.useRef<HTMLDivElement>(null)
 
   // 1. Fetch repositories under this group
   const {
-    data: repos,
+    data: repos = [],
     isLoading: isReposLoading,
     error: reposError,
     refetch: refetchRepos,
@@ -59,35 +44,19 @@ export function RepoBrowserView({ slug }: { slug: string }) {
         params: { path: { slug } },
       })
       if (error || !data) throw new Error('Failed to load repositories')
-      return data as Repository[]
+      return data as RepositoryItem[]
     },
   })
 
-  // Validate that selected project belongs to this group's repositories
+  // Validate active project from search param
   const effectiveProject = React.useMemo(() => {
-    if (!selectedProject) return null
-    if (!repos) return selectedProject
-    return repos.some((r) => r.full_path === selectedProject) ? selectedProject : null
-  }, [selectedProject, repos])
-
-  // Sync state to URL search parameters for linkability
-  React.useEffect(() => {
-    if (typeof window === 'undefined') return
-    const params = new URLSearchParams(window.location.search)
-    if (effectiveProject) {
-      params.set('project', effectiveProject)
-    } else {
-      params.delete('project')
-    }
-    const newUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`
-    window.history.replaceState({}, '', newUrl)
-  }, [effectiveProject])
+    if (!search.project) return null
+    if (!repos.length) return search.project
+    return repos.some((r) => r.full_path === search.project) ? search.project : null
+  }, [search.project, repos])
 
   // 2. Fetch branches for the selected repository
-  const {
-    data: branches,
-    isLoading: isBranchesLoading,
-  } = useQuery({
+  const { data: branches = [], isLoading: isBranchesLoading } = useQuery({
     queryKey: apiKeys.repoBranches(effectiveProject ?? ''),
     queryFn: async () => {
       if (!effectiveProject) return []
@@ -100,20 +69,38 @@ export function RepoBrowserView({ slug }: { slug: string }) {
     enabled: !!effectiveProject,
   })
 
-  // Derive active branch without cascading state updates
+  // Derive active branch
   const effectiveBranch =
-    selectedBranch ||
-    branches?.find((b) => b.default)?.name ||
-    branches?.[0]?.name ||
-    ''
+    search.ref || branches.find((b) => b.default)?.name || branches[0]?.name || ''
 
-  // 3. Fetch directory tree
+  const currentPath = search.path || ''
+  const activeTab = search.view || 'code'
+  const selectedLine = search.line
+
+  // Detect if current path points to a file blob
+  const isFilePath = React.useMemo(() => {
+    if (!currentPath) return false
+    return /\.[a-z0-9_-]+$/i.test(currentPath)
+  }, [currentPath])
+
+  // Containing directory for tree fetching
+  const currentDirectory = React.useMemo(() => {
+    if (!currentPath) return ''
+    if (isFilePath) {
+      const parts = currentPath.split('/')
+      parts.pop()
+      return parts.join('/')
+    }
+    return currentPath
+  }, [currentPath, isFilePath])
+
+  // 3. Fetch directory tree for containing directory
   const {
     data: treeItems,
     isLoading: isTreeLoading,
     refetch: refetchTree,
   } = useQuery({
-    queryKey: apiKeys.repoTree(effectiveProject ?? '', currentPath, effectiveBranch),
+    queryKey: apiKeys.repoTree(effectiveProject ?? '', currentDirectory, effectiveBranch),
     queryFn: async () => {
       if (!effectiveProject) return []
       const { data, error } = await apiClient.GET('/api/repo/tree', {
@@ -121,42 +108,66 @@ export function RepoBrowserView({ slug }: { slug: string }) {
           query: {
             project: effectiveProject,
             ref: effectiveBranch || undefined,
-            path: currentPath || undefined,
+            path: currentDirectory || undefined,
           },
         },
       })
       if (error || !data) throw new Error('Failed to load tree')
       return data as TreeItem[]
     },
-    enabled: !!effectiveProject && !selectedFile && activeTab === 'code',
+    enabled: !!effectiveProject && activeTab === 'code',
   })
 
-  // 4. Fetch file blob content
-  const {
-    data: fileBlob,
-    isLoading: isBlobLoading,
-  } = useQuery({
-    queryKey: apiKeys.repoBlob(effectiveProject ?? '', selectedFile ?? '', effectiveBranch),
+  // 4. Fetch file blob if viewing a file
+  const { data: fileBlob, isLoading: isBlobLoading } = useQuery({
+    queryKey: apiKeys.repoBlob(effectiveProject ?? '', currentPath, effectiveBranch),
     queryFn: async () => {
-      if (!effectiveProject || !selectedFile) return null
+      if (!effectiveProject || !currentPath || !isFilePath) return null
       const { data, error } = await apiClient.GET('/api/repo/blob', {
         params: {
           query: {
             project: effectiveProject,
-            file_path: selectedFile,
+            file_path: currentPath,
             ref: effectiveBranch || undefined,
           },
         },
       })
-      if (error || !data) throw new Error('Failed to load file content')
+      if (error || !data) return null
       return data as FileBlobData
     },
-    enabled: !!effectiveProject && !!selectedFile && activeTab === 'code',
+    enabled: !!effectiveProject && !!currentPath && isFilePath && activeTab === 'code',
   })
 
-  // 5. Fetch commits history
+  // 5. Look for README.md in directory
+  const readmeItem = React.useMemo(() => {
+    if (isFilePath || !treeItems) return null
+    return treeItems.find(
+      (item) => item.type === 'blob' && /^readme\.(md|markdown)$/i.test(item.name)
+    )
+  }, [isFilePath, treeItems])
+
+  const { data: readmeBlob } = useQuery({
+    queryKey: apiKeys.repoBlob(effectiveProject ?? '', readmeItem?.path ?? '', effectiveBranch),
+    queryFn: async () => {
+      if (!effectiveProject || !readmeItem) return null
+      const { data, error } = await apiClient.GET('/api/repo/blob', {
+        params: {
+          query: {
+            project: effectiveProject,
+            file_path: readmeItem.path,
+            ref: effectiveBranch || undefined,
+          },
+        },
+      })
+      if (error || !data) return null
+      return data as FileBlobData
+    },
+    enabled: !!effectiveProject && !!readmeItem && !isFilePath && activeTab === 'code',
+  })
+
+  // 6. Fetch commits history
   const {
-    data: commits,
+    data: commits = [],
     isLoading: isCommitsLoading,
     refetch: refetchCommits,
   } = useQuery({
@@ -179,67 +190,71 @@ export function RepoBrowserView({ slug }: { slug: string }) {
     enabled: !!effectiveProject && activeTab === 'commits',
   })
 
-  const activeRepo = (repos || []).find((r) => r.full_path === effectiveProject)
-  const activeRepoName = activeRepo?.name ?? effectiveProject?.split('/').pop() ?? 'Repository'
-
-  const filteredRepos = (repos || []).filter(
-    (repo) =>
-      repo.name.toLowerCase().includes(search.toLowerCase()) ||
-      repo.full_path.toLowerCase().includes(search.toLowerCase())
-  )
-
-  const handleResetToAllRepos = React.useCallback(() => {
-    setSelectedProject(null)
-    setSelectedFile(null)
-    setCurrentPath('')
-    setSelectedBranch('')
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search)
-      params.delete('project')
-      const newUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`
-      window.history.replaceState({}, '', newUrl)
-    }
-  }, [])
-
+  // Close project switcher dropdown on outside click
   React.useEffect(() => {
-    const handleReset = () => {
-      handleResetToAllRepos()
-    }
-    const handlePopState = () => {
-      const proj = new URLSearchParams(window.location.search).get('project')
-      setSelectedProject(proj)
-      if (!proj) {
-        setSelectedFile(null)
-        setCurrentPath('')
-        setSelectedBranch('')
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setProjectDropdownOpen(false)
       }
     }
-    window.addEventListener('reset-repo-browser', handleReset)
-    window.addEventListener('popstate', handlePopState)
-    return () => {
-      window.removeEventListener('reset-repo-browser', handleReset)
-      window.removeEventListener('popstate', handlePopState)
-    }
-  }, [handleResetToAllRepos])
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const activeRepo = repos.find((r) => r.full_path === effectiveProject)
+  const activeRepoName = activeRepo?.name ?? effectiveProject?.split('/').pop() ?? 'Repository'
 
   const handleSelectRepo = (fullPath: string) => {
-    setSelectedProject(fullPath)
-    setSelectedBranch('')
-    setCurrentPath('')
-    setSelectedFile(null)
-    setActiveTab('code')
+    setProjectDropdownOpen(false)
+    navigate({
+      search: () => ({
+        project: fullPath,
+        ref: undefined,
+        path: undefined,
+        view: 'code',
+        line: undefined,
+      }),
+    })
+  }
+
+  const handleResetToAllRepos = () => {
+    navigate({ search: () => ({}) })
+  }
+
+  const handleSelectBranch = (branch: string) => {
+    navigate({
+      search: (prev) => ({ ...prev, ref: branch, line: undefined }),
+    })
+  }
+
+  const handleSelectPath = (newPath: string) => {
+    navigate({
+      search: (prev) => ({ ...prev, path: newPath || undefined, line: undefined }),
+    })
   }
 
   const handleNavigateUp = () => {
-    if (!currentPath) return
-    const parts = currentPath.split('/').filter(Boolean)
+    if (!currentDirectory) return
+    const parts = currentDirectory.split('/').filter(Boolean)
     parts.pop()
-    setCurrentPath(parts.join('/'))
+    handleSelectPath(parts.join('/'))
+  }
+
+  const handleTabChange = (view: 'code' | 'commits') => {
+    navigate({
+      search: (prev) => ({ ...prev, view, line: undefined }),
+    })
+  }
+
+  const handleSelectLine = (lineStr: string) => {
+    navigate({
+      search: (prev) => ({ ...prev, line: lineStr }),
+    })
   }
 
   return (
-    <div className="space-y-6">
-      {/* Global Page Header */}
+    <div className="space-y-5">
+      {/* Page Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
@@ -256,7 +271,43 @@ export function RepoBrowserView({ slug }: { slug: string }) {
                     Code Browser
                   </button>
                   <span className="text-muted-foreground font-normal text-lg">/</span>
-                  <span>{activeRepoName}</span>
+                  <div className="relative inline-block" ref={dropdownRef}>
+                    <button
+                      type="button"
+                      onClick={() => setProjectDropdownOpen(!projectDropdownOpen)}
+                      className="inline-flex items-center gap-1.5 hover:text-primary transition-colors cursor-pointer"
+                    >
+                      <span>{activeRepoName}</span>
+                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                    </button>
+
+                    {projectDropdownOpen && (
+                      <div className="absolute left-0 mt-2 w-72 rounded-xl border border-border/80 bg-card p-2 shadow-xl z-50">
+                        <p className="px-2 py-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                          Switch Repository
+                        </p>
+                        <div className="max-h-60 overflow-y-auto space-y-0.5">
+                          {repos.map((r) => (
+                            <button
+                              key={r.full_path}
+                              type="button"
+                              onClick={() => handleSelectRepo(r.full_path)}
+                              className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs truncate transition-colors cursor-pointer ${
+                                r.full_path === effectiveProject
+                                  ? 'bg-primary/15 text-primary font-medium'
+                                  : 'hover:bg-accent hover:text-foreground'
+                              }`}
+                            >
+                              <div className="font-medium truncate">{r.name}</div>
+                              <div className="text-[10px] text-muted-foreground truncate font-mono">
+                                {r.full_path}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </>
               ) : (
                 'Code & Repository Browser'
@@ -265,7 +316,7 @@ export function RepoBrowserView({ slug }: { slug: string }) {
           </div>
           <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
             {effectiveProject
-              ? `Browse source code, files, and commit logs directly in-app for ${effectiveProject}`
+              ? `Browse source code, inspect branches, view commits, and explore documentation for ${effectiveProject}`
               : `GitLab project repositories, branch structures, and code bases for ${slug}.`}
           </p>
         </div>
@@ -306,219 +357,94 @@ export function RepoBrowserView({ slug }: { slug: string }) {
 
       {/* VIEW 1: REPOSITORY LISTING */}
       {!effectiveProject ? (
-        <>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Filter repositories by name or path..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-md border border-input bg-background pl-9 pr-3 py-2 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring min-h-[44px]"
-            />
-          </div>
-
-          {isReposLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-pulse">
-              {[1, 2].map((i) => (
-                <div key={i} className="h-32 rounded-xl bg-muted/40" />
-              ))}
-            </div>
-          ) : reposError ? (
-            <div className="p-8 text-center rounded-lg border border-border bg-card/60 text-muted-foreground">
-              Failed to load repositories. Please check your connection.
-            </div>
-          ) : filteredRepos.length === 0 ? (
-            <div className="p-12 text-center rounded-lg border border-dashed border-border/60 text-muted-foreground text-sm">
-              No project repositories found for this group.
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {filteredRepos.map((repo) => (
-                <Card
-                  key={repo.full_path}
-                  className="border-border/60 bg-card/60 backdrop-blur-xs flex flex-col justify-between hover:border-primary/50 transition-colors"
-                >
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0">
-                          <Folder className="h-4 w-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <CardTitle className="text-sm font-semibold truncate hover:text-primary transition-colors cursor-pointer" onClick={() => handleSelectRepo(repo.full_path)}>
-                            {repo.name}
-                          </CardTitle>
-                          <p className="text-[11px] text-muted-foreground font-mono truncate mt-0.5">
-                            {repo.full_path}
-                          </p>
-                        </div>
-                      </div>
-
-                      <a
-                        href={repo.web_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="p-1.5 text-muted-foreground hover:text-foreground rounded transition-colors"
-                        title="Open on GitLab"
-                      >
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </a>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-0 space-y-3">
-                    <div className="flex items-center justify-between border-t border-border/40 pt-3 text-xs">
-                      <div className="flex items-center gap-3">
-                        <span className="flex items-center gap-1 text-muted-foreground font-mono">
-                          <ListTodo className="h-3.5 w-3.5 text-blue-500" />
-                          <span>{repo.work_items_count} items</span>
-                        </span>
-                        <span className="flex items-center gap-1 text-muted-foreground font-mono">
-                          <GitPullRequest className="h-3.5 w-3.5 text-purple-500" />
-                          <span>{repo.merge_requests_count} MRs</span>
-                        </span>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="default"
-                        onClick={() => handleSelectRepo(repo.full_path)}
-                        className="text-xs h-7 px-2.5 font-mono gap-1"
-                      >
-                        <Code2 className="h-3 w-3" />
-                        <span>Browse Code</span>
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </>
+        <RepoGrid
+          repos={repos}
+          isLoading={isReposLoading}
+          error={reposError}
+          onSelectRepo={handleSelectRepo}
+        />
       ) : (
         /* VIEW 2: ACTIVE REPOSITORY CODE BROWSER */
         <div className="space-y-4">
-          {/* Subheader Toolbar */}
-          <div className="relative z-30 flex flex-wrap items-center justify-between gap-3 p-3 rounded-lg border border-border/60 bg-card/60 backdrop-blur-xs">
-            <div className="flex flex-wrap items-center gap-3">
-              <BranchSelector
-                branches={branches || []}
-                selectedBranch={effectiveBranch}
-                recentCommits={commits || []}
-                onSelectBranch={(branch) => {
-                  setSelectedBranch(branch)
-                  setSelectedFile(null)
-                }}
-                isLoading={isBranchesLoading}
-              />
+          <RepoToolbar
+            branches={branches}
+            selectedBranch={effectiveBranch}
+            recentCommits={commits}
+            activeTab={activeTab}
+            sidebarOpen={sidebarOpen}
+            gitlabWebUrl={activeRepo?.web_url}
+            isBranchesLoading={isBranchesLoading}
+            onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+            onSelectBranch={handleSelectBranch}
+            onTabChange={handleTabChange}
+          />
 
-              <div className="flex items-center rounded-md bg-muted/60 p-0.5 border border-border/40 text-xs font-mono">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('code')}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded transition-colors ${
-                    activeTab === 'code'
-                      ? 'bg-background text-foreground font-semibold shadow-xs'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  <Code2 className="h-3.5 w-3.5 text-primary" />
-                  <span>Code</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('commits')}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded transition-colors ${
-                    activeTab === 'commits'
-                      ? 'bg-background text-foreground font-semibold shadow-xs'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  <GitCommit className="h-3.5 w-3.5 text-primary" />
-                  <span>Commits</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('wiki')}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded transition-colors ${
-                    activeTab === 'wiki'
-                      ? 'bg-background text-foreground font-semibold shadow-xs'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  <BookOpen className="h-3.5 w-3.5 text-primary" />
-                  <span>Wiki</span>
-                </button>
-              </div>
-            </div>
-
-            {activeRepo?.web_url && (
-              <a
-                href={activeRepo.web_url}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground font-mono rounded hover:bg-accent/40 transition-colors"
-              >
-                <span>GitLab Web</span>
-                <ExternalLink className="h-3 w-3" />
-              </a>
-            )}
-          </div>
-
-          {/* Detached commit banner if browsing at a specific commit SHA */}
-          {/^[0-9a-f]{7,40}$/i.test(effectiveBranch) && (
-            <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-md bg-purple-500/10 border border-purple-500/20 text-xs font-mono">
-              <div className="flex items-center gap-2 text-foreground">
-                <GitCommit className="h-3.5 w-3.5 text-purple-400 shrink-0" />
-                <span>
-                  Browsing tree at commit <strong className="text-purple-300">{effectiveBranch.slice(0, 8)}</strong>
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  const defaultBranch = branches?.find((b) => b.default)?.name || 'main'
-                  setSelectedBranch(defaultBranch)
-                  setSelectedFile(null)
-                }}
-                className="text-xs text-primary hover:underline hover:text-primary/80 transition-colors shrink-0"
-              >
-                Switch to default branch
-              </button>
-            </div>
-          )}
-
-          {/* TAB 1: CODE & FILE TREE */}
+          {/* TAB 1: CODE EXPLORER & VIEWER */}
           {activeTab === 'code' && (
             <div className="space-y-3">
               <FileBreadcrumbs
                 repoName={activeRepoName}
-                currentPath={selectedFile || currentPath}
-                onNavigate={(path) => {
-                  setSelectedFile(null)
-                  setCurrentPath(path)
-                }}
+                currentPath={currentPath}
+                onNavigate={handleSelectPath}
               />
 
-              {selectedFile && fileBlob ? (
-                <CodeViewer
-                  data={fileBlob}
-                  projectWebUrl={activeRepo?.web_url}
-                  onBack={() => setSelectedFile(null)}
-                  isLoading={isBlobLoading}
-                />
-              ) : (
-                <FileTree
-                  items={treeItems || []}
-                  currentPath={currentPath}
-                  onSelectPath={(path) => {
-                    setCurrentPath(path)
-                    setSelectedFile(null)
-                  }}
-                  onSelectFile={(filePath) => setSelectedFile(filePath)}
-                  onNavigateUp={handleNavigateUp}
-                  isLoading={isTreeLoading}
-                />
-              )}
+              <div className="flex flex-col md:flex-row gap-4 items-start">
+                {sidebarOpen && (
+                  <div className="w-full md:w-64 md:shrink-0 h-[650px]">
+                    <RepoExplorerSidebar
+                      items={treeItems || []}
+                      currentPath={currentDirectory}
+                      selectedFile={isFilePath ? currentPath : null}
+                      onSelectPath={handleSelectPath}
+                      onSelectFile={handleSelectPath}
+                      onNavigateUp={handleNavigateUp}
+                      isLoading={isTreeLoading}
+                    />
+                  </div>
+                )}
+
+                <div className="flex-1 min-w-0 w-full space-y-4">
+                  {isFilePath && fileBlob ? (
+                    <CodeViewer
+                      key={fileBlob.file_path}
+                      data={fileBlob}
+                      projectWebUrl={activeRepo?.web_url}
+                      onBack={() => handleSelectPath(currentDirectory)}
+                      isLoading={isBlobLoading}
+                      selectedLine={selectedLine}
+                      onSelectLine={handleSelectLine}
+                    />
+                  ) : (
+                    <div className="space-y-4">
+                      <FileTree
+                        items={treeItems || []}
+                        currentPath={currentDirectory}
+                        onSelectPath={handleSelectPath}
+                        onSelectFile={handleSelectPath}
+                        onNavigateUp={handleNavigateUp}
+                        isLoading={isTreeLoading}
+                      />
+
+                      {readmeBlob && (
+                        <Card className="border-border/60 bg-card/40 backdrop-blur-xs overflow-hidden shadow-xs">
+                          <CardHeader className="py-2.5 px-4 border-b border-border/50 bg-muted/20 flex flex-row items-center gap-2">
+                            <FileText className="h-4 w-4 text-emerald-400" />
+                            <span className="font-mono text-xs font-semibold text-foreground">
+                              {readmeBlob.file_name}
+                            </span>
+                          </CardHeader>
+                          <CardContent className="p-6">
+                            <Markdown
+                              content={readmeBlob.content}
+                              className="text-sm leading-relaxed"
+                            />
+                          </CardContent>
+                        </Card>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
@@ -526,24 +452,14 @@ export function RepoBrowserView({ slug }: { slug: string }) {
           {activeTab === 'commits' && (
             <div className="space-y-3">
               <CommitHistory
-                commits={commits || []}
+                commits={commits}
                 isLoading={isCommitsLoading}
                 onSelectCommit={(commitId) => {
-                  setSelectedBranch(commitId)
-                  setSelectedFile(null)
-                  setActiveTab('code')
+                  handleSelectBranch(commitId)
+                  handleTabChange('code')
                 }}
               />
             </div>
-          )}
-
-          {/* TAB 3: REPO WIKI */}
-          {activeTab === 'wiki' && (
-            <WikiPane
-              targetPath={effectiveProject}
-              title={activeRepoName}
-              gitlabDomain="https://gitlab.com"
-            />
           )}
         </div>
       )}
