@@ -37,12 +37,11 @@ pub async fn upsert_user(
     });
 
     // Check if user exists with this gitlab_id and a different username (e.g. casing change or handle update)
-    let existing_username = sqlx::query_scalar::<_, String>(
-        "SELECT username FROM users WHERE gitlab_id = ?1",
-    )
-    .bind(gitlab_id)
-    .fetch_optional(pool)
-    .await?;
+    let existing_username =
+        sqlx::query_scalar::<_, String>("SELECT username FROM users WHERE gitlab_id = ?1")
+            .bind(gitlab_id)
+            .fetch_optional(pool)
+            .await?;
 
     if let Some(old_uname) = existing_username
         && old_uname != username
