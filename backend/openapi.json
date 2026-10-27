@@ -416,6 +416,45 @@
         }
       }
     },
+    "/api/render/group/{slug}/matrix.svg": {
+      "get": {
+        "tags": [
+          "Render"
+        ],
+        "operationId": "render_sprint_matrix",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "description": "Group slug or ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sprint",
+            "in": "query",
+            "description": "Sprint number or 'all'",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rendered SVG sprint time matrix",
+            "content": {
+              "image/svg+xml": {}
+            }
+          },
+          "404": {
+            "description": "Group not found"
+          }
+        }
+      }
+    },
     "/api/render/user/{username}.svg": {
       "get": {
         "tags": [

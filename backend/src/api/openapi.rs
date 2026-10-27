@@ -86,6 +86,7 @@ use crate::{
         render::render_badge,
         render::render_user_card,
         render::render_group_banner,
+        render::render_sprint_matrix,
         tenant::get_root_notes,
         tenant::get_root_repo_branches,
         tenant::get_root_repo_tree,

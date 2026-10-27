@@ -40,7 +40,15 @@ pub fn router(state: AppState) -> Router {
         .route("/auth/logout", post(auth::logout))
         .route("/render/badge/:id", get(render::render_badge))
         .route("/render/user/:username", get(render::render_user_card))
-        .route("/render/group/:slug", get(render::render_group_banner));
+        .route("/render/group/:slug", get(render::render_group_banner))
+        .route(
+            "/render/group/:slug/matrix",
+            get(render::render_sprint_matrix),
+        )
+        .route(
+            "/render/group/:slug/matrix.svg",
+            get(render::render_sprint_matrix),
+        );
 
     let protected_routes = Router::new()
         .route(
