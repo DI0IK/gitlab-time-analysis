@@ -12,7 +12,22 @@ import { ActivityModals } from './activity-modals'
 
 type GroupActivityItem = components['schemas']['GroupActivityItem']
 
-export function GroupActivityView({ slug }: { slug: string }) {
+import { useTenant } from '@/features/tenant/tenant-context'
+import { apiKeys } from '@/lib/api/keys'
+
+export function GroupActivityView({
+  slug,
+  rootSlug: propRootSlug,
+  groupSlug: propGroupSlug,
+}: {
+  slug?: string
+  rootSlug?: string
+  groupSlug?: string
+}) {
+  const tenant = useTenant()
+  const effectiveRootSlug = propRootSlug || tenant.rootSlug
+  const effectiveGroupSlug = propGroupSlug || slug || tenant.groupSlug || ''
+
   const [author, setAuthor] = React.useState('')
   const [sprint, setSprint] = React.useState('')
   const [activityType, setActivityType] = React.useState('all')
@@ -21,11 +36,14 @@ export function GroupActivityView({ slug }: { slug: string }) {
   const limit = 50
 
   const { data: members } = useQuery({
-    queryKey: ['group-members', slug],
+    queryKey: apiKeys.rootGroupMembers(effectiveRootSlug, effectiveGroupSlug),
     queryFn: async () => {
-      const { data } = await apiClient.GET('/api/groups/{slug}/members', { params: { path: { slug } } })
+      const { data } = await apiClient.GET('/api/{root_slug}/groups/{group_slug}/members', {
+        params: { path: { root_slug: effectiveRootSlug, group_slug: effectiveGroupSlug } },
+      })
       return data || []
     },
+    enabled: Boolean(effectiveRootSlug && effectiveGroupSlug),
   })
 
   const {
@@ -38,16 +56,20 @@ export function GroupActivityView({ slug }: { slug: string }) {
     hasNextPage,
     isFetchingNextPage,
   } = useInfiniteQuery({
-    queryKey: ['group-activity', slug, author, sprint, activityType],
+    queryKey: apiKeys.rootActivity(effectiveRootSlug, effectiveGroupSlug, {
+      author,
+      sprint,
+      activityType,
+    }),
     initialPageParam: 0,
     queryFn: async ({ pageParam = 0 }) => {
-      const { data, error } = await apiClient.GET('/api/groups/{slug}/activity', {
+      const { data, error } = await apiClient.GET('/api/{root_slug}/groups/{group_slug}/activity', {
         params: {
-          path: { slug },
+          path: { root_slug: effectiveRootSlug, group_slug: effectiveGroupSlug },
           query: {
             author: author || undefined,
             sprint: sprint ? Number(sprint) : undefined,
-            activity_type: activityType === 'all' ? undefined : activityType,
+            activity_type: activityType === 'all' ? undefined : (activityType as any),
             limit,
             offset: pageParam,
           },

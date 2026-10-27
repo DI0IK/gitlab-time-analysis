@@ -9,6 +9,7 @@ export interface UserProfile {
   avatarUrl?: string | null
   webUrl: string
   isBot: boolean
+  isAdmin: boolean
 }
 
 export function useAuth() {
@@ -31,6 +32,7 @@ export function useAuth() {
           avatarUrl: u.avatar_url ?? u.avatarUrl ?? null,
           webUrl: u.web_url || u.webUrl || '',
           isBot: u.is_bot ?? u.isBot ?? false,
+          isAdmin: u.is_admin ?? u.isAdmin ?? false,
         }
         return { authenticated: true, user: profile }
       } catch {

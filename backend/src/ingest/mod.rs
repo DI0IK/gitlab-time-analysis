@@ -64,3 +64,17 @@ pub fn calculate_current_and_default_sprint(
 
     (Some(this_sprint), Some(default_sprint))
 }
+
+pub fn calculate_sprint_dynamic(
+    spent_at: DateTime<Utc>,
+    project_start_date: chrono::NaiveDate,
+    sprint_duration_weeks: i64,
+) -> Option<i64> {
+    let spent_date = spent_at.date_naive();
+    let days = (spent_date - project_start_date).num_days();
+    if days < 0 {
+        return None;
+    }
+    let duration_days = (sprint_duration_weeks.max(1) * 7) as i64;
+    Some((days / duration_days) + 1)
+}

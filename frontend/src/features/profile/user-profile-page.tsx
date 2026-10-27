@@ -4,7 +4,7 @@ import { ArrowLeft, User } from 'lucide-react'
 import { UserProfileContent } from './user-profile-content'
 
 export function UserProfilePage() {
-  const { username } = useParams({ from: '/users/$username' })
+  const { username } = useParams({ from: '/$rootSlug/users/$username' })
   const navigate = useNavigate()
 
   const handleBack = () => {

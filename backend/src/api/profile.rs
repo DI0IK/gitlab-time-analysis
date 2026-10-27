@@ -13,8 +13,9 @@ use crate::{
     db::users::{UserRecord, get_user_by_username, update_custom_display_name},
     domain::gamification::{
         evaluator::{
-            BadgeProgressItem, UserGamificationSummary, compute_leaderboard,
-            evaluate_badges_progress, evaluate_user_gamification, fetch_user_contribution_stats,
+            BadgeProgressItem, UserGamificationSummary, compute_leaderboard_scoped,
+            evaluate_badges_progress, evaluate_user_gamification,
+            fetch_user_contribution_stats_scoped,
         },
         levels::calculate_level,
     },
@@ -182,11 +183,19 @@ pub async fn get_user_profile_details(
     State(state): State<AppState>,
     Path(username): Path<String>,
 ) -> Result<Json<UserProfileDetailsResponse>, AppError> {
+    compute_user_profile_details_scoped(state, username, None).await
+}
+
+pub async fn compute_user_profile_details_scoped(
+    state: AppState,
+    username: String,
+    managed_root: Option<&crate::db::managed_root_groups::ManagedRootGroupRecord>,
+) -> Result<Json<UserProfileDetailsResponse>, AppError> {
     let user_rec = get_user_by_username(&state.db, &username)
         .await?
         .ok_or_else(|| AppError::NotFound(format!("User '{username}' not found")))?;
 
-    let (stats, _timelogs) = fetch_user_contribution_stats(&state.db, &username).await?;
+    let (stats, user_timelogs) = fetch_user_contribution_stats_scoped(&state.db, &username, managed_root).await?;
     let (unlocked_badges, all_badges_progress, badge_xp) = evaluate_badges_progress(&stats);
 
     let base_xp = (stats.total_hours * 10.0) as u64 + (stats.timelog_count as u64 * 2);
@@ -205,7 +214,7 @@ pub async fn get_user_profile_details(
         streak_days: stats.streak_days,
     };
 
-    let leaderboard_rank = compute_leaderboard(&state.db, None)
+    let leaderboard_rank = compute_leaderboard_scoped(&state.db, None, managed_root)
         .await
         .ok()
         .and_then(|board| {
@@ -215,19 +224,34 @@ pub async fn get_user_profile_details(
                 .map(|pos| pos + 1)
         });
 
-    let sprint_hours = sqlx::query_as::<_, SprintHourSummary>(
-        r#"
-        SELECT sprint_number, ROUND(SUM(time_spent) / 3600.0, 1) as hours
-        FROM timelogs
-        WHERE username = ?1 AND sprint_number IS NOT NULL
-        GROUP BY sprint_number
-        ORDER BY sprint_number ASC
-        "#,
-    )
-    .bind(&username)
-    .fetch_all(&state.db)
-    .await
-    .unwrap_or_default();
+    let sprint_hours: Vec<SprintHourSummary> = if managed_root.is_some() {
+        let mut map = std::collections::BTreeMap::new();
+        for t in &user_timelogs {
+            if let Some(s) = t.sprint_number {
+                *map.entry(s).or_insert(0i64) += t.time_spent;
+            }
+        }
+        map.into_iter()
+            .map(|(sprint_number, secs)| SprintHourSummary {
+                sprint_number,
+                hours: (secs as f64 / 3600.0 * 10.0).round() / 10.0,
+            })
+            .collect()
+    } else {
+        sqlx::query_as::<_, SprintHourSummary>(
+            r#"
+            SELECT sprint_number, ROUND(SUM(time_spent) / 3600.0, 1) as hours
+            FROM timelogs
+            WHERE username = ?1 AND sprint_number IS NOT NULL
+            GROUP BY sprint_number
+            ORDER BY sprint_number ASC
+            "#,
+        )
+        .bind(&username)
+        .fetch_all(&state.db)
+        .await
+        .unwrap_or_default()
+    };
 
     let current_sprint_hours = sprint_hours.last().map(|s| s.hours).unwrap_or(0.0);
 
@@ -285,7 +309,7 @@ pub async fn get_user_profile_details(
         LEFT JOIN merge_requests mr ON t.merge_request_id = mr.id
         WHERE t.username = ?1
         ORDER BY t.spent_at DESC
-        LIMIT 20
+        LIMIT 100
         "#,
     )
     .bind(&username)
@@ -293,37 +317,85 @@ pub async fn get_user_profile_details(
     .await
     .unwrap_or_default();
 
-    let recent_timelogs = raw_timelogs
+    let recent_timelogs: Vec<UserTimelogItem> = raw_timelogs
         .into_iter()
-        .map(|r| UserTimelogItem {
-            id: r.id,
-            spent_at: r.spent_at,
-            time_spent_seconds: r.time_spent,
-            hours: ((r.time_spent as f64 / 3600.0) * 10.0).round() / 10.0,
-            summary: r.summary,
-            web_url: r.web_url,
-            sprint_number: r.sprint_number,
-            item_title: r.item_title,
-            item_state: r.item_state,
-            item_type: r.item_type,
-            item_web_url: r.item_web_url,
+        .filter(|r| {
+            if let Some(mr) = managed_root {
+                let d = r.spent_at.date_naive();
+                if d < mr.project_start_date {
+                    return false;
+                }
+                if let Some(end) = mr.project_end_date {
+                    if d > end {
+                        return false;
+                    }
+                }
+            }
+            true
+        })
+        .take(20)
+        .map(|r| {
+            let dynamic_sprint = if let Some(mr) = managed_root {
+                crate::ingest::calculate_sprint_dynamic(
+                    r.spent_at,
+                    mr.project_start_date,
+                    mr.sprint_duration_weeks,
+                )
+            } else {
+                r.sprint_number
+            };
+
+            UserTimelogItem {
+                id: r.id,
+                spent_at: r.spent_at,
+                time_spent_seconds: r.time_spent,
+                hours: ((r.time_spent as f64 / 3600.0) * 10.0).round() / 10.0,
+                summary: r.summary,
+                web_url: r.web_url,
+                sprint_number: dynamic_sprint,
+                item_title: r.item_title,
+                item_state: r.item_state,
+                item_type: r.item_type,
+                item_web_url: r.item_web_url,
+            }
         })
         .collect();
 
-    let recent_merge_requests = sqlx::query_as::<_, UserMrSummary>(
-        r#"
-        SELECT id, iid, project_path, title, state, source_branch, target_branch,
-               additions, deletions, discussion_count, web_url, created_at, merged_at, closed_at
-        FROM merge_requests
-        WHERE author_username = ?1
-        ORDER BY created_at DESC
-        LIMIT 15
-        "#,
-    )
-    .bind(&username)
-    .fetch_all(&state.db)
-    .await
-    .unwrap_or_default();
+    let recent_merge_requests = if let Some(mr) = managed_root {
+        let prefix = format!("{}/%", mr.gitlab_group_path.trim_matches('/'));
+        let exact = mr.gitlab_group_path.trim_matches('/');
+        sqlx::query_as::<_, UserMrSummary>(
+            r#"
+            SELECT id, iid, project_path, title, state, source_branch, target_branch,
+                   additions, deletions, discussion_count, web_url, created_at, merged_at, closed_at
+            FROM merge_requests
+            WHERE author_username = ?1 AND (project_path = ?2 OR project_path LIKE ?3)
+            ORDER BY created_at DESC
+            LIMIT 15
+            "#,
+        )
+        .bind(&username)
+        .bind(exact)
+        .bind(&prefix)
+        .fetch_all(&state.db)
+        .await
+        .unwrap_or_default()
+    } else {
+        sqlx::query_as::<_, UserMrSummary>(
+            r#"
+            SELECT id, iid, project_path, title, state, source_branch, target_branch,
+                   additions, deletions, discussion_count, web_url, created_at, merged_at, closed_at
+            FROM merge_requests
+            WHERE author_username = ?1
+            ORDER BY created_at DESC
+            LIMIT 15
+            "#,
+        )
+        .bind(&username)
+        .fetch_all(&state.db)
+        .await
+        .unwrap_or_default()
+    };
 
     Ok(Json(UserProfileDetailsResponse {
         user: user_rec,

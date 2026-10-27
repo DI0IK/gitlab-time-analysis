@@ -1,26 +1,47 @@
 export const apiKeys = {
   health: ['health'] as const,
   meta: ['meta'] as const,
-  groups: ['groups'] as const,
-  group: (slug: string) => ['group', slug] as const,
-  comparison: ['comparison'] as const,
-  leaderboard: ['leaderboard'] as const,
-  workItems: (slug: string) => ['work-items', slug] as const,
-  workItem: (id: string) => ['work-item', id] as const,
-  repoTree: (projectPath: string, path?: string, ref?: string) =>
-    ['repo-tree', projectPath, path ?? '', ref ?? ''] as const,
-  repoBranches: (projectPath: string) => ['repo-branches', projectPath] as const,
-  repoBlob: (projectPath: string, filePath: string, ref?: string) =>
-    ['repo-blob', projectPath, filePath, ref ?? ''] as const,
-  repoCommits: (projectPath: string, path?: string, ref?: string) =>
-    ['repo-commits', projectPath, path ?? '', ref ?? ''] as const,
-  mergeRequests: (slug: string) => ['merge-requests', slug] as const,
-  wikiPages: (project: string, ref?: string) => ['wiki-pages', project, ref ?? ''] as const,
-  wikiPage: (project: string, slug: string, ref?: string) =>
-    ['wiki-page', project, slug, ref ?? ''] as const,
-  wikiHistory: (project: string, slug?: string) => ['wiki-history', project, slug ?? ''] as const,
-  wikiTargets: (slug: string) => ['wiki-targets', slug] as const,
+  roots: ['roots'] as const,
+  adminRootGroups: ['admin', 'root-groups'] as const,
+  adminUsers: ['admin', 'users'] as const,
   authMe: ['auth', 'me'] as const,
   userProfile: ['user', 'profile'] as const,
-  userDetails: (username: string) => ['user-details', username] as const,
+
+  // Tenant-Scoped Query Keys
+  rootGroups: (rootSlug: string) => ['root', rootSlug, 'groups'] as const,
+  rootGroupMembers: (rootSlug: string, groupSlug: string) =>
+    ['root', rootSlug, 'group-members', groupSlug] as const,
+  rootDashboard: (rootSlug: string, groupSlug: string) =>
+    ['root', rootSlug, 'dashboard', groupSlug] as const,
+  rootActivity: (rootSlug: string, groupSlug: string, filters?: unknown) =>
+    ['root', rootSlug, 'activity', groupSlug, filters] as const,
+  rootLeaderboard: (rootSlug: string, groupSlug?: string) =>
+    ['root', rootSlug, 'leaderboard', groupSlug ?? 'cohort'] as const,
+  rootComparison: (rootSlug: string) => ['root', rootSlug, 'comparison'] as const,
+  rootWorkItems: (rootSlug: string, groupSlug: string) =>
+    ['root', rootSlug, 'work-items', groupSlug] as const,
+  rootMergeRequests: (rootSlug: string, groupSlug: string) =>
+    ['root', rootSlug, 'merge-requests', groupSlug] as const,
+  rootRepositories: (rootSlug: string, groupSlug: string) =>
+    ['root', rootSlug, 'repositories', groupSlug] as const,
+  rootWikiTargets: (rootSlug: string, groupSlug: string) =>
+    ['root', rootSlug, 'wiki-targets', groupSlug] as const,
+  rootUserDetails: (rootSlug: string, username: string) =>
+    ['root', rootSlug, 'user-details', username] as const,
+  rootNotes: (rootSlug: string, itemType: string, itemId: string) =>
+    ['root', rootSlug, 'notes', itemType, itemId] as const,
+  rootRepoTree: (rootSlug: string, project: string, path?: string, ref?: string) =>
+    ['root', rootSlug, 'repo-tree', project, path ?? '', ref ?? ''] as const,
+  rootRepoBranches: (rootSlug: string, project: string) =>
+    ['root', rootSlug, 'repo-branches', project] as const,
+  rootRepoBlob: (rootSlug: string, project: string, filePath: string, ref?: string) =>
+    ['root', rootSlug, 'repo-blob', project, filePath, ref ?? ''] as const,
+  rootRepoCommits: (rootSlug: string, project: string, path?: string, ref?: string) =>
+    ['root', rootSlug, 'repo-commits', project, path ?? '', ref ?? ''] as const,
+  rootWikiPages: (rootSlug: string, project: string, ref?: string) =>
+    ['root', rootSlug, 'wiki-pages', project, ref ?? ''] as const,
+  rootWikiPage: (rootSlug: string, project: string, slug: string, ref?: string) =>
+    ['root', rootSlug, 'wiki-page', project, slug, ref ?? ''] as const,
+  rootWikiHistory: (rootSlug: string, project: string, slug?: string) =>
+    ['root', rootSlug, 'wiki-history', project, slug ?? ''] as const,
 }

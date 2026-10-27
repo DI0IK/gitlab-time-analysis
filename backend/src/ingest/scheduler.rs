@@ -11,9 +11,7 @@ pub fn start_scheduler(state: AppState) -> tokio::task::JoinHandle<()> {
         // Wait brief delay after startup before running initial sync
         sleep(Duration::from_secs(3)).await;
 
-        if !state.config.root_groups.is_empty()
-            && let Err(e) = run_sync(&state).await
-        {
+        if let Err(e) = run_sync(&state).await {
             tracing::error!("Initial background sync failed: {e}");
         }
 
@@ -22,9 +20,7 @@ pub fn start_scheduler(state: AppState) -> tokio::task::JoinHandle<()> {
 
         loop {
             interval.tick().await;
-            if !state.config.root_groups.is_empty()
-                && let Err(e) = run_sync(&state).await
-            {
+            if let Err(e) = run_sync(&state).await {
                 tracing::error!("Background sync cycle failed: {e}");
             }
         }

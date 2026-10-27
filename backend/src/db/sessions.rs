@@ -62,7 +62,7 @@ pub async fn get_session_with_user(
 
     let user = sqlx::query_as::<_, UserRecord>(
         r#"
-        SELECT gitlab_id, username, name, custom_display_name, avatar_url, web_url, is_bot, created_at, updated_at
+        SELECT gitlab_id, username, name, custom_display_name, avatar_url, web_url, is_bot, is_admin, created_at, updated_at
         FROM users
         WHERE gitlab_id = ?1
         "#,

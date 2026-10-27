@@ -63,3 +63,55 @@ impl FromRequestParts<AppState> for OptionalAuthUser {
         }
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct RequireAdmin(pub AuthUser);
+
+#[async_trait]
+impl FromRequestParts<AppState> for RequireAdmin {
+    type Rejection = AppError;
+
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &AppState,
+    ) -> Result<Self, Self::Rejection> {
+        let auth = AuthUser::from_request_parts(parts, state).await?;
+        if !auth.user.is_admin {
+            return Err(AppError::Forbidden(
+                "Administrator privileges required".to_string(),
+            ));
+        }
+        Ok(RequireAdmin(auth))
+    }
+}
+
+pub async fn verify_root_access(
+    pool: &sqlx::SqlitePool,
+    user: &UserRecord,
+    root_slug: &str,
+) -> Result<crate::db::managed_root_groups::ManagedRootGroupRecord, AppError> {
+    let root = crate::db::managed_root_groups::get_managed_root_group_by_slug(pool, root_slug)
+        .await?
+        .ok_or_else(|| AppError::NotFound(format!("Root group '{root_slug}' not found")))?;
+
+    if user.is_admin {
+        return Ok(root);
+    }
+
+    let has_access = crate::db::permissions::check_user_root_group_access(
+        pool,
+        &user.gitlab_id,
+        user.is_admin,
+        root_slug,
+    )
+    .await?
+    .is_some();
+
+    if !has_access {
+        return Err(AppError::Forbidden(format!(
+            "You do not have permission to access root group '{root_slug}'"
+        )));
+    }
+
+    Ok(root)
+}

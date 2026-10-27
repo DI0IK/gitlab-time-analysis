@@ -47,6 +47,15 @@ pub async fn get_group_activity(
     Path(slug): Path<String>,
     Query(query): Query<ActivityFilterQuery>,
 ) -> Result<Json<GroupActivityFeedResponse>, AppError> {
+    compute_group_activity_scoped(state, slug, query, None).await
+}
+
+pub async fn compute_group_activity_scoped(
+    state: AppState,
+    slug: String,
+    query: ActivityFilterQuery,
+    managed_root: Option<&crate::db::managed_root_groups::ManagedRootGroupRecord>,
+) -> Result<Json<GroupActivityFeedResponse>, AppError> {
     let group = get_group_by_slug(&state.db, &slug)
         .await?
         .ok_or_else(|| AppError::NotFound(format!("Group '{slug}' not found")))?;
@@ -54,9 +63,31 @@ pub async fn get_group_activity(
     let mut feed_items =
         get_group_raw_activity_items(&state.db, &group.id, &group.full_path).await?;
 
-    // Compute sprint_number for items where not already set
+    // Filter by timeframe if managed_root is present
+    if let Some(mr) = managed_root {
+        feed_items.retain(|item| {
+            let d = item.timestamp.date_naive();
+            if d < mr.project_start_date {
+                return false;
+            }
+            if let Some(end) = mr.project_end_date {
+                if d > end {
+                    return false;
+                }
+            }
+            true
+        });
+    }
+
+    // Compute sprint_number dynamically or for items where not already set
     for item in &mut feed_items {
-        if item.sprint_number.is_none() {
+        if let Some(mr) = managed_root {
+            item.sprint_number = crate::ingest::calculate_sprint_dynamic(
+                item.timestamp,
+                mr.project_start_date,
+                mr.sprint_duration_weeks,
+            );
+        } else if item.sprint_number.is_none() {
             item.sprint_number =
                 calculate_sprint_for_group(item.timestamp, &state, &group.full_path);
         }

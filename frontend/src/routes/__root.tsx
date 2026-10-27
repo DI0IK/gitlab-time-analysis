@@ -1,10 +1,13 @@
 import { createRootRoute, Outlet } from '@tanstack/react-router'
 import { Shell } from '@/app/shell'
+import { TenantProvider } from '@/features/tenant/tenant-context'
 
 export const Route = createRootRoute({
   component: () => (
-    <Shell>
-      <Outlet />
-    </Shell>
+    <TenantProvider>
+      <Shell>
+        <Outlet />
+      </Shell>
+    </TenantProvider>
   ),
 })

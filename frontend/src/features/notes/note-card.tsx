@@ -14,6 +14,7 @@ import {
   GitPullRequest,
 } from 'lucide-react'
 import type { components } from '@/lib/api/schema'
+import { useTenant } from '@/features/tenant/tenant-context'
 
 type ItemNoteRecord = components['schemas']['ItemNoteRecord']
 
@@ -60,6 +61,7 @@ function getSystemIcon(iconName?: string | null) {
 }
 
 export function NoteCard({ note }: { note: ItemNoteRecord }) {
+  const { rootSlug } = useTenant()
   const authorUsername = note.author_username
   const authorDisplayName = note.author_name || authorUsername || 'GitLab System'
   const avatarSrc = getAvatarUrl(note.author_avatar_url)
@@ -73,8 +75,8 @@ export function NoteCard({ note }: { note: ItemNoteRecord }) {
         <div className="flex-1 flex items-center gap-2 flex-wrap min-w-0">
           {authorUsername ? (
             <Link
-              to="/users/$username"
-              params={{ username: authorUsername }}
+              to="/$rootSlug/users/$username"
+              params={{ rootSlug, username: authorUsername }}
               className="font-medium text-foreground hover:underline shrink-0"
             >
               {authorDisplayName}
@@ -105,7 +107,7 @@ export function NoteCard({ note }: { note: ItemNoteRecord }) {
             </div>
           )}
           {authorUsername ? (
-            <Link to="/users/$username" params={{ username: authorUsername }} className="font-semibold text-foreground hover:underline truncate">
+            <Link to="/$rootSlug/users/$username" params={{ rootSlug, username: authorUsername }} className="font-semibold text-foreground hover:underline truncate">
               {authorDisplayName}
             </Link>
           ) : (

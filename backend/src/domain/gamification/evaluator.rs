@@ -86,7 +86,74 @@ pub async fn fetch_user_contribution_stats(
     ),
     AppError,
 > {
-    let timelogs = get_timelogs_by_user(pool, username).await?;
+    fetch_user_contribution_stats_scoped(pool, username, None).await
+}
+
+pub async fn fetch_user_contribution_stats_scoped(
+    pool: &DbPool,
+    username: &str,
+    managed_root: Option<&crate::db::managed_root_groups::ManagedRootGroupRecord>,
+) -> Result<
+    (
+        UserContributionStats,
+        Vec<crate::db::timelogs::TimelogRecord>,
+    ),
+    AppError,
+> {
+    let raw_timelogs = get_timelogs_by_user(pool, username).await?;
+
+    let timelogs: Vec<crate::db::timelogs::TimelogRecord> = if let Some(mr) = managed_root {
+        let prefix = format!("{}/%", mr.gitlab_group_path.trim_matches('/'));
+        let exact = mr.gitlab_group_path.trim_matches('/').to_string();
+
+        let mut filtered = Vec::new();
+        for mut t in raw_timelogs {
+            let d = t.spent_at.date_naive();
+            if d < mr.project_start_date {
+                continue;
+            }
+            if let Some(end) = mr.project_end_date {
+                if d > end {
+                    continue;
+                }
+            }
+
+            let is_under_root: bool = sqlx::query_scalar(
+                r#"
+                SELECT EXISTS(
+                    SELECT 1 FROM work_items wi
+                    WHERE wi.id = ?1 AND (
+                        wi.group_id IN (SELECT id FROM groups WHERE full_path = ?2 OR full_path LIKE ?3)
+                        OR wi.project_path = ?2 OR wi.project_path LIKE ?3
+                    )
+                    UNION
+                    SELECT 1 FROM merge_requests m
+                    WHERE m.id = ?4 AND (m.project_path = ?2 OR m.project_path LIKE ?3)
+                )
+                "#,
+            )
+            .bind(&t.work_item_id)
+            .bind(&exact)
+            .bind(&prefix)
+            .bind(&t.merge_request_id)
+            .fetch_one(pool)
+            .await
+            .unwrap_or(true);
+
+            if is_under_root {
+                t.sprint_number = crate::ingest::calculate_sprint_dynamic(
+                    t.spent_at,
+                    mr.project_start_date,
+                    mr.sprint_duration_weeks,
+                );
+                filtered.push(t);
+            }
+        }
+        filtered
+    } else {
+        raw_timelogs
+    };
+
     let total_seconds: i64 = timelogs.iter().map(|t| t.time_spent).sum();
     let total_hours = (total_seconds as f64 / 3600.0 * 10.0).round() / 10.0;
 
@@ -97,58 +164,129 @@ pub async fn fetch_user_contribution_stats(
     }
     let streak_days = active_days.len() as u32;
 
-    // Real contribution stats for badges
-    let merged_mrs_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM merge_requests WHERE author_username = ?1 AND state = 'merged'",
-    )
-    .bind(username)
-    .fetch_one(pool)
-    .await
-    .unwrap_or(0);
+    let (merged_mrs_count, reviews_count, closed_wi_count, max_closed_est_secs, total_closed_est_secs, sharp_shooter_count) = if let Some(mr) = managed_root {
+        let prefix = format!("{}/%", mr.gitlab_group_path.trim_matches('/'));
+        let exact = mr.gitlab_group_path.trim_matches('/').to_string();
 
-    let user_pat = format!("%\"{username}\"%");
-    let reviews_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM merge_requests WHERE author_username != ?1 AND (approved_by_json LIKE ?2 OR discussion_authors_json LIKE ?2)",
-    )
-    .bind(username)
-    .bind(&user_pat)
-    .fetch_one(pool)
-    .await
-    .unwrap_or(0);
+        let merged_mrs: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM merge_requests WHERE author_username = ?1 AND state = 'merged' AND (project_path = ?2 OR project_path LIKE ?3)"
+        )
+        .bind(username)
+        .bind(&exact)
+        .bind(&prefix)
+        .fetch_one(pool)
+        .await
+        .unwrap_or(0);
 
-    let closed_wi_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(DISTINCT wi.id) FROM work_items wi JOIN timelogs t ON t.work_item_id = wi.id WHERE t.username = ?1 AND wi.state = 'closed'",
-    )
-    .bind(username)
-    .fetch_one(pool)
-    .await
-    .unwrap_or(0);
+        let user_pat = format!("%\"{username}\"%");
+        let reviews: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM merge_requests WHERE author_username != ?1 AND (approved_by_json LIKE ?2 OR discussion_authors_json LIKE ?2) AND (project_path = ?3 OR project_path LIKE ?4)"
+        )
+        .bind(username)
+        .bind(&user_pat)
+        .bind(&exact)
+        .bind(&prefix)
+        .fetch_one(pool)
+        .await
+        .unwrap_or(0);
 
-    let max_closed_est_secs: i64 = sqlx::query_scalar(
-        "SELECT COALESCE(MAX(wi.time_estimate), 0) FROM work_items wi JOIN timelogs t ON t.work_item_id = wi.id WHERE t.username = ?1 AND wi.state = 'closed'",
-    )
-    .bind(username)
-    .fetch_one(pool)
-    .await
-    .unwrap_or(0);
+        let closed_wi: i64 = sqlx::query_scalar(
+            "SELECT COUNT(DISTINCT wi.id) FROM work_items wi JOIN timelogs t ON t.work_item_id = wi.id WHERE t.username = ?1 AND wi.state = 'closed' AND (wi.project_path = ?2 OR wi.project_path LIKE ?3 OR wi.group_id IN (SELECT id FROM groups WHERE full_path = ?2 OR full_path LIKE ?3))"
+        )
+        .bind(username)
+        .bind(&exact)
+        .bind(&prefix)
+        .fetch_one(pool)
+        .await
+        .unwrap_or(0);
+
+        let max_est: i64 = sqlx::query_scalar(
+            "SELECT COALESCE(MAX(wi.time_estimate), 0) FROM work_items wi JOIN timelogs t ON t.work_item_id = wi.id WHERE t.username = ?1 AND wi.state = 'closed' AND (wi.project_path = ?2 OR wi.project_path LIKE ?3 OR wi.group_id IN (SELECT id FROM groups WHERE full_path = ?2 OR full_path LIKE ?3))"
+        )
+        .bind(username)
+        .bind(&exact)
+        .bind(&prefix)
+        .fetch_one(pool)
+        .await
+        .unwrap_or(0);
+
+        let total_est: i64 = sqlx::query_scalar(
+            "SELECT COALESCE(SUM(wi.time_estimate), 0) FROM work_items wi WHERE wi.state = 'closed' AND (wi.project_path = ?2 OR wi.project_path LIKE ?3 OR wi.group_id IN (SELECT id FROM groups WHERE full_path = ?2 OR full_path LIKE ?3)) AND wi.id IN (SELECT DISTINCT work_item_id FROM timelogs WHERE username = ?1)"
+        )
+        .bind(username)
+        .bind(&exact)
+        .bind(&prefix)
+        .fetch_one(pool)
+        .await
+        .unwrap_or(0);
+
+        let sharp: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM work_items wi WHERE wi.state = 'closed' AND wi.time_estimate >= 3600 AND wi.total_time_spent >= (wi.time_estimate * 0.9) AND wi.total_time_spent <= (wi.time_estimate * 1.1) AND (wi.project_path = ?2 OR wi.project_path LIKE ?3 OR wi.group_id IN (SELECT id FROM groups WHERE full_path = ?2 OR full_path LIKE ?3)) AND wi.id IN (SELECT DISTINCT work_item_id FROM timelogs WHERE username = ?1)"
+        )
+        .bind(username)
+        .bind(&exact)
+        .bind(&prefix)
+        .fetch_one(pool)
+        .await
+        .unwrap_or(0);
+
+        (merged_mrs, reviews, closed_wi, max_est, total_est, sharp)
+    } else {
+        let merged_mrs: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM merge_requests WHERE author_username = ?1 AND state = 'merged'",
+        )
+        .bind(username)
+        .fetch_one(pool)
+        .await
+        .unwrap_or(0);
+
+        let user_pat = format!("%\"{username}\"%");
+        let reviews: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM merge_requests WHERE author_username != ?1 AND (approved_by_json LIKE ?2 OR discussion_authors_json LIKE ?2)",
+        )
+        .bind(username)
+        .bind(&user_pat)
+        .fetch_one(pool)
+        .await
+        .unwrap_or(0);
+
+        let closed_wi: i64 = sqlx::query_scalar(
+            "SELECT COUNT(DISTINCT wi.id) FROM work_items wi JOIN timelogs t ON t.work_item_id = wi.id WHERE t.username = ?1 AND wi.state = 'closed'",
+        )
+        .bind(username)
+        .fetch_one(pool)
+        .await
+        .unwrap_or(0);
+
+        let max_est: i64 = sqlx::query_scalar(
+            "SELECT COALESCE(MAX(wi.time_estimate), 0) FROM work_items wi JOIN timelogs t ON t.work_item_id = wi.id WHERE t.username = ?1 AND wi.state = 'closed'",
+        )
+        .bind(username)
+        .fetch_one(pool)
+        .await
+        .unwrap_or(0);
+
+        let total_est: i64 = sqlx::query_scalar(
+            "SELECT COALESCE(SUM(wi.time_estimate), 0) FROM work_items wi WHERE wi.state = 'closed' AND wi.id IN (SELECT DISTINCT work_item_id FROM timelogs WHERE username = ?1)",
+        )
+        .bind(username)
+        .fetch_one(pool)
+        .await
+        .unwrap_or(0);
+
+        let sharp: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM work_items wi WHERE wi.state = 'closed' AND wi.time_estimate >= 3600 AND wi.total_time_spent >= (wi.time_estimate * 0.9) AND wi.total_time_spent <= (wi.time_estimate * 1.1) AND wi.id IN (SELECT DISTINCT work_item_id FROM timelogs WHERE username = ?1)",
+        )
+        .bind(username)
+        .fetch_one(pool)
+        .await
+        .unwrap_or(0);
+
+        (merged_mrs, reviews, closed_wi, max_est, total_est, sharp)
+    };
+
     let max_closed_est_hours = max_closed_est_secs as f64 / 3600.0;
-
-    let total_closed_est_secs: i64 = sqlx::query_scalar(
-        "SELECT COALESCE(SUM(wi.time_estimate), 0) FROM work_items wi WHERE wi.state = 'closed' AND wi.id IN (SELECT DISTINCT work_item_id FROM timelogs WHERE username = ?1)",
-    )
-    .bind(username)
-    .fetch_one(pool)
-    .await
-    .unwrap_or(0);
     let total_closed_est_hours = (total_closed_est_secs as f64 / 3600.0) as u64;
-
-    let sharp_shooter_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM work_items wi WHERE wi.state = 'closed' AND wi.time_estimate >= 3600 AND wi.total_time_spent >= (wi.time_estimate * 0.9) AND wi.total_time_spent <= (wi.time_estimate * 1.1) AND wi.id IN (SELECT DISTINCT work_item_id FROM timelogs WHERE username = ?1)",
-    )
-    .bind(username)
-    .fetch_one(pool)
-    .await
-    .unwrap_or(0);
 
     let distinct_sprints: HashSet<i64> = timelogs.iter().filter_map(|t| t.sprint_number).collect();
     let sprint_count = distinct_sprints.len() as u64;
@@ -281,11 +419,19 @@ pub async fn evaluate_user_gamification(
     pool: &DbPool,
     username: &str,
 ) -> Result<UserGamificationSummary, AppError> {
+    evaluate_user_gamification_scoped(pool, username, None).await
+}
+
+pub async fn evaluate_user_gamification_scoped(
+    pool: &DbPool,
+    username: &str,
+    managed_root: Option<&crate::db::managed_root_groups::ManagedRootGroupRecord>,
+) -> Result<UserGamificationSummary, AppError> {
     let user_rec = get_user_by_username(pool, username)
         .await?
         .ok_or_else(|| AppError::NotFound(format!("User '{username}' not found")))?;
 
-    let (stats, _timelogs) = fetch_user_contribution_stats(pool, username).await?;
+    let (stats, _timelogs) = fetch_user_contribution_stats_scoped(pool, username, managed_root).await?;
     let (unlocked, _all_progress, badge_xp) = evaluate_badges_progress(&stats);
 
     let base_xp = (stats.total_hours * 10.0) as u64 + (stats.timelog_count as u64 * 2);
@@ -309,6 +455,14 @@ pub async fn compute_leaderboard(
     pool: &DbPool,
     group_id: Option<&str>,
 ) -> Result<Vec<LeaderboardEntry>, AppError> {
+    compute_leaderboard_scoped(pool, group_id, None).await
+}
+
+pub async fn compute_leaderboard_scoped(
+    pool: &DbPool,
+    group_id: Option<&str>,
+    managed_root: Option<&crate::db::managed_root_groups::ManagedRootGroupRecord>,
+) -> Result<Vec<LeaderboardEntry>, AppError> {
     let usernames: Vec<String> = if let Some(gid) = group_id {
         let mut set: std::collections::BTreeSet<String> = get_group_members(pool, gid)
             .await?
@@ -320,6 +474,30 @@ pub async fn compute_leaderboard(
             set.insert(t.username);
         }
         set.into_iter().collect()
+    } else if let Some(mr) = managed_root {
+        let prefix = format!("{}/%", mr.gitlab_group_path.trim_matches('/'));
+        let exact = mr.gitlab_group_path.trim_matches('/');
+        let rows = sqlx::query_scalar::<_, String>(
+            r#"
+            SELECT DISTINCT username FROM (
+                SELECT username FROM group_members gm
+                JOIN groups g ON gm.group_id = g.id
+                WHERE g.full_path = ?1 OR g.full_path LIKE ?2
+                UNION
+                SELECT t.username FROM timelogs t
+                LEFT JOIN work_items wi ON t.work_item_id = wi.id
+                LEFT JOIN merge_requests mr ON t.merge_request_id = mr.id
+                WHERE (wi.project_path = ?1 OR wi.project_path LIKE ?2 OR mr.project_path = ?1 OR mr.project_path LIKE ?2)
+            )
+            "#,
+        )
+        .bind(exact)
+        .bind(&prefix)
+        .fetch_all(pool)
+        .await
+        .unwrap_or_default();
+
+        rows
     } else {
         let users = get_all_users(pool).await?;
         users
@@ -331,7 +509,11 @@ pub async fn compute_leaderboard(
 
     let mut entries = Vec::new();
     for uname in usernames {
-        if let Ok(eval) = evaluate_user_gamification(pool, &uname).await {
+        if let Ok(eval) = evaluate_user_gamification_scoped(pool, &uname, managed_root).await {
+            if managed_root.is_some() && eval.total_seconds == 0 && eval.unlocked_badges.is_empty() {
+                // If scoped to a semester and user has no tracked time in this semester, skip from leaderboard
+                continue;
+            }
             let icons = eval
                 .unlocked_badges
                 .iter()

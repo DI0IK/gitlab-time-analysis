@@ -7,11 +7,14 @@ import type { WikiPageItem } from './wiki-sidebar'
 import type { WikiPageContentData } from './wiki-page-viewer'
 import type { WikiCommit } from './wiki-history-modal'
 
+import { useTenant } from '@/features/tenant/tenant-context'
+
 interface UseWikiQueriesOptions {
   targetPath: string
   activeSelectedSlug?: string | null
   selectedRevision: string
   historyOpen: boolean
+  rootSlug?: string
 }
 
 export function useWikiQueries({
@@ -19,30 +22,40 @@ export function useWikiQueries({
   activeSelectedSlug,
   selectedRevision,
   historyOpen,
+  rootSlug: propRootSlug,
 }: UseWikiQueriesOptions) {
+  const tenant = useTenant()
+  const effectiveRootSlug = propRootSlug || tenant.rootSlug
+
   const commitsQuery = useQuery({
-    queryKey: apiKeys.wikiHistory(targetPath),
+    queryKey: apiKeys.rootWikiHistory(effectiveRootSlug, targetPath),
     queryFn: async () => {
-      if (!targetPath) return []
-      const { data, error } = await apiClient.GET('/api/wiki/history', {
-        params: { query: { project: targetPath } },
+      if (!targetPath || !effectiveRootSlug) return []
+      const { data, error } = await apiClient.GET('/api/{root_slug}/wiki/history', {
+        params: {
+          path: { root_slug: effectiveRootSlug },
+          query: { project: targetPath },
+        },
       })
       return error || !data ? [] : (data as WikiCommit[])
     },
-    enabled: Boolean(targetPath),
+    enabled: Boolean(targetPath && effectiveRootSlug),
   })
 
   const pagesQuery = useQuery({
-    queryKey: apiKeys.wikiPages(targetPath, selectedRevision),
+    queryKey: apiKeys.rootWikiPages(effectiveRootSlug, targetPath, selectedRevision),
     queryFn: async () => {
-      if (!targetPath) return []
-      const { data, error } = await apiClient.GET('/api/wiki/pages', {
-        params: { query: { project: targetPath, ref: selectedRevision || undefined } },
+      if (!targetPath || !effectiveRootSlug) return []
+      const { data, error } = await apiClient.GET('/api/{root_slug}/wiki/pages', {
+        params: {
+          path: { root_slug: effectiveRootSlug },
+          query: { project: targetPath, ref: selectedRevision || undefined },
+        },
       })
       if (error || !data) throw new Error('Failed to load wiki pages')
       return data as WikiPageItem[]
     },
-    enabled: Boolean(targetPath),
+    enabled: Boolean(targetPath && effectiveRootSlug),
   })
 
   const pages = React.useMemo(() => pagesQuery.data ?? [], [pagesQuery.data])
@@ -61,28 +74,34 @@ export function useWikiQueries({
   }, [pages, activeSelectedSlug])
 
   const contentQuery = useQuery({
-    queryKey: apiKeys.wikiPage(targetPath, activeSlug, selectedRevision),
+    queryKey: apiKeys.rootWikiPage(effectiveRootSlug, targetPath, activeSlug, selectedRevision),
     queryFn: async () => {
-      if (!targetPath || !activeSlug) return null
-      const { data, error } = await apiClient.GET('/api/wiki/page', {
-        params: { query: { project: targetPath, slug: activeSlug, ref: selectedRevision || undefined } },
+      if (!targetPath || !activeSlug || !effectiveRootSlug) return null
+      const { data, error } = await apiClient.GET('/api/{root_slug}/wiki/page', {
+        params: {
+          path: { root_slug: effectiveRootSlug },
+          query: { project: targetPath, slug: activeSlug, ref: selectedRevision || undefined },
+        },
       })
       if (error || !data) throw new Error('Failed to load page content')
       return data as WikiPageContentData
     },
-    enabled: Boolean(targetPath && activeSlug),
+    enabled: Boolean(targetPath && activeSlug && effectiveRootSlug),
   })
 
   const pageCommitsQuery = useQuery({
-    queryKey: apiKeys.wikiHistory(targetPath, activeSlug),
+    queryKey: apiKeys.rootWikiHistory(effectiveRootSlug, targetPath, activeSlug),
     queryFn: async () => {
-      if (!targetPath || !activeSlug) return []
-      const { data, error } = await apiClient.GET('/api/wiki/history', {
-        params: { query: { project: targetPath, slug: activeSlug } },
+      if (!targetPath || !activeSlug || !effectiveRootSlug) return []
+      const { data, error } = await apiClient.GET('/api/{root_slug}/wiki/history', {
+        params: {
+          path: { root_slug: effectiveRootSlug },
+          query: { project: targetPath, slug: activeSlug },
+        },
       })
       return error || !data ? [] : (data as WikiCommit[])
     },
-    enabled: Boolean(historyOpen && targetPath && activeSlug),
+    enabled: Boolean(historyOpen && targetPath && activeSlug && effectiveRootSlug),
   })
 
   return {

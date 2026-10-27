@@ -29,8 +29,11 @@ import { ShowcaseTab } from './components/showcase-tab'
 
 export type ProfileTab = 'overview' | 'activity' | 'contributions' | 'badges' | 'showcase'
 
-interface UserProfileContentProps {
+import { useTenant } from '@/features/tenant/tenant-context'
+
+export interface UserProfileContentProps {
   username: string
+  rootSlug?: string
   isModal?: boolean
   onClose?: () => void
   initialTab?: ProfileTab
@@ -48,29 +51,33 @@ const TIER_GLOW_STYLES: Record<string, string> = {
 
 export function UserProfileContent({
   username,
+  rootSlug: propRootSlug,
   isModal = false,
   onClose,
   initialTab = 'overview',
 }: UserProfileContentProps) {
+  const tenant = useTenant()
+  const effectiveRootSlug = propRootSlug || tenant.rootSlug
+
   const [activeTab, setActiveTab] = React.useState<ProfileTab>(initialTab)
   const [copiedLink, setCopiedLink] = React.useState(false)
 
   const { data: details, isLoading, error } = useQuery({
-    queryKey: apiKeys.userDetails(username),
+    queryKey: apiKeys.rootUserDetails(effectiveRootSlug, username),
     queryFn: async () => {
-      const { data, error } = await apiClient.GET('/api/users/{username}/details', {
-        params: { path: { username } },
+      const { data, error } = await apiClient.GET('/api/{root_slug}/users/{username}', {
+        params: { path: { root_slug: effectiveRootSlug, username } },
       })
       if (error || !data) {
         throw new Error('Failed to load user profile details')
       }
       return data
     },
-    enabled: Boolean(username),
+    enabled: Boolean(username && effectiveRootSlug),
   })
 
   const handleShareLink = () => {
-    const url = `${window.location.origin}/users/${username}`
+    const url = `${window.location.origin}/${effectiveRootSlug}/users/${username}`
     navigator.clipboard.writeText(url)
     setCopiedLink(true)
     setTimeout(() => setCopiedLink(false), 2000)
@@ -190,8 +197,8 @@ export function UserProfileContent({
 
           {isModal && (
             <Link
-              to="/users/$username"
-              params={{ username }}
+              to="/$rootSlug/users/$username"
+              params={{ rootSlug: effectiveRootSlug, username }}
               onClick={onClose}
               className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border text-xs font-medium hover:bg-muted/80 transition-colors"
               title="Open full page view"

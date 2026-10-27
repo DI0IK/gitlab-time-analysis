@@ -4,6 +4,86 @@
  */
 
 export interface paths {
+    "/api/admin/root-groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_admin_root_groups"];
+        put?: never;
+        post: operations["create_root_group_handler"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/root-groups/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_root_group_handler"];
+        post?: never;
+        delete: operations["delete_root_group_handler"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/root-groups/{id}/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["sync_root_group_handler"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_admin_users"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/users/{username}/permissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_user_permissions_handler"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/callback": {
         parameters: {
             query?: never;
@@ -68,182 +148,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/comparison": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["get_cohort_comparison"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/groups": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["list_groups"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/groups/{slug}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["get_group"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/groups/{slug}/activity": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["get_group_activity"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/groups/{slug}/dashboard": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["get_group_dashboard"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/groups/{slug}/leaderboard": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["get_group_leaderboard"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/groups/{slug}/members": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["list_members"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/groups/{slug}/merge-requests": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["get_group_merge_requests"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/groups/{slug}/repositories": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["get_group_repositories"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/groups/{slug}/wiki/targets": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["get_group_wiki_targets"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/groups/{slug}/work-items": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["get_group_work_items"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -260,22 +164,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/leaderboard": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["get_cohort_leaderboard"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/meta": {
         parameters: {
             query?: never;
@@ -284,22 +172,6 @@ export interface paths {
             cookie?: never;
         };
         get: operations["get_meta"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/notes": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["get_item_notes"];
         put?: never;
         post?: never;
         delete?: never;
@@ -356,110 +228,14 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/repo/blob": {
+    "/api/roots": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["get_blob"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/repo/branches": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["list_branches"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/repo/commits": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["list_commits"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/repo/sync": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["trigger_repo_sync"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/repo/tree": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["get_tree"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/sync": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["trigger_sync"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/sync/status": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["sync_status"];
+        get: operations["list_roots"];
         put?: never;
         post?: never;
         delete?: never;
@@ -484,14 +260,14 @@ export interface paths {
         patch: operations["update_profile"];
         trace?: never;
     };
-    "/api/users/{username}/details": {
+    "/api/{root_slug}/comparison": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["get_user_profile_details"];
+        get: operations["get_root_cohort_comparison"];
         put?: never;
         post?: never;
         delete?: never;
@@ -500,14 +276,14 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/users/{username}/gamification": {
+    "/api/{root_slug}/groups": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["get_user_gamification"];
+        get: operations["get_root_groups"];
         put?: never;
         post?: never;
         delete?: never;
@@ -516,14 +292,14 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/wiki/history": {
+    "/api/{root_slug}/groups/{group_slug}/activity": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["get_wiki_history"];
+        get: operations["get_root_group_activity"];
         put?: never;
         post?: never;
         delete?: never;
@@ -532,14 +308,14 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/wiki/page": {
+    "/api/{root_slug}/groups/{group_slug}/dashboard": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["get_wiki_page"];
+        get: operations["get_root_group_dashboard"];
         put?: never;
         post?: never;
         delete?: never;
@@ -548,14 +324,270 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/wiki/pages": {
+    "/api/{root_slug}/groups/{group_slug}/leaderboard": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["list_wiki_pages"];
+        get: operations["get_root_group_leaderboard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/{root_slug}/groups/{group_slug}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_root_group_members"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/{root_slug}/groups/{group_slug}/merge-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_root_group_merge_requests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/{root_slug}/groups/{group_slug}/repositories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_root_group_repositories"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/{root_slug}/groups/{group_slug}/wiki/targets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_root_group_wiki_targets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/{root_slug}/groups/{group_slug}/work-items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_root_group_work_items"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/{root_slug}/leaderboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_root_cohort_leaderboard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/{root_slug}/notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_root_notes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/{root_slug}/repo/blob": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_root_repo_blob"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/{root_slug}/repo/branches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_root_repo_branches"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/{root_slug}/repo/commits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_root_repo_commits"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/{root_slug}/repo/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["trigger_root_repo_sync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/{root_slug}/repo/tree": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_root_repo_tree"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/{root_slug}/users/{username}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_root_user_profile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/{root_slug}/wiki/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_root_wiki_history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/{root_slug}/wiki/page": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_root_wiki_page"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/{root_slug}/wiki/pages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_root_wiki_pages"];
         put?: never;
         post?: never;
         delete?: never;
@@ -568,6 +600,42 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AdminRootGroupItem: {
+            /** Format: date-time */
+            created_at?: string | null;
+            gitlab_group_path: string;
+            has_token: boolean;
+            id: string;
+            name: string;
+            /** Format: date */
+            project_end_date?: string | null;
+            /** Format: date */
+            project_start_date: string;
+            slug: string;
+            /** Format: int64 */
+            sprint_duration_weeks: number;
+            sprint_start_weekday: string;
+            token_preview?: string | null;
+            /** Format: date-time */
+            updated_at?: string | null;
+            user_count: number;
+        };
+        AdminUserItem: {
+            avatar_url?: string | null;
+            custom_display_name?: string | null;
+            gitlab_id: string;
+            is_admin: boolean;
+            name: string;
+            permissions: components["schemas"]["AdminUserPermissionItem"][];
+            username: string;
+            web_url: string;
+        };
+        AdminUserPermissionItem: {
+            root_group_id: string;
+            root_group_name: string;
+            root_group_slug: string;
+            source: string;
+        };
         AuthMeResponse: {
             authenticated: boolean;
             user?: null | components["schemas"]["UserRecord"];
@@ -629,6 +697,19 @@ export interface components {
             total_cohort_hours: number;
             /** Format: int64 */
             total_cohort_seconds: number;
+        };
+        CreateRootGroupRequest: {
+            gitlab_group_path: string;
+            name: string;
+            /** Format: date */
+            project_end_date?: string | null;
+            /** Format: date */
+            project_start_date: string;
+            slug: string;
+            /** Format: int64 */
+            sprint_duration_weeks?: number;
+            sprint_start_weekday?: string;
+            token?: string | null;
         };
         ErrorResponse: {
             details?: string | null;
@@ -801,6 +882,24 @@ export interface components {
             tier_color: string;
             tier_name: string;
         };
+        ManagedRootGroupRecord: {
+            /** Format: date-time */
+            created_at?: string | null;
+            gitlab_group_path: string;
+            id: string;
+            name: string;
+            /** Format: date */
+            project_end_date?: string | null;
+            /** Format: date */
+            project_start_date: string;
+            slug: string;
+            /** Format: int64 */
+            sprint_duration_weeks: number;
+            sprint_start_weekday: string;
+            token?: string | null;
+            /** Format: date-time */
+            updated_at?: string | null;
+        };
         MemberMetric: {
             avatar_url?: string | null;
             custom_display_name?: string | null;
@@ -871,6 +970,23 @@ export interface components {
             /** Format: date-time */
             synced_at: string;
             web_url: string;
+        };
+        PublicRootGroupRecord: {
+            /** Format: date-time */
+            created_at?: string | null;
+            gitlab_group_path: string;
+            id: string;
+            name: string;
+            /** Format: date */
+            project_end_date?: string | null;
+            /** Format: date */
+            project_start_date: string;
+            slug: string;
+            /** Format: int64 */
+            sprint_duration_weeks: number;
+            sprint_start_weekday: string;
+            /** Format: date-time */
+            updated_at?: string | null;
         };
         RepoBranch: {
             commit?: null | components["schemas"]["RepoBranchCommit"];
@@ -983,6 +1099,23 @@ export interface components {
         UpdateProfileRequest: {
             custom_display_name?: string | null;
         };
+        UpdateRootGroupRequest: {
+            gitlab_group_path?: string | null;
+            name?: string | null;
+            /** Format: date */
+            project_end_date?: string | null;
+            /** Format: date */
+            project_start_date?: string | null;
+            slug?: string | null;
+            /** Format: int64 */
+            sprint_duration_weeks?: number | null;
+            sprint_start_weekday?: string | null;
+            token?: string | null;
+        };
+        UpdateUserPermissionsRequest: {
+            is_admin?: boolean | null;
+            root_group_ids?: string[] | null;
+        };
         UserCategoryMatrixRow: {
             /** Format: double */
             arch_hours: number;
@@ -1073,6 +1206,7 @@ export interface components {
             created_at?: string | null;
             custom_display_name?: string | null;
             gitlab_id: string;
+            is_admin: boolean;
             is_bot: boolean;
             name: string;
             /** Format: date-time */
@@ -1174,6 +1308,250 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    list_admin_root_groups: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List all managed root groups with token preview and stats */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminRootGroupItem"][];
+                };
+            };
+            /** @description Admin privileges required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    create_root_group_handler: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateRootGroupRequest"];
+            };
+        };
+        responses: {
+            /** @description Created root group record */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedRootGroupRecord"];
+                };
+            };
+            /** @description Invalid slug or path */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Admin privileges required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    update_root_group_handler: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Managed root group UUID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateRootGroupRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated root group record */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedRootGroupRecord"];
+                };
+            };
+            /** @description Admin privileges required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Root group not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    delete_root_group_handler: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Managed root group UUID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Root group deleted successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Admin privileges required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Root group not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    sync_root_group_handler: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Managed root group UUID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sync completed for this root group */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncSummary"];
+                };
+            };
+            /** @description Admin privileges required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Root group not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    list_admin_users: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List all platform users with admin and permission details */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserItem"][];
+                };
+            };
+            /** @description Admin privileges required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    update_user_permissions_handler: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description GitLab username */
+                username: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateUserPermissionsRequest"];
+            };
+        };
+        responses: {
+            /** @description User permissions updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Admin privileges required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description User not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     callback: {
         parameters: {
             query?: never;
@@ -1248,322 +1626,6 @@ export interface operations {
             };
         };
     };
-    get_cohort_comparison: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Cross-group comparative analytics and sprint benchmarks */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ComparisonResponse"];
-                };
-            };
-        };
-    };
-    list_groups: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description List all synced GitLab cohort groups */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GroupRecord"][];
-                };
-            };
-        };
-    };
-    get_group: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Group slug or full_path (e.g. 'dhbw-tinf24' or 'team-alpha') */
-                slug: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Group details */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GroupRecord"];
-                };
-            };
-            /** @description Group not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    get_group_activity: {
-        parameters: {
-            query?: {
-                author?: string | null;
-                sprint?: number | null;
-                activity_type?: string | null;
-                limit?: number | null;
-                offset?: number | null;
-            };
-            header?: never;
-            path: {
-                /** @description Group slug or ID */
-                slug: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Aggregated chronological group activity feed */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GroupActivityFeedResponse"];
-                };
-            };
-            /** @description Group not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    get_group_dashboard: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Group slug or ID (e.g. 'G1-TischleinDeckDich') */
-                slug: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Sprint progress, effort fairness, and category distribution */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GroupDashboardResponse"];
-                };
-            };
-            /** @description Group not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    get_group_leaderboard: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Group slug or ID */
-                slug: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Ranked leaderboard of group members with XP, levels, and badges */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LeaderboardEntry"][];
-                };
-            };
-            /** @description Group not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    list_members: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Group slug or ID */
-                slug: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description List of verified group members */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GroupMemberRecord"][];
-                };
-            };
-            /** @description Group not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    get_group_merge_requests: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Group slug or ID */
-                slug: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description List of merge requests for the group */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MergeRequestRecord"][];
-                };
-            };
-            /** @description Group not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    get_group_repositories: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Group slug or ID */
-                slug: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description List of project repositories under the group */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RepositorySummary"][];
-                };
-            };
-            /** @description Group not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    get_group_wiki_targets: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Group slug or identifier */
-                slug: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description List of all groups, subgroups, and projects with wiki status */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WikiTarget"][];
-                };
-            };
-            /** @description Group not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    get_group_work_items: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Group slug or ID */
-                slug: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description List of epics, issues, and tasks for the group */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorkItemRecord"][];
-                };
-            };
-            /** @description Group not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
     health_check: {
         parameters: {
             query?: never;
@@ -1593,26 +1655,6 @@ export interface operations {
             };
         };
     };
-    get_cohort_leaderboard: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Cohort-wide leaderboard ranking all engineers */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LeaderboardEntry"][];
-                };
-            };
-        };
-    };
     get_meta: {
         parameters: {
             query?: never;
@@ -1630,36 +1672,6 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MetaResponse"];
                 };
-            };
-        };
-    };
-    get_item_notes: {
-        parameters: {
-            query?: {
-                work_item_id?: string | null;
-                merge_request_id?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description List of discussion notes and system activity for a work item or merge request */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ItemNoteRecord"][];
-                };
-            };
-            /** @description Neither work_item_id nor merge_request_id provided */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
         };
     };
@@ -1753,152 +1765,7 @@ export interface operations {
             };
         };
     };
-    get_blob: {
-        parameters: {
-            query: {
-                project: string;
-                ref?: string | null;
-                file_path: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Repository file content and metadata */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RepoFileContent"];
-                };
-            };
-            /** @description File not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    list_branches: {
-        parameters: {
-            query: {
-                project: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description List of repository branches */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RepoBranch"][];
-                };
-            };
-            /** @description Repository not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    list_commits: {
-        parameters: {
-            query: {
-                project: string;
-                ref?: string | null;
-                path?: string | null;
-                limit?: number | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Commit history log */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RepoCommit"][];
-                };
-            };
-            /** @description Repository not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    trigger_repo_sync: {
-        parameters: {
-            query: {
-                project: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Trigger immediate mirror sync */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-        };
-    };
-    get_tree: {
-        parameters: {
-            query: {
-                project: string;
-                ref?: string | null;
-                path?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Repository file and directory tree */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RepoTreeItem"][];
-                };
-            };
-            /** @description Repository or path not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    trigger_sync: {
+    list_roots: {
         parameters: {
             query?: never;
             header?: never;
@@ -1907,33 +1774,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Trigger incremental sync from GitLab */
+            /** @description List all root group instances accessible to the caller */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SyncSummary"];
-                };
-            };
-        };
-    };
-    sync_status: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Current sync status and cursors */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SyncStateRecord"][];
+                    "application/json": components["schemas"]["PublicRootGroupRecord"][];
                 };
             };
         };
@@ -2009,28 +1856,35 @@ export interface operations {
             };
         };
     };
-    get_user_profile_details: {
+    get_root_cohort_comparison: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                /** @description GitLab username */
-                username: string;
+                /** @description Root group tenant slug */
+                root_slug: string;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description Complete user profile details, metrics, timelogs, MRs, and badges */
+            /** @description Comparative analytics for this root group */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserProfileDetailsResponse"];
+                    "application/json": components["schemas"]["ComparisonResponse"];
                 };
             };
-            /** @description User not found */
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -2039,28 +1893,35 @@ export interface operations {
             };
         };
     };
-    get_user_gamification: {
+    get_root_groups: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                /** @description GitLab username */
-                username: string;
+                /** @description Managed root group tenant slug */
+                root_slug: string;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description Public user gamification summary including level, badges, and progress */
+            /** @description Hierarchy tree of groups/subgroups for this root group */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserGamificationSummary"];
+                    "application/json": components["schemas"]["GroupRecord"][];
                 };
             };
-            /** @description User not found */
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Root group not found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -2069,20 +1930,485 @@ export interface operations {
             };
         };
     };
-    get_wiki_history: {
+    get_root_group_activity: {
+        parameters: {
+            query?: {
+                author?: string | null;
+                sprint?: number | null;
+                activity_type?: string | null;
+                limit?: number | null;
+                offset?: number | null;
+            };
+            header?: never;
+            path: {
+                /** @description Root group tenant slug */
+                root_slug: string;
+                /** @description Group slug */
+                group_slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Scoped activity feed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupActivityFeedResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_root_group_dashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Root group tenant slug */
+                root_slug: string;
+                /** @description Group slug or full path */
+                group_slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sprints, burndown, and metrics scoped to this root group */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupDashboardResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_root_group_leaderboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Root group tenant slug */
+                root_slug: string;
+                /** @description Group slug */
+                group_slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Scoped leaderboard */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaderboardEntry"][];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_root_group_members: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Root group tenant slug */
+                root_slug: string;
+                /** @description Group slug */
+                group_slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of verified group members */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupMemberRecord"][];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Group not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_root_group_merge_requests: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Root group tenant slug */
+                root_slug: string;
+                /** @description Group slug */
+                group_slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Merge requests */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MergeRequestRecord"][];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_root_group_repositories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Root group tenant slug */
+                root_slug: string;
+                /** @description Group slug */
+                group_slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Repositories list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepositorySummary"][];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_root_group_wiki_targets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Root group tenant slug */
+                root_slug: string;
+                /** @description Group slug */
+                group_slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Wikis list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WikiTarget"][];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_root_group_work_items: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Root group tenant slug */
+                root_slug: string;
+                /** @description Group slug */
+                group_slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Work items hierarchy */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkItemRecord"][];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_root_cohort_leaderboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Root group tenant slug */
+                root_slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cohort-wide leaderboard ranking engineers scoped to root group */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaderboardEntry"][];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_root_notes: {
+        parameters: {
+            query?: {
+                work_item_id?: string | null;
+                merge_request_id?: string | null;
+            };
+            header?: never;
+            path: {
+                /** @description Root group tenant slug */
+                root_slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Discussion notes for work item or merge request */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemNoteRecord"][];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_root_repo_blob: {
         parameters: {
             query: {
                 project: string;
-                slug?: string | null;
-                limit?: number | null;
+                ref?: string | null;
+                file_path: string;
             };
             header?: never;
-            path?: never;
+            path: {
+                /** @description Root group tenant slug */
+                root_slug: string;
+            };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description Revision history for a wiki page or entire wiki */
+            /** @description File content blob */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepoFileContent"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_root_repo_branches: {
+        parameters: {
+            query: {
+                project: string;
+            };
+            header?: never;
+            path: {
+                /** @description Root group tenant slug */
+                root_slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List git branches in project repository */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepoBranch"][];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_root_repo_commits: {
+        parameters: {
+            query: {
+                project: string;
+                ref?: string | null;
+                path?: string | null;
+                limit?: number | null;
+            };
+            header?: never;
+            path: {
+                /** @description Root group tenant slug */
+                root_slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Recent commits list */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2091,7 +2417,110 @@ export interface operations {
                     "application/json": components["schemas"]["RepoCommit"][];
                 };
             };
-            /** @description Page not found */
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    trigger_root_repo_sync: {
+        parameters: {
+            query: {
+                project: string;
+            };
+            header?: never;
+            path: {
+                /** @description Root group tenant slug */
+                root_slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Triggered bare repo mirror sync */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_root_repo_tree: {
+        parameters: {
+            query: {
+                project: string;
+                ref?: string | null;
+                path?: string | null;
+            };
+            header?: never;
+            path: {
+                /** @description Root group tenant slug */
+                root_slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List files/directories in tree */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepoTreeItem"][];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_root_user_profile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Root group tenant slug */
+                root_slug: string;
+                /** @description GitLab username */
+                username: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description User profile, XP, streak, and sprint hours scoped to this root group */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserProfileDetailsResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -2100,7 +2529,41 @@ export interface operations {
             };
         };
     };
-    get_wiki_page: {
+    get_root_wiki_history: {
+        parameters: {
+            query: {
+                project: string;
+                slug?: string | null;
+                limit?: number | null;
+            };
+            header?: never;
+            path: {
+                /** @description Root group tenant slug */
+                root_slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Get wiki history commits */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepoCommit"][];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_root_wiki_page: {
         parameters: {
             query: {
                 project: string;
@@ -2108,12 +2571,15 @@ export interface operations {
                 ref?: string | null;
             };
             header?: never;
-            path?: never;
+            path: {
+                /** @description Root group tenant slug */
+                root_slug: string;
+            };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description Wiki page content and metadata */
+            /** @description Get wiki page content */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2122,8 +2588,8 @@ export interface operations {
                     "application/json": components["schemas"]["WikiPageContent"];
                 };
             };
-            /** @description Wiki page not found */
-            404: {
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2131,19 +2597,22 @@ export interface operations {
             };
         };
     };
-    list_wiki_pages: {
+    get_root_wiki_pages: {
         parameters: {
             query: {
                 project: string;
                 ref?: string | null;
             };
             header?: never;
-            path?: never;
+            path: {
+                /** @description Root group tenant slug */
+                root_slug: string;
+            };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description List of all wiki pages in the repository or group */
+            /** @description List wiki pages */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2152,8 +2621,8 @@ export interface operations {
                     "application/json": components["schemas"]["WikiPageItem"][];
                 };
             };
-            /** @description Wiki not found */
-            404: {
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

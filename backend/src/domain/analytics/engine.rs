@@ -38,8 +38,45 @@ pub async fn compute_group_dashboard(
     group: &GroupRecord,
     config: Option<&Config>,
 ) -> Result<GroupDashboardResponse, AppError> {
+    compute_group_dashboard_scoped(pool, group, config, None).await
+}
+
+pub async fn compute_group_dashboard_scoped(
+    pool: &DbPool,
+    group: &GroupRecord,
+    config: Option<&Config>,
+    managed_root: Option<&crate::db::managed_root_groups::ManagedRootGroupRecord>,
+) -> Result<GroupDashboardResponse, AppError> {
     let work_items = get_work_items_by_group(pool, &group.id).await?;
-    let timelogs = get_timelogs_for_group(pool, &group.id).await?;
+    let raw_timelogs = get_timelogs_for_group(pool, &group.id).await?;
+
+    let timelogs: Vec<crate::db::timelogs::TimelogRecord> = if let Some(mr) = managed_root {
+        raw_timelogs
+            .into_iter()
+            .filter(|t| {
+                let d = t.spent_at.date_naive();
+                if d < mr.project_start_date {
+                    return false;
+                }
+                if let Some(end) = mr.project_end_date {
+                    if d > end {
+                        return false;
+                    }
+                }
+                true
+            })
+            .map(|mut t| {
+                t.sprint_number = crate::ingest::calculate_sprint_dynamic(
+                    t.spent_at,
+                    mr.project_start_date,
+                    mr.sprint_duration_weeks,
+                );
+                t
+            })
+            .collect()
+    } else {
+        raw_timelogs
+    };
 
     let estimated_seconds: i64 = work_items.iter().map(|w| w.time_estimate).sum();
     let total_seconds: i64 = timelogs.iter().map(|t| t.time_spent).sum();
@@ -125,20 +162,30 @@ pub async fn compute_group_dashboard(
     let matrix = compute_matrix(&work_items, &timelogs, &member_metrics);
 
     let now = chrono::Utc::now();
-    let root_cfg = config.and_then(|c| c.get_root_group_for_path(&group.full_path));
-    let start_date = root_cfg
-        .and_then(|rc| rc.project_start_date)
-        .or_else(|| config.and_then(|c| c.project_start_date));
-    let end_date = root_cfg
-        .and_then(|rc| rc.project_end_date)
-        .or_else(|| config.and_then(|c| c.project_end_date));
-    let duration_weeks = root_cfg
-        .map(|rc| rc.sprint_duration_weeks)
-        .or_else(|| config.map(|c| c.sprint_duration_weeks))
-        .unwrap_or(1);
-    let start_weekday_str = root_cfg
-        .map(|rc| rc.sprint_start_weekday.as_str())
-        .or_else(|| config.map(|c| c.sprint_start_weekday.as_str()));
+    let (start_date, end_date, duration_weeks, start_weekday_str) = if let Some(mr) = managed_root {
+        (
+            Some(mr.project_start_date),
+            mr.project_end_date,
+            mr.sprint_duration_weeks.max(1) as u32,
+            Some(mr.sprint_start_weekday.as_str()),
+        )
+    } else {
+        let root_cfg = config.and_then(|c| c.get_root_group_for_path(&group.full_path));
+        let start_date = root_cfg
+            .and_then(|rc| rc.project_start_date)
+            .or_else(|| config.and_then(|c| c.project_start_date));
+        let end_date = root_cfg
+            .and_then(|rc| rc.project_end_date)
+            .or_else(|| config.and_then(|c| c.project_end_date));
+        let duration_weeks = root_cfg
+            .map(|rc| rc.sprint_duration_weeks)
+            .or_else(|| config.map(|c| c.sprint_duration_weeks))
+            .unwrap_or(1);
+        let start_weekday_str = root_cfg
+            .map(|rc| rc.sprint_start_weekday.as_str())
+            .or_else(|| config.map(|c| c.sprint_start_weekday.as_str()));
+        (start_date, end_date, duration_weeks, start_weekday_str)
+    };
 
     let (current_sprint, default_sprint) =
         crate::ingest::calculate_current_and_default_sprint(now, start_date, duration_weeks);

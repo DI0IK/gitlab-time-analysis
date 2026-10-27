@@ -11,18 +11,45 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { AlertCircle, RefreshCw, ExternalLink } from 'lucide-react'
 
-export function GroupAnalyticsView({ slug }: { slug: string }) {
+import { useTenant } from '@/features/tenant/tenant-context'
+import { apiKeys } from '@/lib/api/keys'
+
+export function GroupAnalyticsView({
+  rootSlug: propRootSlug,
+  groupSlug: propGroupSlug,
+  slug,
+}: {
+  rootSlug?: string
+  groupSlug?: string
+  slug?: string
+}) {
+  const tenant = useTenant()
+  const effectiveRootSlug = propRootSlug || tenant.rootSlug
+  const effectiveGroupSlug = propGroupSlug || slug || tenant.groupSlug || ''
+
   const { data, isLoading, error, refetch, isFetching } = useQuery({
-    queryKey: ['group-dashboard', slug],
+    queryKey: apiKeys.rootDashboard(effectiveRootSlug, effectiveGroupSlug),
     queryFn: async () => {
-      const { data, error } = await apiClient.GET('/api/groups/{slug}/dashboard', {
-        params: { path: { slug } },
-      })
+      const { data, error } = await apiClient.GET(
+        '/api/{root_slug}/groups/{group_slug}/dashboard',
+        {
+          params: {
+            path: {
+              root_slug: effectiveRootSlug,
+              group_slug: effectiveGroupSlug,
+            },
+          },
+        }
+      )
       if (error || !data) {
-        throw new Error((error as unknown as { error?: string })?.error || 'Failed to load group dashboard')
+        throw new Error(
+          (error as unknown as { error?: string })?.error ||
+            'Failed to load group dashboard'
+        )
       }
       return data
     },
+    enabled: Boolean(effectiveRootSlug && effectiveGroupSlug),
   })
 
   if (isLoading) {

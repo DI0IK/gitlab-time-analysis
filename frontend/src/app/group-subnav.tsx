@@ -9,58 +9,67 @@ import {
   BookOpen,
   Presentation,
 } from 'lucide-react'
+import { useTenant } from '@/features/tenant/tenant-context'
 
 export function GroupSubnav() {
   const routerState = useRouterState()
   const pathname = routerState.location.pathname
+  const { rootSlug, groupSlug } = useTenant()
 
-  const groupMatch = pathname.match(/\/groups\/([^/]+)/)
-  if (!groupMatch) return null
-  const currentSlug = groupMatch[1]
+  // Don't show subnav on global admin/settings pages or root group stats page
+  if (
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/settings') ||
+    !groupSlug ||
+    groupSlug === rootSlug
+  ) {
+    return null
+  }
 
+  // Team subgroup tabs
+  const basePath = `/${rootSlug}/${groupSlug}`
   const tabs = [
     {
-      to: '/groups/$slug' as const,
+      href: basePath,
       label: 'Analytics',
       icon: BarChart3,
-      exact: true,
-      active: pathname === `/groups/${currentSlug}`,
+      active: pathname === basePath || pathname === `${basePath}/`,
     },
     {
-      to: '/groups/$slug/activity' as const,
+      href: `${basePath}/activity`,
       label: 'Activity',
       icon: Activity,
-      active: pathname.includes('/activity'),
+      active: pathname.startsWith(`${basePath}/activity`),
     },
     {
-      to: '/groups/$slug/leaderboard' as const,
+      href: `${basePath}/leaderboard`,
       label: 'Leaderboard',
       icon: Trophy,
-      active: pathname.includes('/leaderboard'),
+      active: pathname.startsWith(`${basePath}/leaderboard`),
     },
     {
-      to: '/groups/$slug/work-items' as const,
+      href: `${basePath}/work-items`,
       label: 'Work Items',
       icon: ListTodo,
-      active: pathname.includes('/work-items'),
+      active: pathname.startsWith(`${basePath}/work-items`),
     },
     {
-      to: '/groups/$slug/repo' as const,
+      href: `${basePath}/repo`,
       label: 'Code Browser',
       icon: FolderGit2,
-      active: pathname.includes('/repo'),
+      active: pathname.startsWith(`${basePath}/repo`),
     },
     {
-      to: '/groups/$slug/wiki' as const,
+      href: `${basePath}/wiki`,
       label: 'Wiki',
       icon: BookOpen,
-      active: pathname.includes('/wiki'),
+      active: pathname.startsWith(`${basePath}/wiki`),
     },
     {
-      to: '/groups/$slug/merge-requests' as const,
+      href: `${basePath}/merge-requests`,
       label: 'MR Suite',
       icon: GitPullRequest,
-      active: pathname.includes('/merge-requests'),
+      active: pathname.startsWith(`${basePath}/merge-requests`),
     },
   ]
 
@@ -75,15 +84,14 @@ export function GroupSubnav() {
             const Icon = tab.icon
             return (
               <Link
-                key={tab.to}
-                to={tab.to}
-                params={{ slug: currentSlug }}
+                key={tab.href}
+                to={tab.href as any}
                 onClick={() => {
-                  if (tab.to === '/groups/$slug/repo') {
+                  if (tab.href.endsWith('/repo')) {
                     window.dispatchEvent(new CustomEvent('reset-repo-browser'))
                   }
                 }}
-                className={`flex min-h-[44px] items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-medium transition ${
+                className={`flex min-h-[40px] items-center gap-2 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
                   tab.active
                     ? 'bg-primary/10 text-primary font-semibold shadow-xs'
                     : 'text-muted-foreground hover:bg-accent/40 hover:text-foreground'
@@ -98,9 +106,8 @@ export function GroupSubnav() {
 
         <div className="hidden sm:flex items-center pl-4 shrink-0">
           <Link
-            to="/present/$slug"
-            params={{ slug: currentSlug }}
-            className="flex min-h-[36px] items-center gap-1.5 rounded-md border border-border/60 bg-secondary/30 px-2.5 py-1 text-xs font-medium text-foreground hover:bg-secondary transition"
+            to={`${basePath}/present` as any}
+            className="flex min-h-[34px] items-center gap-1.5 rounded-md border border-border/60 bg-secondary/30 px-2.5 py-1 text-xs font-medium text-foreground hover:bg-secondary transition"
             title="Launch Fullscreen Presentation Mode"
           >
             <Presentation className="h-3.5 w-3.5 text-primary" />

@@ -8,9 +8,23 @@ import { Button } from '@/components/ui/button'
 import { WikiPane } from './wiki-pane'
 import { WikiTargetTreeDropdown, type WikiTargetItem } from './wiki-target-dropdown'
 
-export function GroupWikiView({ slug }: { slug: string }) {
-  const search = useSearch({ from: '/groups/$slug/wiki' })
-  const navigate = useNavigate({ from: '/groups/$slug/wiki' })
+import { useTenant } from '@/features/tenant/tenant-context'
+
+export function GroupWikiView({
+  slug,
+  rootSlug: propRootSlug,
+  groupSlug: propGroupSlug,
+}: {
+  slug?: string
+  rootSlug?: string
+  groupSlug?: string
+}) {
+  const tenant = useTenant()
+  const effectiveRootSlug = propRootSlug || tenant.rootSlug
+  const effectiveGroupSlug = propGroupSlug || slug || tenant.groupSlug || ''
+
+  const search = useSearch({ strict: false }) as any
+  const navigate = useNavigate()
 
   // Fetch all wiki targets (group, subgroups, and project repos)
   const {
@@ -19,14 +33,23 @@ export function GroupWikiView({ slug }: { slug: string }) {
     refetch,
     isFetching,
   } = useQuery({
-    queryKey: apiKeys.wikiTargets(slug),
+    queryKey: apiKeys.rootWikiTargets(effectiveRootSlug, effectiveGroupSlug),
     queryFn: async () => {
-      const { data, error } = await apiClient.GET('/api/groups/{slug}/wiki/targets', {
-        params: { path: { slug } },
-      })
+      const { data, error } = await apiClient.GET(
+        '/api/{root_slug}/groups/{group_slug}/wiki/targets',
+        {
+          params: {
+            path: {
+              root_slug: effectiveRootSlug,
+              group_slug: effectiveGroupSlug,
+            },
+          },
+        }
+      )
       if (error || !data) throw new Error('Failed to load wiki targets')
       return data as WikiTargetItem[]
     },
+    enabled: Boolean(effectiveRootSlug && effectiveGroupSlug),
   })
 
   // Sort targets: with wikis first, then by group -> subgroup -> project
@@ -55,7 +78,7 @@ export function GroupWikiView({ slug }: { slug: string }) {
   React.useEffect(() => {
     if (!search.target && activePath) {
       navigate({
-        search: (prev) => ({ ...prev, target: activePath }),
+        search: ((prev: any) => ({ ...prev, target: activePath })) as any,
         replace: true,
       })
     }
@@ -65,31 +88,31 @@ export function GroupWikiView({ slug }: { slug: string }) {
 
   const handleSelectTarget = (path: string) => {
     navigate({
-      search: (prev) => ({
+      search: ((prev: any) => ({
         ...prev,
         target: path,
         page: undefined,
         rev: undefined,
-      }),
+      })) as any,
     })
   }
 
   const handlePageChange = (newPage: string) => {
     navigate({
-      search: (prev) => ({
+      search: ((prev: any) => ({
         ...prev,
         page: newPage,
         rev: undefined,
-      }),
+      })) as any,
     })
   }
 
   const handleRevisionChange = (newRev: string) => {
     navigate({
-      search: (prev) => ({
+      search: ((prev: any) => ({
         ...prev,
         rev: newRev || undefined,
-      }),
+      })) as any,
     })
   }
 

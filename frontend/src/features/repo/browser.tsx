@@ -22,9 +22,23 @@ import { RepoGrid, type RepositoryItem } from './repo-grid'
 import { RepoToolbar } from './repo-toolbar'
 import { Markdown } from '@/components/ui/markdown'
 
-export function RepoBrowserView({ slug }: { slug: string }) {
-  const search = useSearch({ from: '/groups/$slug/repo' })
-  const navigate = useNavigate({ from: '/groups/$slug/repo' })
+import { useTenant } from '@/features/tenant/tenant-context'
+
+export function RepoBrowserView({
+  slug,
+  rootSlug: propRootSlug,
+  groupSlug: propGroupSlug,
+}: {
+  slug?: string
+  rootSlug?: string
+  groupSlug?: string
+}) {
+  const tenant = useTenant()
+  const effectiveRootSlug = propRootSlug || tenant.rootSlug
+  const effectiveGroupSlug = propGroupSlug || slug || tenant.groupSlug || ''
+
+  const search = useSearch({ strict: false }) as any
+  const navigate = useNavigate()
 
   const [sidebarOpen, setSidebarOpen] = React.useState(true)
   const [projectDropdownOpen, setProjectDropdownOpen] = React.useState(false)
@@ -38,14 +52,23 @@ export function RepoBrowserView({ slug }: { slug: string }) {
     refetch: refetchRepos,
     isFetching: isReposFetching,
   } = useQuery({
-    queryKey: ['repositories', slug],
+    queryKey: apiKeys.rootRepositories(effectiveRootSlug, effectiveGroupSlug),
     queryFn: async () => {
-      const { data, error } = await apiClient.GET('/api/groups/{slug}/repositories', {
-        params: { path: { slug } },
-      })
+      const { data, error } = await apiClient.GET(
+        '/api/{root_slug}/groups/{group_slug}/repositories',
+        {
+          params: {
+            path: {
+              root_slug: effectiveRootSlug,
+              group_slug: effectiveGroupSlug,
+            },
+          },
+        }
+      )
       if (error || !data) throw new Error('Failed to load repositories')
       return data as RepositoryItem[]
     },
+    enabled: Boolean(effectiveRootSlug && effectiveGroupSlug),
   })
 
   // Validate active project from search param
@@ -57,16 +80,19 @@ export function RepoBrowserView({ slug }: { slug: string }) {
 
   // 2. Fetch branches for the selected repository
   const { data: branches = [], isLoading: isBranchesLoading } = useQuery({
-    queryKey: apiKeys.repoBranches(effectiveProject ?? ''),
+    queryKey: apiKeys.rootRepoBranches(effectiveRootSlug, effectiveProject ?? ''),
     queryFn: async () => {
       if (!effectiveProject) return []
-      const { data, error } = await apiClient.GET('/api/repo/branches', {
-        params: { query: { project: effectiveProject } },
+      const { data, error } = await apiClient.GET('/api/{root_slug}/repo/branches', {
+        params: {
+          path: { root_slug: effectiveRootSlug },
+          query: { project: effectiveProject },
+        },
       })
       if (error || !data) throw new Error('Failed to load branches')
       return data as RepoBranch[]
     },
-    enabled: !!effectiveProject,
+    enabled: Boolean(effectiveRootSlug && effectiveProject),
   })
 
   // Derive active branch
@@ -100,11 +126,12 @@ export function RepoBrowserView({ slug }: { slug: string }) {
     isLoading: isTreeLoading,
     refetch: refetchTree,
   } = useQuery({
-    queryKey: apiKeys.repoTree(effectiveProject ?? '', currentDirectory, effectiveBranch),
+    queryKey: apiKeys.rootRepoTree(effectiveRootSlug, effectiveProject ?? '', currentDirectory, effectiveBranch),
     queryFn: async () => {
       if (!effectiveProject) return []
-      const { data, error } = await apiClient.GET('/api/repo/tree', {
+      const { data, error } = await apiClient.GET('/api/{root_slug}/repo/tree', {
         params: {
+          path: { root_slug: effectiveRootSlug },
           query: {
             project: effectiveProject,
             ref: effectiveBranch || undefined,
@@ -115,16 +142,17 @@ export function RepoBrowserView({ slug }: { slug: string }) {
       if (error || !data) throw new Error('Failed to load tree')
       return data as TreeItem[]
     },
-    enabled: !!effectiveProject && activeTab === 'code',
+    enabled: Boolean(effectiveRootSlug && effectiveProject && activeTab === 'code'),
   })
 
   // 4. Fetch file blob if viewing a file
   const { data: fileBlob, isLoading: isBlobLoading } = useQuery({
-    queryKey: apiKeys.repoBlob(effectiveProject ?? '', currentPath, effectiveBranch),
+    queryKey: apiKeys.rootRepoBlob(effectiveRootSlug, effectiveProject ?? '', currentPath, effectiveBranch),
     queryFn: async () => {
       if (!effectiveProject || !currentPath || !isFilePath) return null
-      const { data, error } = await apiClient.GET('/api/repo/blob', {
+      const { data, error } = await apiClient.GET('/api/{root_slug}/repo/blob', {
         params: {
+          path: { root_slug: effectiveRootSlug },
           query: {
             project: effectiveProject,
             file_path: currentPath,
@@ -135,7 +163,7 @@ export function RepoBrowserView({ slug }: { slug: string }) {
       if (error || !data) return null
       return data as FileBlobData
     },
-    enabled: !!effectiveProject && !!currentPath && isFilePath && activeTab === 'code',
+    enabled: Boolean(effectiveRootSlug && effectiveProject && currentPath && isFilePath && activeTab === 'code'),
   })
 
   // 5. Look for README.md in directory
@@ -147,11 +175,12 @@ export function RepoBrowserView({ slug }: { slug: string }) {
   }, [isFilePath, treeItems])
 
   const { data: readmeBlob } = useQuery({
-    queryKey: apiKeys.repoBlob(effectiveProject ?? '', readmeItem?.path ?? '', effectiveBranch),
+    queryKey: apiKeys.rootRepoBlob(effectiveRootSlug, effectiveProject ?? '', readmeItem?.path ?? '', effectiveBranch),
     queryFn: async () => {
       if (!effectiveProject || !readmeItem) return null
-      const { data, error } = await apiClient.GET('/api/repo/blob', {
+      const { data, error } = await apiClient.GET('/api/{root_slug}/repo/blob', {
         params: {
+          path: { root_slug: effectiveRootSlug },
           query: {
             project: effectiveProject,
             file_path: readmeItem.path,
@@ -162,7 +191,7 @@ export function RepoBrowserView({ slug }: { slug: string }) {
       if (error || !data) return null
       return data as FileBlobData
     },
-    enabled: !!effectiveProject && !!readmeItem && !isFilePath && activeTab === 'code',
+    enabled: Boolean(effectiveRootSlug && effectiveProject && readmeItem && !isFilePath && activeTab === 'code'),
   })
 
   // 6. Fetch commits history
@@ -171,11 +200,12 @@ export function RepoBrowserView({ slug }: { slug: string }) {
     isLoading: isCommitsLoading,
     refetch: refetchCommits,
   } = useQuery({
-    queryKey: apiKeys.repoCommits(effectiveProject ?? '', currentPath, effectiveBranch),
+    queryKey: apiKeys.rootRepoCommits(effectiveRootSlug, effectiveProject ?? '', currentPath, effectiveBranch),
     queryFn: async () => {
       if (!effectiveProject) return []
-      const { data, error } = await apiClient.GET('/api/repo/commits', {
+      const { data, error } = await apiClient.GET('/api/{root_slug}/repo/commits', {
         params: {
+          path: { root_slug: effectiveRootSlug },
           query: {
             project: effectiveProject,
             ref: effectiveBranch || undefined,
@@ -187,7 +217,7 @@ export function RepoBrowserView({ slug }: { slug: string }) {
       if (error || !data) throw new Error('Failed to load commits')
       return data as CommitItem[]
     },
-    enabled: !!effectiveProject && activeTab === 'commits',
+    enabled: Boolean(effectiveRootSlug && effectiveProject && activeTab === 'commits'),
   })
 
   // Close project switcher dropdown on outside click
@@ -207,29 +237,29 @@ export function RepoBrowserView({ slug }: { slug: string }) {
   const handleSelectRepo = (fullPath: string) => {
     setProjectDropdownOpen(false)
     navigate({
-      search: () => ({
+      search: (() => ({
         project: fullPath,
         ref: undefined,
         path: undefined,
         view: 'code',
         line: undefined,
-      }),
+      })) as any,
     })
   }
 
   const handleResetToAllRepos = () => {
-    navigate({ search: () => ({}) })
+    navigate({ search: (() => ({})) as any })
   }
 
   const handleSelectBranch = (branch: string) => {
     navigate({
-      search: (prev) => ({ ...prev, ref: branch, line: undefined }),
+      search: ((prev: any) => ({ ...prev, ref: branch, line: undefined })) as any,
     })
   }
 
   const handleSelectPath = (newPath: string) => {
     navigate({
-      search: (prev) => ({ ...prev, path: newPath || undefined, line: undefined }),
+      search: ((prev: any) => ({ ...prev, path: newPath || undefined, line: undefined })) as any,
     })
   }
 
@@ -242,13 +272,13 @@ export function RepoBrowserView({ slug }: { slug: string }) {
 
   const handleTabChange = (view: 'code' | 'commits') => {
     navigate({
-      search: (prev) => ({ ...prev, view, line: undefined }),
+      search: ((prev: any) => ({ ...prev, view, line: undefined })) as any,
     })
   }
 
   const handleSelectLine = (lineStr: string) => {
     navigate({
-      search: (prev) => ({ ...prev, line: lineStr }),
+      search: ((prev: any) => ({ ...prev, line: lineStr })) as any,
     })
   }
 

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link } from '@tanstack/react-router'
-import { User as UserIcon, Settings, LogOut, LogIn } from 'lucide-react'
+import { User as UserIcon, Settings, LogOut, LogIn, ShieldCheck } from 'lucide-react'
 import { useAuth } from './use-auth'
 import { resolveDisplayName } from '@/lib/format'
 import { Button } from '@/components/ui/button'
@@ -53,6 +53,17 @@ export function ProfileMenu() {
 
           {/* Settings & Auth Actions */}
           <div className="border-t border-border/40 pt-2 mt-3 space-y-1">
+            {user?.isAdmin && (
+              <Link
+                to="/admin"
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-amber-500 font-medium hover:bg-amber-500/10 transition"
+              >
+                <ShieldCheck className="h-3.5 w-3.5 text-amber-500" />
+                <span>Platform Admin</span>
+              </Link>
+            )}
+
             <Link
               to="/settings"
               onClick={() => setOpen(false)}

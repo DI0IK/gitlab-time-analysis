@@ -28,9 +28,122 @@ pub struct SyncSummary {
     pub message: String,
 }
 
+pub async fn run_sync_for_path(
+    state: &AppState,
+    group_path: &str,
+    token_override: Option<&str>,
+) -> Result<SyncSummary, AppError> {
+    let clean_path = group_path.trim().trim_matches('/');
+    if clean_path.is_empty() {
+        return Err(AppError::BadRequest("Target group path cannot be empty".to_string()));
+    }
+
+    let token = token_override
+        .map(|t| t.to_string())
+        .or_else(|| state.config.get_token_for_path(clean_path))
+        .unwrap_or_default();
+
+    let client = GitLabClient::new(
+        state.http.clone(),
+        state.config.gitlab_domain.clone(),
+        if token.is_empty() { None } else { Some(token) },
+    );
+
+    tracing::info!("Starting targeted GitLab sync for path: {}", clean_path);
+
+    let mut total_groups_synced = 0;
+    let mut total_work_items_synced = 0;
+    let mut total_merge_requests_synced = 0;
+
+    // 1. Sync group hierarchy & members
+    match sync_group_hierarchy(&client, state, clean_path).await {
+        Ok(group_ids) => {
+            total_groups_synced += group_ids.len();
+        }
+        Err(e) => {
+            tracing::error!("Failed to sync group hierarchy for {}: {e}", clean_path);
+            return Err(e);
+        }
+    }
+
+    // 2. Sync all projects under this root group hierarchy
+    let _ = crate::ingest::sync_projects::sync_group_projects(&client, state, clean_path).await;
+
+    // 3. Fetch all groups belonging to this root group and sync work items/MRs
+    let root_prefix = format!("{}/", clean_path);
+    let all_groups = get_all_groups(&state.db).await?;
+    let groups: Vec<_> = all_groups
+        .into_iter()
+        .filter(|g| g.full_path == clean_path || g.full_path.starts_with(&root_prefix))
+        .collect();
+
+    let _ = sqlx::query("DELETE FROM work_items WHERE title = 'Pending Sync'")
+        .execute(&state.db)
+        .await;
+
+    for g in &groups {
+        if let Ok(count) = sync_group_work_items(&client, state, &g.id, &g.full_path).await {
+            total_work_items_synced += count;
+        }
+        if let Ok(count) = sync_group_issues(&client, state, &g.id, &g.full_path).await {
+            total_work_items_synced += count;
+        }
+        if let Ok(count) = sync_group_merge_requests(&client, state, &g.full_path).await {
+            total_merge_requests_synced += count;
+        }
+    }
+
+    state.cache.clear().await;
+
+    Ok(SyncSummary {
+        groups_synced: total_groups_synced,
+        work_items_synced: total_work_items_synced,
+        merge_requests_synced: total_merge_requests_synced,
+        repos_synced: 0,
+        wikis_synced: 0,
+        synced_at: Utc::now(),
+        message: format!("Targeted sync completed for {clean_path}"),
+    })
+}
+
 pub async fn run_sync(state: &AppState) -> Result<SyncSummary, AppError> {
-    if state.config.root_groups.is_empty() {
-        tracing::warn!("GitLab sync skipped: no root groups configured in GITLAB_ROOT_GROUPS");
+    let db_targets = sqlx::query_as::<_, (String, Option<String>)>(
+        "SELECT DISTINCT gitlab_group_path, token FROM managed_root_groups WHERE gitlab_group_path IS NOT NULL AND gitlab_group_path != ''"
+    )
+    .fetch_all(&state.db)
+    .await
+    .unwrap_or_default();
+
+    let mut targets_map: std::collections::HashMap<String, Option<String>> = std::collections::HashMap::new();
+    for (path, token) in db_targets {
+        let clean = path.trim().trim_matches('/').to_string();
+        if !clean.is_empty() {
+            let entry = targets_map.entry(clean).or_insert(None);
+            if entry.is_none() && token.is_some() {
+                *entry = token;
+            }
+        }
+    }
+
+    // Fallback to config root groups if database has no managed root groups yet
+    if targets_map.is_empty() {
+        for rg in &state.config.root_groups {
+            let clean = rg.path.trim().trim_matches('/').to_string();
+            if !clean.is_empty() {
+                targets_map.insert(
+                    clean,
+                    if rg.token.is_empty() {
+                        None
+                    } else {
+                        Some(rg.token.clone())
+                    },
+                );
+            }
+        }
+    }
+
+    if targets_map.is_empty() {
+        tracing::warn!("GitLab sync skipped: no root groups found in database or config");
         return Ok(SyncSummary {
             groups_synced: 0,
             work_items_synced: 0,
@@ -38,7 +151,7 @@ pub async fn run_sync(state: &AppState) -> Result<SyncSummary, AppError> {
             repos_synced: 0,
             wikis_synced: 0,
             synced_at: Utc::now(),
-            message: "Sync skipped: GITLAB_ROOT_GROUPS not configured".to_string(),
+            message: "Sync skipped: no root groups configured".to_string(),
         });
     }
 
@@ -46,51 +159,53 @@ pub async fn run_sync(state: &AppState) -> Result<SyncSummary, AppError> {
     let mut total_work_items_synced = 0;
     let mut total_merge_requests_synced = 0;
 
-    for root_group in &state.config.root_groups {
+    for (target_path, maybe_token) in targets_map {
+        let token = maybe_token
+            .or_else(|| state.config.get_token_for_path(&target_path))
+            .unwrap_or_default();
+
         let client = GitLabClient::new(
             state.http.clone(),
             state.config.gitlab_domain.clone(),
-            Some(root_group.token.clone()),
+            if token.is_empty() { None } else { Some(token) },
         );
 
-        tracing::info!("Starting GitLab sync for root path: {}", root_group.path);
+        tracing::info!("Starting GitLab singular sync for root path: {}", target_path);
 
         // 1. Sync group hierarchy & members for this root group
-        match sync_group_hierarchy(&client, state, &root_group.path).await {
+        match sync_group_hierarchy(&client, state, &target_path).await {
             Ok(group_ids) => {
                 total_groups_synced += group_ids.len();
             }
             Err(e) => {
                 tracing::error!(
                     "Failed to sync group hierarchy for {}: {e}",
-                    root_group.path
+                    target_path
                 );
                 continue;
             }
         }
 
         // 2. Sync all projects under this root group hierarchy
-        match crate::ingest::sync_projects::sync_group_projects(&client, state, &root_group.path)
-            .await
-        {
+        match crate::ingest::sync_projects::sync_group_projects(&client, state, &target_path).await {
             Ok(project_ids) => {
                 tracing::info!(
                     "Synced {} projects for {}",
                     project_ids.len(),
-                    root_group.path
+                    target_path
                 );
             }
             Err(e) => {
-                tracing::error!("Failed to sync projects for {}: {e}", root_group.path);
+                tracing::error!("Failed to sync projects for {}: {e}", target_path);
             }
         }
 
         // 3. Fetch all groups belonging to this root group and sync work items/MRs
-        let root_prefix = format!("{}/", root_group.path);
+        let root_prefix = format!("{}/", target_path);
         let all_groups = get_all_groups(&state.db).await?;
         let groups: Vec<_> = all_groups
             .into_iter()
-            .filter(|g| g.full_path == root_group.path || g.full_path.starts_with(&root_prefix))
+            .filter(|g| g.full_path == target_path || g.full_path.starts_with(&root_prefix))
             .collect();
 
         // Clean up any obsolete Pending Sync items from legacy syncs

@@ -12,31 +12,64 @@ import { LeaderboardPodium, type LeaderboardItem } from './leaderboard-podium'
 import { Button } from '@/components/ui/button'
 import { Play, Pause, X, ChevronRight, ChevronLeft } from 'lucide-react'
 
-export function KioskPresentationView({ slug }: { slug: string }) {
+import { useTenant } from '@/features/tenant/tenant-context'
+import { apiKeys } from '@/lib/api/keys'
+
+export function KioskPresentationView({
+  slug,
+  rootSlug: propRootSlug,
+  groupSlug: propGroupSlug,
+}: {
+  slug?: string
+  rootSlug?: string
+  groupSlug?: string
+}) {
+  const tenant = useTenant()
+  const effectiveRootSlug = propRootSlug || tenant.rootSlug
+  const effectiveGroupSlug = propGroupSlug || slug || tenant.groupSlug || ''
+
   const [slide, setSlide] = React.useState(0)
   const [isPaused, setIsPaused] = React.useState(false)
   const totalSlides = 4
   const slideNames = ['Overview & Balance', 'Velocity & Members', 'Time Matrix', 'XP Champions']
 
   const dashboardQuery = useQuery({
-    queryKey: ['group-dashboard', slug],
+    queryKey: apiKeys.rootDashboard(effectiveRootSlug, effectiveGroupSlug),
     queryFn: async () => {
-      const { data } = await apiClient.GET('/api/groups/{slug}/dashboard', {
-        params: { path: { slug } },
-      })
+      const { data } = await apiClient.GET(
+        '/api/{root_slug}/groups/{group_slug}/dashboard',
+        {
+          params: {
+            path: {
+              root_slug: effectiveRootSlug,
+              group_slug: effectiveGroupSlug,
+            },
+          },
+        }
+      )
       return data
     },
+    enabled: Boolean(effectiveRootSlug && effectiveGroupSlug),
     refetchInterval: 60 * 1000,
   })
 
   const leaderboardQuery = useQuery({
-    queryKey: ['leaderboard', 'group', slug],
+    queryKey: apiKeys.rootLeaderboard(effectiveRootSlug, effectiveGroupSlug),
     queryFn: async () => {
-      const { data } = await apiClient.GET('/api/groups/{slug}/leaderboard', {
-        params: { path: { slug } },
-      })
+      const { data } = await apiClient.GET(
+        '/api/{root_slug}/groups/{group_slug}/leaderboard',
+        {
+          params: {
+            path: {
+              root_slug: effectiveRootSlug,
+              group_slug: effectiveGroupSlug,
+            },
+          },
+        }
+      )
       return (data || []) as LeaderboardItem[]
     },
+    enabled: Boolean(effectiveRootSlug && effectiveGroupSlug),
     refetchInterval: 60 * 1000,
   })
 
@@ -99,8 +132,8 @@ export function KioskPresentationView({ slug }: { slug: string }) {
           </Button>
 
           <Link
-            to="/groups/$slug"
-            params={{ slug }}
+            to="/$rootSlug/$groupSlug"
+            params={{ rootSlug: effectiveRootSlug, groupSlug: effectiveGroupSlug }}
             className="inline-flex items-center justify-center h-10 w-10 rounded-full border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
             title="Exit Presentation"
           >

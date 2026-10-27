@@ -58,6 +58,7 @@ pub async fn run() -> anyhow::Result<()> {
     );
 
     let db_pool = init_db(&config.database_url).await?;
+    let _ = db::managed_root_groups::seed_default_managed_root_groups_if_empty(&db_pool, &config).await;
     let state = AppState::new(config.clone(), db_pool);
 
     // Start background sync scheduler

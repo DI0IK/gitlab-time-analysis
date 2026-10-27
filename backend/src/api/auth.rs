@@ -145,7 +145,7 @@ pub async fn callback(
     .await?;
 
     let gitlab_id = user_resp.id.to_string();
-    let user_record = upsert_user(
+    let mut user_record = upsert_user(
         &state.db,
         &gitlab_id,
         &user_resp.username,
@@ -155,6 +155,51 @@ pub async fn callback(
         user_resp.bot,
     )
     .await?;
+
+    // CheckAdmin: Is in INITIAL_ADMIN_USERNAMES or first user in DB?
+    let user_count = crate::db::users::count_users(&state.db).await.unwrap_or(1);
+    let admin_count = crate::db::users::count_admin_users(&state.db).await.unwrap_or(0);
+    let is_initial_admin = state
+        .config
+        .initial_admin_usernames
+        .iter()
+        .any(|u| u.eq_ignore_ascii_case(&user_resp.username));
+
+    if is_initial_admin || user_count <= 1 || admin_count == 0 {
+        if !user_record.is_admin {
+            let _ = crate::db::users::set_user_admin(&state.db, &user_record.gitlab_id, true).await;
+            user_record.is_admin = true;
+        }
+    } else {
+        // Fetch user's GitLab groups and sync permissions
+        if let Ok(groups_resp) = state
+            .http
+            .get(format!(
+                "{}/api/v4/groups",
+                state.config.gitlab_domain.trim_end_matches('/')
+            ))
+            .query(&[("min_access_level", "10"), ("per_page", "100")])
+            .bearer_auth(&token_resp.access_token)
+            .send()
+            .await
+            && let Ok(gl_groups) = groups_resp.json::<Vec<serde_json::Value>>().await
+        {
+            let group_paths: Vec<String> = gl_groups
+                .iter()
+                .filter_map(|g| {
+                    g.get("full_path")
+                        .and_then(|p| p.as_str())
+                        .map(|s| s.to_string())
+                })
+                .collect();
+            let _ = crate::db::permissions::sync_gitlab_user_permissions(
+                &state.db,
+                &user_record.gitlab_id,
+                &group_paths,
+            )
+            .await;
+        }
+    }
 
     let key = derive_key(&state.config.session_secret);
     let enc_access = encrypt(&token_resp.access_token, &key)?;

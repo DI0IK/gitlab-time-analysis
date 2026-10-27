@@ -6,6 +6,7 @@ import { Clock, ExternalLink, Calendar, Folder, FolderGit2, CheckCircle2, Circle
 import { getRelativePath, formatStatus } from '@/lib/format'
 import { ItemDiscussionThread } from '@/features/notes/item-discussion-thread'
 import { Markdown } from '@/components/ui/markdown'
+import { useTenant } from '@/features/tenant/tenant-context'
 
 export interface WorkItemModalData {
   id: string
@@ -33,6 +34,7 @@ export function WorkItemModal({
   slug?: string
   onClose: () => void
 }) {
+  const { rootSlug } = useTenant()
   if (!item) return null
 
   const isClosed = item.state.toLowerCase() === 'closed'
@@ -69,8 +71,8 @@ export function WorkItemModal({
           {item.project_path && (
             slug && !isEpic ? (
               <Link
-                to="/groups/$slug/repo"
-                params={{ slug }}
+                to="/$rootSlug/$groupSlug/repo"
+                params={{ rootSlug, groupSlug: slug }}
                 search={{ project: item.project_path }}
                 onClick={onClose}
                 className="inline-flex items-center gap-1.5 font-mono bg-muted/40 hover:bg-muted/80 px-2 py-1 rounded-md border border-border/50 text-foreground hover:text-primary transition-colors cursor-pointer"
@@ -159,8 +161,8 @@ export function WorkItemModal({
         <div className="pt-2 flex flex-wrap items-center justify-between gap-2">
           {item.project_path && slug && !isEpic ? (
             <Link
-              to="/groups/$slug/repo"
-              params={{ slug }}
+              to="/$rootSlug/$groupSlug/repo"
+              params={{ rootSlug, groupSlug: slug }}
               search={{ project: item.project_path }}
               onClick={onClose}
             >

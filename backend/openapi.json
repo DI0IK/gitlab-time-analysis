@@ -9,6 +9,244 @@
     "version": "2.0.0"
   },
   "paths": {
+    "/api/admin/root-groups": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "operationId": "list_admin_root_groups",
+        "responses": {
+          "200": {
+            "description": "List all managed root groups with token preview and stats",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AdminRootGroupItem"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Admin privileges required"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "operationId": "create_root_group_handler",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRootGroupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Created root group record",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagedRootGroupRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid slug or path"
+          },
+          "403": {
+            "description": "Admin privileges required"
+          }
+        }
+      }
+    },
+    "/api/admin/root-groups/{id}": {
+      "put": {
+        "tags": [
+          "Admin"
+        ],
+        "operationId": "update_root_group_handler",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Managed root group UUID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateRootGroupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Updated root group record",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagedRootGroupRecord"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Admin privileges required"
+          },
+          "404": {
+            "description": "Root group not found"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Admin"
+        ],
+        "operationId": "delete_root_group_handler",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Managed root group UUID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Root group deleted successfully"
+          },
+          "403": {
+            "description": "Admin privileges required"
+          },
+          "404": {
+            "description": "Root group not found"
+          }
+        }
+      }
+    },
+    "/api/admin/root-groups/{id}/sync": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "operationId": "sync_root_group_handler",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Managed root group UUID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sync completed for this root group",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncSummary"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Admin privileges required"
+          },
+          "404": {
+            "description": "Root group not found"
+          }
+        }
+      }
+    },
+    "/api/admin/users": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "operationId": "list_admin_users",
+        "responses": {
+          "200": {
+            "description": "List all platform users with admin and permission details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AdminUserItem"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Admin privileges required"
+          }
+        }
+      }
+    },
+    "/api/admin/users/{username}/permissions": {
+      "put": {
+        "tags": [
+          "Admin"
+        ],
+        "operationId": "update_user_permissions_handler",
+        "parameters": [
+          {
+            "name": "username",
+            "in": "path",
+            "description": "GitLab username",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserPermissionsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "User permissions updated"
+          },
+          "403": {
+            "description": "Admin privileges required"
+          },
+          "404": {
+            "description": "User not found"
+          }
+        }
+      }
+    },
     "/api/auth/callback": {
       "get": {
         "tags": [
@@ -68,431 +306,6 @@
         }
       }
     },
-    "/api/comparison": {
-      "get": {
-        "tags": [
-          "Analytics"
-        ],
-        "operationId": "get_cohort_comparison",
-        "responses": {
-          "200": {
-            "description": "Cross-group comparative analytics and sprint benchmarks",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ComparisonResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/groups": {
-      "get": {
-        "tags": [
-          "Groups"
-        ],
-        "operationId": "list_groups",
-        "responses": {
-          "200": {
-            "description": "List all synced GitLab cohort groups",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/GroupRecord"
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/groups/{slug}": {
-      "get": {
-        "tags": [
-          "Groups"
-        ],
-        "operationId": "get_group",
-        "parameters": [
-          {
-            "name": "slug",
-            "in": "path",
-            "description": "Group slug or full_path (e.g. 'dhbw-tinf24' or 'team-alpha')",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Group details",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GroupRecord"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Group not found"
-          }
-        }
-      }
-    },
-    "/api/groups/{slug}/activity": {
-      "get": {
-        "tags": [
-          "Groups"
-        ],
-        "operationId": "get_group_activity",
-        "parameters": [
-          {
-            "name": "slug",
-            "in": "path",
-            "description": "Group slug or ID",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "author",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": [
-                "string",
-                "null"
-              ]
-            }
-          },
-          {
-            "name": "sprint",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": [
-                "integer",
-                "null"
-              ],
-              "format": "int64"
-            }
-          },
-          {
-            "name": "activity_type",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": [
-                "string",
-                "null"
-              ]
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": [
-                "integer",
-                "null"
-              ],
-              "minimum": 0
-            }
-          },
-          {
-            "name": "offset",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": [
-                "integer",
-                "null"
-              ],
-              "minimum": 0
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Aggregated chronological group activity feed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GroupActivityFeedResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Group not found"
-          }
-        }
-      }
-    },
-    "/api/groups/{slug}/dashboard": {
-      "get": {
-        "tags": [
-          "Analytics"
-        ],
-        "operationId": "get_group_dashboard",
-        "parameters": [
-          {
-            "name": "slug",
-            "in": "path",
-            "description": "Group slug or ID (e.g. 'G1-TischleinDeckDich')",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Sprint progress, effort fairness, and category distribution",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GroupDashboardResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Group not found"
-          }
-        }
-      }
-    },
-    "/api/groups/{slug}/leaderboard": {
-      "get": {
-        "tags": [
-          "Leaderboard"
-        ],
-        "operationId": "get_group_leaderboard",
-        "parameters": [
-          {
-            "name": "slug",
-            "in": "path",
-            "description": "Group slug or ID",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Ranked leaderboard of group members with XP, levels, and badges",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/LeaderboardEntry"
-                  }
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Group not found"
-          }
-        }
-      }
-    },
-    "/api/groups/{slug}/members": {
-      "get": {
-        "tags": [
-          "Groups"
-        ],
-        "operationId": "list_members",
-        "parameters": [
-          {
-            "name": "slug",
-            "in": "path",
-            "description": "Group slug or ID",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "List of verified group members",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/GroupMemberRecord"
-                  }
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Group not found"
-          }
-        }
-      }
-    },
-    "/api/groups/{slug}/merge-requests": {
-      "get": {
-        "tags": [
-          "Analytics"
-        ],
-        "operationId": "get_group_merge_requests",
-        "parameters": [
-          {
-            "name": "slug",
-            "in": "path",
-            "description": "Group slug or ID",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "List of merge requests for the group",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/MergeRequestRecord"
-                  }
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Group not found"
-          }
-        }
-      }
-    },
-    "/api/groups/{slug}/repositories": {
-      "get": {
-        "tags": [
-          "Analytics"
-        ],
-        "operationId": "get_group_repositories",
-        "parameters": [
-          {
-            "name": "slug",
-            "in": "path",
-            "description": "Group slug or ID",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "List of project repositories under the group",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/RepositorySummary"
-                  }
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Group not found"
-          }
-        }
-      }
-    },
-    "/api/groups/{slug}/wiki/targets": {
-      "get": {
-        "tags": [
-          "Wiki"
-        ],
-        "operationId": "get_group_wiki_targets",
-        "parameters": [
-          {
-            "name": "slug",
-            "in": "path",
-            "description": "Group slug or identifier",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "List of all groups, subgroups, and projects with wiki status",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/WikiTarget"
-                  }
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Group not found"
-          }
-        }
-      }
-    },
-    "/api/groups/{slug}/work-items": {
-      "get": {
-        "tags": [
-          "Analytics"
-        ],
-        "operationId": "get_group_work_items",
-        "parameters": [
-          {
-            "name": "slug",
-            "in": "path",
-            "description": "Group slug or ID",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "List of epics, issues, and tasks for the group",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/WorkItemRecord"
-                  }
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Group not found"
-          }
-        }
-      }
-    },
     "/api/health": {
       "get": {
         "tags": [
@@ -523,29 +336,6 @@
         }
       }
     },
-    "/api/leaderboard": {
-      "get": {
-        "tags": [
-          "Leaderboard"
-        ],
-        "operationId": "get_cohort_leaderboard",
-        "responses": {
-          "200": {
-            "description": "Cohort-wide leaderboard ranking all engineers",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/LeaderboardEntry"
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/meta": {
       "get": {
         "tags": [
@@ -562,56 +352,6 @@
                 }
               }
             }
-          }
-        }
-      }
-    },
-    "/api/notes": {
-      "get": {
-        "tags": [
-          "Discussions"
-        ],
-        "operationId": "get_item_notes",
-        "parameters": [
-          {
-            "name": "work_item_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": [
-                "string",
-                "null"
-              ]
-            }
-          },
-          {
-            "name": "merge_request_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": [
-                "string",
-                "null"
-              ]
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "List of discussion notes and system activity for a work item or merge request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ItemNoteRecord"
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Neither work_item_id nor merge_request_id provided"
           }
         }
       }
@@ -706,287 +446,21 @@
         }
       }
     },
-    "/api/repo/blob": {
+    "/api/roots": {
       "get": {
         "tags": [
-          "Repository"
+          "Tenant"
         ],
-        "operationId": "get_blob",
-        "parameters": [
-          {
-            "name": "project",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "ref",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": [
-                "string",
-                "null"
-              ]
-            }
-          },
-          {
-            "name": "file_path",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
+        "operationId": "list_roots",
         "responses": {
           "200": {
-            "description": "Repository file content and metadata",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RepoFileContent"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "File not found"
-          }
-        }
-      }
-    },
-    "/api/repo/branches": {
-      "get": {
-        "tags": [
-          "Repository"
-        ],
-        "operationId": "list_branches",
-        "parameters": [
-          {
-            "name": "project",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "List of repository branches",
+            "description": "List all root group instances accessible to the caller",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/RepoBranch"
-                  }
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Repository not found"
-          }
-        }
-      }
-    },
-    "/api/repo/commits": {
-      "get": {
-        "tags": [
-          "Repository"
-        ],
-        "operationId": "list_commits",
-        "parameters": [
-          {
-            "name": "project",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "ref",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": [
-                "string",
-                "null"
-              ]
-            }
-          },
-          {
-            "name": "path",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": [
-                "string",
-                "null"
-              ]
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": [
-                "integer",
-                "null"
-              ],
-              "minimum": 0
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Commit history log",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/RepoCommit"
-                  }
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Repository not found"
-          }
-        }
-      }
-    },
-    "/api/repo/sync": {
-      "post": {
-        "tags": [
-          "Repository"
-        ],
-        "operationId": "trigger_repo_sync",
-        "parameters": [
-          {
-            "name": "project",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Trigger immediate mirror sync",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/repo/tree": {
-      "get": {
-        "tags": [
-          "Repository"
-        ],
-        "operationId": "get_tree",
-        "parameters": [
-          {
-            "name": "project",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "ref",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": [
-                "string",
-                "null"
-              ]
-            }
-          },
-          {
-            "name": "path",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": [
-                "string",
-                "null"
-              ]
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Repository file and directory tree",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/RepoTreeItem"
-                  }
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Repository or path not found"
-          }
-        }
-      }
-    },
-    "/api/sync": {
-      "post": {
-        "tags": [
-          "Sync"
-        ],
-        "operationId": "trigger_sync",
-        "responses": {
-          "200": {
-            "description": "Trigger incremental sync from GitLab",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SyncSummary"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/sync/status": {
-      "get": {
-        "tags": [
-          "Sync"
-        ],
-        "operationId": "sync_status",
-        "responses": {
-          "200": {
-            "description": "Current sync status and cursors",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/SyncStateRecord"
+                    "$ref": "#/components/schemas/PublicRootGroupRecord"
                   }
                 }
               }
@@ -1073,13 +547,932 @@
         }
       }
     },
-    "/api/users/{username}/details": {
+    "/api/{root_slug}/comparison": {
       "get": {
         "tags": [
-          "Profile"
+          "Tenant"
         ],
-        "operationId": "get_user_profile_details",
+        "operationId": "get_root_cohort_comparison",
         "parameters": [
+          {
+            "name": "root_slug",
+            "in": "path",
+            "description": "Root group tenant slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Comparative analytics for this root group",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComparisonResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/{root_slug}/groups": {
+      "get": {
+        "tags": [
+          "Tenant"
+        ],
+        "operationId": "get_root_groups",
+        "parameters": [
+          {
+            "name": "root_slug",
+            "in": "path",
+            "description": "Managed root group tenant slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Hierarchy tree of groups/subgroups for this root group",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GroupRecord"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Root group not found"
+          }
+        }
+      }
+    },
+    "/api/{root_slug}/groups/{group_slug}/activity": {
+      "get": {
+        "tags": [
+          "Tenant"
+        ],
+        "operationId": "get_root_group_activity",
+        "parameters": [
+          {
+            "name": "root_slug",
+            "in": "path",
+            "description": "Root group tenant slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "group_slug",
+            "in": "path",
+            "description": "Group slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "author",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "sprint",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
+            }
+          },
+          {
+            "name": "activity_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Scoped activity feed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupActivityFeedResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/{root_slug}/groups/{group_slug}/dashboard": {
+      "get": {
+        "tags": [
+          "Tenant"
+        ],
+        "operationId": "get_root_group_dashboard",
+        "parameters": [
+          {
+            "name": "root_slug",
+            "in": "path",
+            "description": "Root group tenant slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "group_slug",
+            "in": "path",
+            "description": "Group slug or full path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sprints, burndown, and metrics scoped to this root group",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupDashboardResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/{root_slug}/groups/{group_slug}/leaderboard": {
+      "get": {
+        "tags": [
+          "Tenant"
+        ],
+        "operationId": "get_root_group_leaderboard",
+        "parameters": [
+          {
+            "name": "root_slug",
+            "in": "path",
+            "description": "Root group tenant slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "group_slug",
+            "in": "path",
+            "description": "Group slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Scoped leaderboard",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LeaderboardEntry"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/{root_slug}/groups/{group_slug}/members": {
+      "get": {
+        "tags": [
+          "Tenant"
+        ],
+        "operationId": "get_root_group_members",
+        "parameters": [
+          {
+            "name": "root_slug",
+            "in": "path",
+            "description": "Root group tenant slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "group_slug",
+            "in": "path",
+            "description": "Group slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of verified group members",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GroupMemberRecord"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Group not found"
+          }
+        }
+      }
+    },
+    "/api/{root_slug}/groups/{group_slug}/merge-requests": {
+      "get": {
+        "tags": [
+          "Tenant"
+        ],
+        "operationId": "get_root_group_merge_requests",
+        "parameters": [
+          {
+            "name": "root_slug",
+            "in": "path",
+            "description": "Root group tenant slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "group_slug",
+            "in": "path",
+            "description": "Group slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Merge requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MergeRequestRecord"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/{root_slug}/groups/{group_slug}/repositories": {
+      "get": {
+        "tags": [
+          "Tenant"
+        ],
+        "operationId": "get_root_group_repositories",
+        "parameters": [
+          {
+            "name": "root_slug",
+            "in": "path",
+            "description": "Root group tenant slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "group_slug",
+            "in": "path",
+            "description": "Group slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Repositories list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RepositorySummary"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/{root_slug}/groups/{group_slug}/wiki/targets": {
+      "get": {
+        "tags": [
+          "Tenant"
+        ],
+        "operationId": "get_root_group_wiki_targets",
+        "parameters": [
+          {
+            "name": "root_slug",
+            "in": "path",
+            "description": "Root group tenant slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "group_slug",
+            "in": "path",
+            "description": "Group slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Wikis list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WikiTarget"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/{root_slug}/groups/{group_slug}/work-items": {
+      "get": {
+        "tags": [
+          "Tenant"
+        ],
+        "operationId": "get_root_group_work_items",
+        "parameters": [
+          {
+            "name": "root_slug",
+            "in": "path",
+            "description": "Root group tenant slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "group_slug",
+            "in": "path",
+            "description": "Group slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Work items hierarchy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WorkItemRecord"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/{root_slug}/leaderboard": {
+      "get": {
+        "tags": [
+          "Tenant"
+        ],
+        "operationId": "get_root_cohort_leaderboard",
+        "parameters": [
+          {
+            "name": "root_slug",
+            "in": "path",
+            "description": "Root group tenant slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cohort-wide leaderboard ranking engineers scoped to root group",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LeaderboardEntry"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/{root_slug}/notes": {
+      "get": {
+        "tags": [
+          "Tenant"
+        ],
+        "operationId": "get_root_notes",
+        "parameters": [
+          {
+            "name": "root_slug",
+            "in": "path",
+            "description": "Root group tenant slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "work_item_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "merge_request_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Discussion notes for work item or merge request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ItemNoteRecord"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/{root_slug}/repo/blob": {
+      "get": {
+        "tags": [
+          "Tenant"
+        ],
+        "operationId": "get_root_repo_blob",
+        "parameters": [
+          {
+            "name": "root_slug",
+            "in": "path",
+            "description": "Root group tenant slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "project",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ref",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "file_path",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "File content blob",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepoFileContent"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/api/{root_slug}/repo/branches": {
+      "get": {
+        "tags": [
+          "Tenant"
+        ],
+        "operationId": "get_root_repo_branches",
+        "parameters": [
+          {
+            "name": "root_slug",
+            "in": "path",
+            "description": "Root group tenant slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "project",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List git branches in project repository",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RepoBranch"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/api/{root_slug}/repo/commits": {
+      "get": {
+        "tags": [
+          "Tenant"
+        ],
+        "operationId": "get_root_repo_commits",
+        "parameters": [
+          {
+            "name": "root_slug",
+            "in": "path",
+            "description": "Root group tenant slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "project",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ref",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "path",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recent commits list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RepoCommit"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/api/{root_slug}/repo/sync": {
+      "post": {
+        "tags": [
+          "Tenant"
+        ],
+        "operationId": "trigger_root_repo_sync",
+        "parameters": [
+          {
+            "name": "root_slug",
+            "in": "path",
+            "description": "Root group tenant slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "project",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Triggered bare repo mirror sync"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/api/{root_slug}/repo/tree": {
+      "get": {
+        "tags": [
+          "Tenant"
+        ],
+        "operationId": "get_root_repo_tree",
+        "parameters": [
+          {
+            "name": "root_slug",
+            "in": "path",
+            "description": "Root group tenant slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "project",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ref",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "path",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List files/directories in tree",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RepoTreeItem"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/api/{root_slug}/users/{username}": {
+      "get": {
+        "tags": [
+          "Tenant"
+        ],
+        "operationId": "get_root_user_profile",
+        "parameters": [
+          {
+            "name": "root_slug",
+            "in": "path",
+            "description": "Root group tenant slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "username",
             "in": "path",
@@ -1092,7 +1485,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Complete user profile details, metrics, timelogs, MRs, and badges",
+            "description": "User profile, XP, streak, and sprint hours scoped to this root group",
             "content": {
               "application/json": {
                 "schema": {
@@ -1101,53 +1494,31 @@
               }
             }
           },
+          "403": {
+            "description": "Forbidden"
+          },
           "404": {
-            "description": "User not found"
+            "description": "Not found"
           }
         }
       }
     },
-    "/api/users/{username}/gamification": {
+    "/api/{root_slug}/wiki/history": {
       "get": {
         "tags": [
-          "Profile"
+          "Tenant"
         ],
-        "operationId": "get_user_gamification",
+        "operationId": "get_root_wiki_history",
         "parameters": [
           {
-            "name": "username",
+            "name": "root_slug",
             "in": "path",
-            "description": "GitLab username",
+            "description": "Root group tenant slug",
             "required": true,
             "schema": {
               "type": "string"
             }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Public user gamification summary including level, badges, and progress",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UserGamificationSummary"
-                }
-              }
-            }
           },
-          "404": {
-            "description": "User not found"
-          }
-        }
-      }
-    },
-    "/api/wiki/history": {
-      "get": {
-        "tags": [
-          "Wiki"
-        ],
-        "operationId": "get_wiki_history",
-        "parameters": [
           {
             "name": "project",
             "in": "query",
@@ -1182,7 +1553,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Revision history for a wiki page or entire wiki",
+            "description": "Get wiki history commits",
             "content": {
               "application/json": {
                 "schema": {
@@ -1194,19 +1565,28 @@
               }
             }
           },
-          "404": {
-            "description": "Page not found"
+          "403": {
+            "description": "Forbidden"
           }
         }
       }
     },
-    "/api/wiki/page": {
+    "/api/{root_slug}/wiki/page": {
       "get": {
         "tags": [
-          "Wiki"
+          "Tenant"
         ],
-        "operationId": "get_wiki_page",
+        "operationId": "get_root_wiki_page",
         "parameters": [
+          {
+            "name": "root_slug",
+            "in": "path",
+            "description": "Root group tenant slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "project",
             "in": "query",
@@ -1237,7 +1617,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Wiki page content and metadata",
+            "description": "Get wiki page content",
             "content": {
               "application/json": {
                 "schema": {
@@ -1246,19 +1626,28 @@
               }
             }
           },
-          "404": {
-            "description": "Wiki page not found"
+          "403": {
+            "description": "Forbidden"
           }
         }
       }
     },
-    "/api/wiki/pages": {
+    "/api/{root_slug}/wiki/pages": {
       "get": {
         "tags": [
-          "Wiki"
+          "Tenant"
         ],
-        "operationId": "list_wiki_pages",
+        "operationId": "get_root_wiki_pages",
         "parameters": [
+          {
+            "name": "root_slug",
+            "in": "path",
+            "description": "Root group tenant slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "project",
             "in": "query",
@@ -1281,7 +1670,7 @@
         ],
         "responses": {
           "200": {
-            "description": "List of all wiki pages in the repository or group",
+            "description": "List wiki pages",
             "content": {
               "application/json": {
                 "schema": {
@@ -1293,8 +1682,8 @@
               }
             }
           },
-          "404": {
-            "description": "Wiki not found"
+          "403": {
+            "description": "Forbidden"
           }
         }
       }
@@ -1302,6 +1691,148 @@
   },
   "components": {
     "schemas": {
+      "AdminRootGroupItem": {
+        "type": "object",
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "gitlab_group_path",
+          "has_token",
+          "project_start_date",
+          "sprint_start_weekday",
+          "sprint_duration_weeks",
+          "user_count"
+        ],
+        "properties": {
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "gitlab_group_path": {
+            "type": "string"
+          },
+          "has_token": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "project_end_date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "project_start_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "sprint_duration_weeks": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "sprint_start_weekday": {
+            "type": "string"
+          },
+          "token_preview": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "user_count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "AdminUserItem": {
+        "type": "object",
+        "required": [
+          "gitlab_id",
+          "username",
+          "name",
+          "web_url",
+          "is_admin",
+          "permissions"
+        ],
+        "properties": {
+          "avatar_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "custom_display_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "gitlab_id": {
+            "type": "string"
+          },
+          "is_admin": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminUserPermissionItem"
+            }
+          },
+          "username": {
+            "type": "string"
+          },
+          "web_url": {
+            "type": "string"
+          }
+        }
+      },
+      "AdminUserPermissionItem": {
+        "type": "object",
+        "required": [
+          "root_group_id",
+          "root_group_slug",
+          "root_group_name",
+          "source"
+        ],
+        "properties": {
+          "root_group_id": {
+            "type": "string"
+          },
+          "root_group_name": {
+            "type": "string"
+          },
+          "root_group_slug": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          }
+        }
+      },
       "AuthMeResponse": {
         "type": "object",
         "required": [
@@ -1521,6 +2052,50 @@
           "total_cohort_seconds": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "CreateRootGroupRequest": {
+        "type": "object",
+        "required": [
+          "slug",
+          "name",
+          "gitlab_group_path",
+          "project_start_date"
+        ],
+        "properties": {
+          "gitlab_group_path": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "project_end_date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "project_start_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "sprint_duration_weeks": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "sprint_start_weekday": {
+            "type": "string"
+          },
+          "token": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -2179,6 +2754,70 @@
           }
         }
       },
+      "ManagedRootGroupRecord": {
+        "type": "object",
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "gitlab_group_path",
+          "project_start_date",
+          "sprint_start_weekday",
+          "sprint_duration_weeks"
+        ],
+        "properties": {
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "gitlab_group_path": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "project_end_date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "project_start_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "sprint_duration_weeks": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "sprint_start_weekday": {
+            "type": "string"
+          },
+          "token": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
       "MemberMetric": {
         "type": "object",
         "required": [
@@ -2447,6 +3086,64 @@
           },
           "web_url": {
             "type": "string"
+          }
+        }
+      },
+      "PublicRootGroupRecord": {
+        "type": "object",
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "gitlab_group_path",
+          "project_start_date",
+          "sprint_start_weekday",
+          "sprint_duration_weeks"
+        ],
+        "properties": {
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "gitlab_group_path": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "project_end_date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "project_start_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "sprint_duration_weeks": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "sprint_start_weekday": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
           }
         }
       },
@@ -2869,6 +3566,82 @@
           }
         }
       },
+      "UpdateRootGroupRequest": {
+        "type": "object",
+        "properties": {
+          "gitlab_group_path": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "project_end_date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "project_start_date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "slug": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sprint_duration_weeks": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "sprint_start_weekday": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "token": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "UpdateUserPermissionsRequest": {
+        "type": "object",
+        "properties": {
+          "is_admin": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "root_group_ids": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
       "UserCategoryMatrixRow": {
         "type": "object",
         "required": [
@@ -3171,7 +3944,8 @@
           "username",
           "name",
           "web_url",
-          "is_bot"
+          "is_bot",
+          "is_admin"
         ],
         "properties": {
           "avatar_url": {
@@ -3195,6 +3969,9 @@
           },
           "gitlab_id": {
             "type": "string"
+          },
+          "is_admin": {
+            "type": "boolean"
           },
           "is_bot": {
             "type": "boolean"
@@ -3559,12 +4336,12 @@
       "description": "User profile and custom display name customization"
     },
     {
-      "name": "Groups",
-      "description": "GitLab group hierarchy and cohort discovery"
+      "name": "Tenant",
+      "description": "Multi-tenant cohort and subgroup analytics, activities, and contributor profiles"
     },
     {
-      "name": "Analytics",
-      "description": "Sprint progress, effort fairness, and category distribution"
+      "name": "Admin",
+      "description": "Platform management of root groups, timeframes, and user permissions"
     },
     {
       "name": "Repository",

@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router'
 import { ChevronRight, ChevronDown, Clock, ExternalLink, Folder, FolderGit2 } from 'lucide-react'
 import { Badge, ScopedBadge } from '@/components/ui/badge'
 import { getRelativePath, formatStatus } from '@/lib/format'
+import { useTenant } from '@/features/tenant/tenant-context'
 import type { WorkItemModalData } from './work-item-modal'
 
 interface TreeNodeProps {
@@ -23,6 +24,7 @@ export function WorkItemTreeNode({
   onToggle,
   onSelect,
 }: TreeNodeProps) {
+  const { rootSlug } = useTenant()
   const children = childrenMap.get(item.id) || []
   const hasChildren = children.length > 0
   const isExpanded = expanded.has(item.id)
@@ -79,8 +81,8 @@ export function WorkItemTreeNode({
           {item.project_path && (
             slug && !isEpic ? (
               <Link
-                to="/groups/$slug/repo"
-                params={{ slug }}
+                to="/$rootSlug/$groupSlug/repo"
+                params={{ rootSlug, groupSlug: slug }}
                 search={{ project: item.project_path }}
                 onClick={(e) => e.stopPropagation()}
                 className="inline-flex items-center gap-1 font-mono text-[10px] bg-muted/60 hover:bg-primary/20 text-muted-foreground hover:text-primary px-1.5 py-0.5 rounded-sm border border-border/40 shrink-0 max-w-[130px] sm:max-w-[180px] transition-colors cursor-pointer"

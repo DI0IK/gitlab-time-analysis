@@ -162,6 +162,7 @@ pub struct Config {
     pub gitlab_oauth_scopes: String,
     pub session_secret: String,
     pub repos_dir: String,
+    pub initial_admin_usernames: Vec<String>,
 }
 
 impl Config {
@@ -319,6 +320,13 @@ impl Config {
 
         let repos_dir = env::var("REPOS_DIR").unwrap_or_else(|_| "data/repos".to_string());
 
+        let initial_admin_usernames: Vec<String> = env::var("INITIAL_ADMIN_USERNAMES")
+            .unwrap_or_default()
+            .split(',')
+            .map(|s| s.trim().to_lowercase())
+            .filter(|s| !s.is_empty())
+            .collect();
+
         // Derive top-level project timeline and sprint params from first root group if not set globally
         let project_start_date = global_project_start_date
             .or_else(|| root_groups.first().and_then(|rg| rg.project_start_date));
@@ -353,6 +361,7 @@ impl Config {
             gitlab_oauth_scopes,
             session_secret,
             repos_dir,
+            initial_admin_usernames,
         })
     }
 

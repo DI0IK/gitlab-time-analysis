@@ -7,7 +7,22 @@ import { ListTodo, Search, RefreshCw, FolderTree, List, FolderGit2 } from 'lucid
 import { WorkItemModal, type WorkItemModalData } from './work-item-modal'
 import { WorkItemTreeNode } from './work-item-tree-node'
 
-export function WorkItemsExplorer({ slug }: { slug: string }) {
+import { useTenant } from '@/features/tenant/tenant-context'
+import { apiKeys } from '@/lib/api/keys'
+
+export function WorkItemsExplorer({
+  slug,
+  rootSlug: propRootSlug,
+  groupSlug: propGroupSlug,
+}: {
+  slug?: string
+  rootSlug?: string
+  groupSlug?: string
+}) {
+  const tenant = useTenant()
+  const effectiveRootSlug = propRootSlug || tenant.rootSlug
+  const effectiveGroupSlug = propGroupSlug || slug || tenant.groupSlug || ''
+
   const [search, setSearch] = React.useState('')
   const [typeFilter, setTypeFilter] = React.useState<string>('all')
   const [stateFilter, setStateFilter] = React.useState<string>('all')
@@ -17,14 +32,23 @@ export function WorkItemsExplorer({ slug }: { slug: string }) {
   const [expanded, setExpanded] = React.useState<Set<string>>(new Set())
 
   const { data, isLoading, error, refetch, isFetching } = useQuery({
-    queryKey: ['work-items', slug],
+    queryKey: apiKeys.rootWorkItems(effectiveRootSlug, effectiveGroupSlug),
     queryFn: async () => {
-      const { data, error } = await apiClient.GET('/api/groups/{slug}/work-items', {
-        params: { path: { slug } },
-      })
+      const { data, error } = await apiClient.GET(
+        '/api/{root_slug}/groups/{group_slug}/work-items',
+        {
+          params: {
+            path: {
+              root_slug: effectiveRootSlug,
+              group_slug: effectiveGroupSlug,
+            },
+          },
+        }
+      )
       if (error || !data) throw new Error('Failed to load work items')
       return data as WorkItemModalData[]
     },
+    enabled: Boolean(effectiveRootSlug && effectiveGroupSlug),
   })
 
   const deduplicatedData = React.useMemo(() => {

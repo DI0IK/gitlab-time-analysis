@@ -10,21 +10,34 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as RootSlugRouteImport } from './routes/$rootSlug'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as GroupsSlugRouteImport } from './routes/groups.$slug'
-import { Route as PresentSlugRouteImport } from './routes/present.$slug'
-import { Route as UsersUsernameRouteImport } from './routes/users.$username'
-import { Route as GroupsSlugIndexRouteImport } from './routes/groups.$slug.index'
-import { Route as GroupsSlugActivityRouteImport } from './routes/groups.$slug.activity'
-import { Route as GroupsSlugLeaderboardRouteImport } from './routes/groups.$slug.leaderboard'
-import { Route as GroupsSlugMergeRequestsRouteImport } from './routes/groups.$slug.merge-requests'
-import { Route as GroupsSlugRepoRouteImport } from './routes/groups.$slug.repo'
-import { Route as GroupsSlugWikiRouteImport } from './routes/groups.$slug.wiki'
-import { Route as GroupsSlugWorkItemsRouteImport } from './routes/groups.$slug.work-items'
+import { Route as RootSlugIndexRouteImport } from './routes/$rootSlug.index'
+import { Route as RootSlugGroupSlugRouteImport } from './routes/$rootSlug.$groupSlug'
+import { Route as RootSlugGroupSlugIndexRouteImport } from './routes/$rootSlug.$groupSlug.index'
+import { Route as RootSlugGroupSlugActivityRouteImport } from './routes/$rootSlug.$groupSlug.activity'
+import { Route as RootSlugGroupSlugLeaderboardRouteImport } from './routes/$rootSlug.$groupSlug.leaderboard'
+import { Route as RootSlugGroupSlugMergeRequestsRouteImport } from './routes/$rootSlug.$groupSlug.merge-requests'
+import { Route as RootSlugGroupSlugPresentRouteImport } from './routes/$rootSlug.$groupSlug.present'
+import { Route as RootSlugGroupSlugRepoRouteImport } from './routes/$rootSlug.$groupSlug.repo'
+import { Route as RootSlugGroupSlugWikiRouteImport } from './routes/$rootSlug.$groupSlug.wiki'
+import { Route as RootSlugGroupSlugWorkItemsRouteImport } from './routes/$rootSlug.$groupSlug.work-items'
+import { Route as RootSlugUsersUsernameRouteImport } from './routes/$rootSlug.users.$username'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RootSlugRoute = RootSlugRouteImport.update({
+  id: '/$rootSlug',
+  path: '/$rootSlug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsRoute = SettingsRouteImport.update({
@@ -32,149 +45,174 @@ const SettingsRoute = SettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
-const GroupsSlugRoute = GroupsSlugRouteImport.update({
-  id: '/groups/$slug',
-  path: '/groups/$slug',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PresentSlugRoute = PresentSlugRouteImport.update({
-  id: '/present/$slug',
-  path: '/present/$slug',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const UsersUsernameRoute = UsersUsernameRouteImport.update({
-  id: '/users/$username',
-  path: '/users/$username',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const GroupsSlugIndexRoute = GroupsSlugIndexRouteImport.update({
+const RootSlugIndexRoute = RootSlugIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => GroupsSlugRoute,
+  getParentRoute: () => RootSlugRoute,
 } as any)
-const GroupsSlugActivityRoute = GroupsSlugActivityRouteImport.update({
-  id: '/activity',
-  path: '/activity',
-  getParentRoute: () => GroupsSlugRoute,
+const RootSlugGroupSlugRoute = RootSlugGroupSlugRouteImport.update({
+  id: '/$groupSlug',
+  path: '/$groupSlug',
+  getParentRoute: () => RootSlugRoute,
 } as any)
-const GroupsSlugLeaderboardRoute = GroupsSlugLeaderboardRouteImport.update({
-  id: '/leaderboard',
-  path: '/leaderboard',
-  getParentRoute: () => GroupsSlugRoute,
+const RootSlugGroupSlugIndexRoute = RootSlugGroupSlugIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => RootSlugGroupSlugRoute,
 } as any)
-const GroupsSlugMergeRequestsRoute = GroupsSlugMergeRequestsRouteImport.update({
-  id: '/merge-requests',
-  path: '/merge-requests',
-  getParentRoute: () => GroupsSlugRoute,
-} as any)
-const GroupsSlugRepoRoute = GroupsSlugRepoRouteImport.update({
+const RootSlugGroupSlugActivityRoute =
+  RootSlugGroupSlugActivityRouteImport.update({
+    id: '/activity',
+    path: '/activity',
+    getParentRoute: () => RootSlugGroupSlugRoute,
+  } as any)
+const RootSlugGroupSlugLeaderboardRoute =
+  RootSlugGroupSlugLeaderboardRouteImport.update({
+    id: '/leaderboard',
+    path: '/leaderboard',
+    getParentRoute: () => RootSlugGroupSlugRoute,
+  } as any)
+const RootSlugGroupSlugMergeRequestsRoute =
+  RootSlugGroupSlugMergeRequestsRouteImport.update({
+    id: '/merge-requests',
+    path: '/merge-requests',
+    getParentRoute: () => RootSlugGroupSlugRoute,
+  } as any)
+const RootSlugGroupSlugPresentRoute =
+  RootSlugGroupSlugPresentRouteImport.update({
+    id: '/present',
+    path: '/present',
+    getParentRoute: () => RootSlugGroupSlugRoute,
+  } as any)
+const RootSlugGroupSlugRepoRoute = RootSlugGroupSlugRepoRouteImport.update({
   id: '/repo',
   path: '/repo',
-  getParentRoute: () => GroupsSlugRoute,
+  getParentRoute: () => RootSlugGroupSlugRoute,
 } as any)
-const GroupsSlugWikiRoute = GroupsSlugWikiRouteImport.update({
+const RootSlugGroupSlugWikiRoute = RootSlugGroupSlugWikiRouteImport.update({
   id: '/wiki',
   path: '/wiki',
-  getParentRoute: () => GroupsSlugRoute,
+  getParentRoute: () => RootSlugGroupSlugRoute,
 } as any)
-const GroupsSlugWorkItemsRoute = GroupsSlugWorkItemsRouteImport.update({
-  id: '/work-items',
-  path: '/work-items',
-  getParentRoute: () => GroupsSlugRoute,
+const RootSlugGroupSlugWorkItemsRoute =
+  RootSlugGroupSlugWorkItemsRouteImport.update({
+    id: '/work-items',
+    path: '/work-items',
+    getParentRoute: () => RootSlugGroupSlugRoute,
+  } as any)
+const RootSlugUsersUsernameRoute = RootSlugUsersUsernameRouteImport.update({
+  id: '/users/$username',
+  path: '/users/$username',
+  getParentRoute: () => RootSlugRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/$rootSlug': typeof RootSlugRouteWithChildren
+  '/admin': typeof AdminRoute
   '/settings': typeof SettingsRoute
-  '/groups/$slug': typeof GroupsSlugRouteWithChildren
-  '/present/$slug': typeof PresentSlugRoute
-  '/users/$username': typeof UsersUsernameRoute
-  '/groups/$slug/activity': typeof GroupsSlugActivityRoute
-  '/groups/$slug/leaderboard': typeof GroupsSlugLeaderboardRoute
-  '/groups/$slug/merge-requests': typeof GroupsSlugMergeRequestsRoute
-  '/groups/$slug/repo': typeof GroupsSlugRepoRoute
-  '/groups/$slug/wiki': typeof GroupsSlugWikiRoute
-  '/groups/$slug/work-items': typeof GroupsSlugWorkItemsRoute
-  '/groups/$slug/': typeof GroupsSlugIndexRoute
+  '/$rootSlug/$groupSlug': typeof RootSlugGroupSlugRouteWithChildren
+  '/$rootSlug/': typeof RootSlugIndexRoute
+  '/$rootSlug/$groupSlug/activity': typeof RootSlugGroupSlugActivityRoute
+  '/$rootSlug/$groupSlug/leaderboard': typeof RootSlugGroupSlugLeaderboardRoute
+  '/$rootSlug/$groupSlug/merge-requests': typeof RootSlugGroupSlugMergeRequestsRoute
+  '/$rootSlug/$groupSlug/present': typeof RootSlugGroupSlugPresentRoute
+  '/$rootSlug/$groupSlug/repo': typeof RootSlugGroupSlugRepoRoute
+  '/$rootSlug/$groupSlug/wiki': typeof RootSlugGroupSlugWikiRoute
+  '/$rootSlug/$groupSlug/work-items': typeof RootSlugGroupSlugWorkItemsRoute
+  '/$rootSlug/users/$username': typeof RootSlugUsersUsernameRoute
+  '/$rootSlug/$groupSlug/': typeof RootSlugGroupSlugIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/settings': typeof SettingsRoute
-  '/present/$slug': typeof PresentSlugRoute
-  '/users/$username': typeof UsersUsernameRoute
-  '/groups/$slug/activity': typeof GroupsSlugActivityRoute
-  '/groups/$slug/leaderboard': typeof GroupsSlugLeaderboardRoute
-  '/groups/$slug/merge-requests': typeof GroupsSlugMergeRequestsRoute
-  '/groups/$slug/repo': typeof GroupsSlugRepoRoute
-  '/groups/$slug/wiki': typeof GroupsSlugWikiRoute
-  '/groups/$slug/work-items': typeof GroupsSlugWorkItemsRoute
-  '/groups/$slug': typeof GroupsSlugIndexRoute
+  '/$rootSlug': typeof RootSlugIndexRoute
+  '/$rootSlug/$groupSlug/activity': typeof RootSlugGroupSlugActivityRoute
+  '/$rootSlug/$groupSlug/leaderboard': typeof RootSlugGroupSlugLeaderboardRoute
+  '/$rootSlug/$groupSlug/merge-requests': typeof RootSlugGroupSlugMergeRequestsRoute
+  '/$rootSlug/$groupSlug/present': typeof RootSlugGroupSlugPresentRoute
+  '/$rootSlug/$groupSlug/repo': typeof RootSlugGroupSlugRepoRoute
+  '/$rootSlug/$groupSlug/wiki': typeof RootSlugGroupSlugWikiRoute
+  '/$rootSlug/$groupSlug/work-items': typeof RootSlugGroupSlugWorkItemsRoute
+  '/$rootSlug/users/$username': typeof RootSlugUsersUsernameRoute
+  '/$rootSlug/$groupSlug': typeof RootSlugGroupSlugIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/$rootSlug': typeof RootSlugRouteWithChildren
+  '/admin': typeof AdminRoute
   '/settings': typeof SettingsRoute
-  '/groups/$slug': typeof GroupsSlugRouteWithChildren
-  '/present/$slug': typeof PresentSlugRoute
-  '/users/$username': typeof UsersUsernameRoute
-  '/groups/$slug/activity': typeof GroupsSlugActivityRoute
-  '/groups/$slug/leaderboard': typeof GroupsSlugLeaderboardRoute
-  '/groups/$slug/merge-requests': typeof GroupsSlugMergeRequestsRoute
-  '/groups/$slug/repo': typeof GroupsSlugRepoRoute
-  '/groups/$slug/wiki': typeof GroupsSlugWikiRoute
-  '/groups/$slug/work-items': typeof GroupsSlugWorkItemsRoute
-  '/groups/$slug/': typeof GroupsSlugIndexRoute
+  '/$rootSlug/$groupSlug': typeof RootSlugGroupSlugRouteWithChildren
+  '/$rootSlug/': typeof RootSlugIndexRoute
+  '/$rootSlug/$groupSlug/activity': typeof RootSlugGroupSlugActivityRoute
+  '/$rootSlug/$groupSlug/leaderboard': typeof RootSlugGroupSlugLeaderboardRoute
+  '/$rootSlug/$groupSlug/merge-requests': typeof RootSlugGroupSlugMergeRequestsRoute
+  '/$rootSlug/$groupSlug/present': typeof RootSlugGroupSlugPresentRoute
+  '/$rootSlug/$groupSlug/repo': typeof RootSlugGroupSlugRepoRoute
+  '/$rootSlug/$groupSlug/wiki': typeof RootSlugGroupSlugWikiRoute
+  '/$rootSlug/$groupSlug/work-items': typeof RootSlugGroupSlugWorkItemsRoute
+  '/$rootSlug/users/$username': typeof RootSlugUsersUsernameRoute
+  '/$rootSlug/$groupSlug/': typeof RootSlugGroupSlugIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/$rootSlug'
+    | '/admin'
     | '/settings'
-    | '/groups/$slug'
-    | '/present/$slug'
-    | '/users/$username'
-    | '/groups/$slug/activity'
-    | '/groups/$slug/leaderboard'
-    | '/groups/$slug/merge-requests'
-    | '/groups/$slug/repo'
-    | '/groups/$slug/wiki'
-    | '/groups/$slug/work-items'
-    | '/groups/$slug/'
+    | '/$rootSlug/$groupSlug'
+    | '/$rootSlug/'
+    | '/$rootSlug/$groupSlug/activity'
+    | '/$rootSlug/$groupSlug/leaderboard'
+    | '/$rootSlug/$groupSlug/merge-requests'
+    | '/$rootSlug/$groupSlug/present'
+    | '/$rootSlug/$groupSlug/repo'
+    | '/$rootSlug/$groupSlug/wiki'
+    | '/$rootSlug/$groupSlug/work-items'
+    | '/$rootSlug/users/$username'
+    | '/$rootSlug/$groupSlug/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/admin'
     | '/settings'
-    | '/present/$slug'
-    | '/users/$username'
-    | '/groups/$slug/activity'
-    | '/groups/$slug/leaderboard'
-    | '/groups/$slug/merge-requests'
-    | '/groups/$slug/repo'
-    | '/groups/$slug/wiki'
-    | '/groups/$slug/work-items'
-    | '/groups/$slug'
+    | '/$rootSlug'
+    | '/$rootSlug/$groupSlug/activity'
+    | '/$rootSlug/$groupSlug/leaderboard'
+    | '/$rootSlug/$groupSlug/merge-requests'
+    | '/$rootSlug/$groupSlug/present'
+    | '/$rootSlug/$groupSlug/repo'
+    | '/$rootSlug/$groupSlug/wiki'
+    | '/$rootSlug/$groupSlug/work-items'
+    | '/$rootSlug/users/$username'
+    | '/$rootSlug/$groupSlug'
   id:
     | '__root__'
     | '/'
+    | '/$rootSlug'
+    | '/admin'
     | '/settings'
-    | '/groups/$slug'
-    | '/present/$slug'
-    | '/users/$username'
-    | '/groups/$slug/activity'
-    | '/groups/$slug/leaderboard'
-    | '/groups/$slug/merge-requests'
-    | '/groups/$slug/repo'
-    | '/groups/$slug/wiki'
-    | '/groups/$slug/work-items'
-    | '/groups/$slug/'
+    | '/$rootSlug/$groupSlug'
+    | '/$rootSlug/'
+    | '/$rootSlug/$groupSlug/activity'
+    | '/$rootSlug/$groupSlug/leaderboard'
+    | '/$rootSlug/$groupSlug/merge-requests'
+    | '/$rootSlug/$groupSlug/present'
+    | '/$rootSlug/$groupSlug/repo'
+    | '/$rootSlug/$groupSlug/wiki'
+    | '/$rootSlug/$groupSlug/work-items'
+    | '/$rootSlug/users/$username'
+    | '/$rootSlug/$groupSlug/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  RootSlugRoute: typeof RootSlugRouteWithChildren
+  AdminRoute: typeof AdminRoute
   SettingsRoute: typeof SettingsRoute
-  GroupsSlugRoute: typeof GroupsSlugRouteWithChildren
-  PresentSlugRoute: typeof PresentSlugRoute
-  UsersUsernameRoute: typeof UsersUsernameRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -186,6 +224,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/$rootSlug': {
+      id: '/$rootSlug'
+      path: '/$rootSlug'
+      fullPath: '/$rootSlug'
+      preLoaderRoute: typeof RootSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
@@ -193,109 +245,132 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/groups/$slug': {
-      id: '/groups/$slug'
-      path: '/groups/$slug'
-      fullPath: '/groups/$slug'
-      preLoaderRoute: typeof GroupsSlugRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/present/$slug': {
-      id: '/present/$slug'
-      path: '/present/$slug'
-      fullPath: '/present/$slug'
-      preLoaderRoute: typeof PresentSlugRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/users/$username': {
-      id: '/users/$username'
-      path: '/users/$username'
-      fullPath: '/users/$username'
-      preLoaderRoute: typeof UsersUsernameRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/groups/$slug/': {
-      id: '/groups/$slug/'
+    '/$rootSlug/': {
+      id: '/$rootSlug/'
       path: '/'
-      fullPath: '/groups/$slug/'
-      preLoaderRoute: typeof GroupsSlugIndexRouteImport
-      parentRoute: typeof GroupsSlugRoute
+      fullPath: '/$rootSlug/'
+      preLoaderRoute: typeof RootSlugIndexRouteImport
+      parentRoute: typeof RootSlugRoute
     }
-    '/groups/$slug/activity': {
-      id: '/groups/$slug/activity'
+    '/$rootSlug/$groupSlug': {
+      id: '/$rootSlug/$groupSlug'
+      path: '/$groupSlug'
+      fullPath: '/$rootSlug/$groupSlug'
+      preLoaderRoute: typeof RootSlugGroupSlugRouteImport
+      parentRoute: typeof RootSlugRoute
+    }
+    '/$rootSlug/$groupSlug/': {
+      id: '/$rootSlug/$groupSlug/'
+      path: '/'
+      fullPath: '/$rootSlug/$groupSlug/'
+      preLoaderRoute: typeof RootSlugGroupSlugIndexRouteImport
+      parentRoute: typeof RootSlugGroupSlugRoute
+    }
+    '/$rootSlug/$groupSlug/activity': {
+      id: '/$rootSlug/$groupSlug/activity'
       path: '/activity'
-      fullPath: '/groups/$slug/activity'
-      preLoaderRoute: typeof GroupsSlugActivityRouteImport
-      parentRoute: typeof GroupsSlugRoute
+      fullPath: '/$rootSlug/$groupSlug/activity'
+      preLoaderRoute: typeof RootSlugGroupSlugActivityRouteImport
+      parentRoute: typeof RootSlugGroupSlugRoute
     }
-    '/groups/$slug/leaderboard': {
-      id: '/groups/$slug/leaderboard'
+    '/$rootSlug/$groupSlug/leaderboard': {
+      id: '/$rootSlug/$groupSlug/leaderboard'
       path: '/leaderboard'
-      fullPath: '/groups/$slug/leaderboard'
-      preLoaderRoute: typeof GroupsSlugLeaderboardRouteImport
-      parentRoute: typeof GroupsSlugRoute
+      fullPath: '/$rootSlug/$groupSlug/leaderboard'
+      preLoaderRoute: typeof RootSlugGroupSlugLeaderboardRouteImport
+      parentRoute: typeof RootSlugGroupSlugRoute
     }
-    '/groups/$slug/merge-requests': {
-      id: '/groups/$slug/merge-requests'
+    '/$rootSlug/$groupSlug/merge-requests': {
+      id: '/$rootSlug/$groupSlug/merge-requests'
       path: '/merge-requests'
-      fullPath: '/groups/$slug/merge-requests'
-      preLoaderRoute: typeof GroupsSlugMergeRequestsRouteImport
-      parentRoute: typeof GroupsSlugRoute
+      fullPath: '/$rootSlug/$groupSlug/merge-requests'
+      preLoaderRoute: typeof RootSlugGroupSlugMergeRequestsRouteImport
+      parentRoute: typeof RootSlugGroupSlugRoute
     }
-    '/groups/$slug/repo': {
-      id: '/groups/$slug/repo'
+    '/$rootSlug/$groupSlug/present': {
+      id: '/$rootSlug/$groupSlug/present'
+      path: '/present'
+      fullPath: '/$rootSlug/$groupSlug/present'
+      preLoaderRoute: typeof RootSlugGroupSlugPresentRouteImport
+      parentRoute: typeof RootSlugGroupSlugRoute
+    }
+    '/$rootSlug/$groupSlug/repo': {
+      id: '/$rootSlug/$groupSlug/repo'
       path: '/repo'
-      fullPath: '/groups/$slug/repo'
-      preLoaderRoute: typeof GroupsSlugRepoRouteImport
-      parentRoute: typeof GroupsSlugRoute
+      fullPath: '/$rootSlug/$groupSlug/repo'
+      preLoaderRoute: typeof RootSlugGroupSlugRepoRouteImport
+      parentRoute: typeof RootSlugGroupSlugRoute
     }
-    '/groups/$slug/wiki': {
-      id: '/groups/$slug/wiki'
+    '/$rootSlug/$groupSlug/wiki': {
+      id: '/$rootSlug/$groupSlug/wiki'
       path: '/wiki'
-      fullPath: '/groups/$slug/wiki'
-      preLoaderRoute: typeof GroupsSlugWikiRouteImport
-      parentRoute: typeof GroupsSlugRoute
+      fullPath: '/$rootSlug/$groupSlug/wiki'
+      preLoaderRoute: typeof RootSlugGroupSlugWikiRouteImport
+      parentRoute: typeof RootSlugGroupSlugRoute
     }
-    '/groups/$slug/work-items': {
-      id: '/groups/$slug/work-items'
+    '/$rootSlug/$groupSlug/work-items': {
+      id: '/$rootSlug/$groupSlug/work-items'
       path: '/work-items'
-      fullPath: '/groups/$slug/work-items'
-      preLoaderRoute: typeof GroupsSlugWorkItemsRouteImport
-      parentRoute: typeof GroupsSlugRoute
+      fullPath: '/$rootSlug/$groupSlug/work-items'
+      preLoaderRoute: typeof RootSlugGroupSlugWorkItemsRouteImport
+      parentRoute: typeof RootSlugGroupSlugRoute
+    }
+    '/$rootSlug/users/$username': {
+      id: '/$rootSlug/users/$username'
+      path: '/users/$username'
+      fullPath: '/$rootSlug/users/$username'
+      preLoaderRoute: typeof RootSlugUsersUsernameRouteImport
+      parentRoute: typeof RootSlugRoute
     }
   }
 }
 
-interface GroupsSlugRouteChildren {
-  GroupsSlugActivityRoute: typeof GroupsSlugActivityRoute
-  GroupsSlugLeaderboardRoute: typeof GroupsSlugLeaderboardRoute
-  GroupsSlugMergeRequestsRoute: typeof GroupsSlugMergeRequestsRoute
-  GroupsSlugRepoRoute: typeof GroupsSlugRepoRoute
-  GroupsSlugWikiRoute: typeof GroupsSlugWikiRoute
-  GroupsSlugWorkItemsRoute: typeof GroupsSlugWorkItemsRoute
-  GroupsSlugIndexRoute: typeof GroupsSlugIndexRoute
+interface RootSlugGroupSlugRouteChildren {
+  RootSlugGroupSlugActivityRoute: typeof RootSlugGroupSlugActivityRoute
+  RootSlugGroupSlugLeaderboardRoute: typeof RootSlugGroupSlugLeaderboardRoute
+  RootSlugGroupSlugMergeRequestsRoute: typeof RootSlugGroupSlugMergeRequestsRoute
+  RootSlugGroupSlugPresentRoute: typeof RootSlugGroupSlugPresentRoute
+  RootSlugGroupSlugRepoRoute: typeof RootSlugGroupSlugRepoRoute
+  RootSlugGroupSlugWikiRoute: typeof RootSlugGroupSlugWikiRoute
+  RootSlugGroupSlugWorkItemsRoute: typeof RootSlugGroupSlugWorkItemsRoute
+  RootSlugGroupSlugIndexRoute: typeof RootSlugGroupSlugIndexRoute
 }
 
-const GroupsSlugRouteChildren: GroupsSlugRouteChildren = {
-  GroupsSlugActivityRoute: GroupsSlugActivityRoute,
-  GroupsSlugLeaderboardRoute: GroupsSlugLeaderboardRoute,
-  GroupsSlugMergeRequestsRoute: GroupsSlugMergeRequestsRoute,
-  GroupsSlugRepoRoute: GroupsSlugRepoRoute,
-  GroupsSlugWikiRoute: GroupsSlugWikiRoute,
-  GroupsSlugWorkItemsRoute: GroupsSlugWorkItemsRoute,
-  GroupsSlugIndexRoute: GroupsSlugIndexRoute,
+const RootSlugGroupSlugRouteChildren: RootSlugGroupSlugRouteChildren = {
+  RootSlugGroupSlugActivityRoute: RootSlugGroupSlugActivityRoute,
+  RootSlugGroupSlugLeaderboardRoute: RootSlugGroupSlugLeaderboardRoute,
+  RootSlugGroupSlugMergeRequestsRoute: RootSlugGroupSlugMergeRequestsRoute,
+  RootSlugGroupSlugPresentRoute: RootSlugGroupSlugPresentRoute,
+  RootSlugGroupSlugRepoRoute: RootSlugGroupSlugRepoRoute,
+  RootSlugGroupSlugWikiRoute: RootSlugGroupSlugWikiRoute,
+  RootSlugGroupSlugWorkItemsRoute: RootSlugGroupSlugWorkItemsRoute,
+  RootSlugGroupSlugIndexRoute: RootSlugGroupSlugIndexRoute,
 }
 
-const GroupsSlugRouteWithChildren = GroupsSlugRoute._addFileChildren(
-  GroupsSlugRouteChildren,
+const RootSlugGroupSlugRouteWithChildren =
+  RootSlugGroupSlugRoute._addFileChildren(RootSlugGroupSlugRouteChildren)
+
+interface RootSlugRouteChildren {
+  RootSlugGroupSlugRoute: typeof RootSlugGroupSlugRouteWithChildren
+  RootSlugIndexRoute: typeof RootSlugIndexRoute
+  RootSlugUsersUsernameRoute: typeof RootSlugUsersUsernameRoute
+}
+
+const RootSlugRouteChildren: RootSlugRouteChildren = {
+  RootSlugGroupSlugRoute: RootSlugGroupSlugRouteWithChildren,
+  RootSlugIndexRoute: RootSlugIndexRoute,
+  RootSlugUsersUsernameRoute: RootSlugUsersUsernameRoute,
+}
+
+const RootSlugRouteWithChildren = RootSlugRoute._addFileChildren(
+  RootSlugRouteChildren,
 )
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  RootSlugRoute: RootSlugRouteWithChildren,
+  AdminRoute: AdminRoute,
   SettingsRoute: SettingsRoute,
-  GroupsSlugRoute: GroupsSlugRouteWithChildren,
-  PresentSlugRoute: PresentSlugRoute,
-  UsersUsernameRoute: UsersUsernameRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

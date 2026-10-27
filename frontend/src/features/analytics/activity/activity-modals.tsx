@@ -5,36 +5,49 @@ import { WorkItemModal, type WorkItemModalData } from '@/features/work-items/wor
 import { MergeRequestModal, type MergeRequestModalData } from '@/features/merge-requests/mr-modal'
 import type { components } from '@/lib/api/schema'
 
+import { useTenant } from '@/features/tenant/tenant-context'
+import { apiKeys } from '@/lib/api/keys'
+
 type GroupActivityItem = components['schemas']['GroupActivityItem']
 
 export function ActivityModals({
   selectedTarget,
   slug,
+  rootSlug: propRootSlug,
   onClose,
 }: {
   selectedTarget: GroupActivityItem | null
-  slug: string
+  slug?: string
+  rootSlug?: string
   onClose: () => void
 }) {
+  const tenant = useTenant()
+  const effectiveRootSlug = propRootSlug || tenant.rootSlug
+  const effectiveGroupSlug = slug || tenant.groupSlug || ''
+
   const isWi = selectedTarget?.target_type === 'work_item'
   const isMr = selectedTarget?.target_type === 'merge_request'
 
   const { data: workItems } = useQuery({
-    queryKey: ['group-work-items', slug],
+    queryKey: apiKeys.rootWorkItems(effectiveRootSlug, effectiveGroupSlug),
     queryFn: async () => {
-      const { data } = await apiClient.GET('/api/groups/{slug}/work-items', { params: { path: { slug } } })
+      const { data } = await apiClient.GET('/api/{root_slug}/groups/{group_slug}/work-items', {
+        params: { path: { root_slug: effectiveRootSlug, group_slug: effectiveGroupSlug } },
+      })
       return (data || []) as WorkItemModalData[]
     },
-    enabled: isWi,
+    enabled: isWi && Boolean(effectiveRootSlug && effectiveGroupSlug),
   })
 
   const { data: mergeRequests } = useQuery({
-    queryKey: ['group-merge-requests', slug],
+    queryKey: apiKeys.rootMergeRequests(effectiveRootSlug, effectiveGroupSlug),
     queryFn: async () => {
-      const { data } = await apiClient.GET('/api/groups/{slug}/merge-requests', { params: { path: { slug } } })
+      const { data } = await apiClient.GET('/api/{root_slug}/groups/{group_slug}/merge-requests', {
+        params: { path: { root_slug: effectiveRootSlug, group_slug: effectiveGroupSlug } },
+      })
       return (data || []) as MergeRequestModalData[]
     },
-    enabled: isMr,
+    enabled: isMr && Boolean(effectiveRootSlug && effectiveGroupSlug),
   })
 
   const activeWorkItem = React.useMemo<WorkItemModalData | null>(() => {
@@ -64,7 +77,7 @@ export function ActivityModals({
       id: selectedTarget.target_id,
       iid: selectedTarget.target_iid ?? 0,
       title: selectedTarget.target_title,
-      project_path: slug,
+      project_path: slug || '',
       state: 'opened',
       author_username: selectedTarget.author_username || 'unknown',
       source_branch: 'unknown',

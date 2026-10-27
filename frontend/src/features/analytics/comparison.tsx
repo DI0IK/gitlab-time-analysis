@@ -27,7 +27,12 @@ import type { components } from '@/lib/api/schema'
 
 type GroupComparisonSummary = components['schemas']['GroupComparisonSummary']
 
-export function ComparisonView() {
+import { useTenant } from '@/features/tenant/tenant-context'
+
+export function ComparisonView({ rootSlug: propRootSlug }: { rootSlug?: string } = {}) {
+  const tenant = useTenant()
+  const effectiveRootSlug = propRootSlug || tenant.rootSlug
+
   const [search, setSearch] = useState('')
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set())
@@ -41,13 +46,25 @@ export function ComparisonView() {
   })
 
   const { data: groups } = useQuery({
-    queryKey: apiKeys.groups,
-    queryFn: async () => (await apiClient.GET('/api/groups')).data,
+    queryKey: apiKeys.rootGroups(effectiveRootSlug),
+    queryFn: async () => {
+      const res = await apiClient.GET('/api/{root_slug}/groups', {
+        params: { path: { root_slug: effectiveRootSlug } },
+      })
+      return res.data
+    },
+    enabled: Boolean(effectiveRootSlug),
   })
 
   const { data: comparison } = useQuery({
-    queryKey: apiKeys.comparison,
-    queryFn: async () => (await apiClient.GET('/api/comparison')).data,
+    queryKey: apiKeys.rootComparison(effectiveRootSlug),
+    queryFn: async () => {
+      const res = await apiClient.GET('/api/{root_slug}/comparison', {
+        params: { path: { root_slug: effectiveRootSlug } },
+      })
+      return res.data
+    },
+    enabled: Boolean(effectiveRootSlug),
   })
 
   const comparisonMap = useMemo(() => {
@@ -263,6 +280,7 @@ function TreeNodeItem({
   toggleExpand,
   comparisonMap,
 }: TreeNodeItemProps) {
+  const { rootSlug } = useTenant()
   const hasChildren = node.children.length > 0
   const isRoot = level === 0
   const isExpanded = isSearching
@@ -355,7 +373,7 @@ function TreeNodeItem({
             </div>
           )}
 
-          <Link to="/groups/$slug" params={{ slug: node.slug }}>
+          <Link to="/$rootSlug/$groupSlug" params={{ rootSlug, groupSlug: node.slug }}>
             <Button size="sm" variant={isRoot ? 'glass' : 'outline'} className="gap-1.5 text-xs h-8">
               Inspect Analytics
               <ArrowRight className="h-3.5 w-3.5" />

@@ -6,23 +6,35 @@ import { MessageSquare, RefreshCw, Search } from 'lucide-react'
 import type { components } from '@/lib/api/schema'
 import { NoteCard } from './note-card'
 
+import { useTenant } from '@/features/tenant/tenant-context'
+import { apiKeys } from '@/lib/api/keys'
+
 type ItemNoteRecord = components['schemas']['ItemNoteRecord']
 
 export function ItemDiscussionThread({
   workItemId,
   mergeRequestId,
+  rootSlug: propRootSlug,
 }: {
   workItemId?: string
   mergeRequestId?: string
+  rootSlug?: string
 }) {
+  const tenant = useTenant()
+  const effectiveRootSlug = propRootSlug || tenant.rootSlug
+
   const [filter, setFilter] = React.useState<'all' | 'comments' | 'activity'>('all')
   const [search, setSearch] = React.useState('')
 
+  const itemType = workItemId ? 'work_item' : 'merge_request'
+  const itemId = workItemId || mergeRequestId || ''
+
   const { data: notes, isLoading, error, refetch, isFetching } = useQuery({
-    queryKey: ['item-notes', workItemId, mergeRequestId],
+    queryKey: apiKeys.rootNotes(effectiveRootSlug, itemType, itemId),
     queryFn: async () => {
-      const { data, error } = await apiClient.GET('/api/notes', {
+      const { data, error } = await apiClient.GET('/api/{root_slug}/notes', {
         params: {
+          path: { root_slug: effectiveRootSlug },
           query: {
             work_item_id: workItemId,
             merge_request_id: mergeRequestId,
@@ -34,7 +46,7 @@ export function ItemDiscussionThread({
       }
       return data as ItemNoteRecord[]
     },
-    enabled: Boolean(workItemId || mergeRequestId),
+    enabled: Boolean(effectiveRootSlug && (workItemId || mergeRequestId)),
   })
 
   if (isLoading) {

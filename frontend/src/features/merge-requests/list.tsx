@@ -8,20 +8,44 @@ import { GitPullRequest, GitMerge, ExternalLink, RefreshCw, GitBranch, MessageSq
 import { getRelativePath, formatStatus } from '@/lib/format'
 import { MergeRequestModal, type MergeRequestModalData } from './mr-modal'
 
-export function MergeRequestsView({ slug }: { slug: string }) {
+import { useTenant } from '@/features/tenant/tenant-context'
+import { apiKeys } from '@/lib/api/keys'
+
+export function MergeRequestsView({
+  slug,
+  rootSlug: propRootSlug,
+  groupSlug: propGroupSlug,
+}: {
+  slug?: string
+  rootSlug?: string
+  groupSlug?: string
+}) {
+  const tenant = useTenant()
+  const effectiveRootSlug = propRootSlug || tenant.rootSlug
+  const effectiveGroupSlug = propGroupSlug || slug || tenant.groupSlug || ''
+
   const [stateFilter, setStateFilter] = React.useState<string>('all')
   const [search, setSearch] = React.useState('')
   const [selectedMr, setSelectedMr] = React.useState<MergeRequestModalData | null>(null)
 
   const { data, isLoading, error, refetch, isFetching } = useQuery({
-    queryKey: ['merge-requests', slug],
+    queryKey: apiKeys.rootMergeRequests(effectiveRootSlug, effectiveGroupSlug),
     queryFn: async () => {
-      const { data, error } = await apiClient.GET('/api/groups/{slug}/merge-requests', {
-        params: { path: { slug } },
-      })
+      const { data, error } = await apiClient.GET(
+        '/api/{root_slug}/groups/{group_slug}/merge-requests',
+        {
+          params: {
+            path: {
+              root_slug: effectiveRootSlug,
+              group_slug: effectiveGroupSlug,
+            },
+          },
+        }
+      )
       if (error || !data) throw new Error('Failed to load merge requests')
       return data as MergeRequestModalData[]
     },
+    enabled: Boolean(effectiveRootSlug && effectiveGroupSlug),
   })
 
   const filtered = (data || []).filter((mr) => {

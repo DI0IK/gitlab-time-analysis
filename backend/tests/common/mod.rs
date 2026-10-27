@@ -25,6 +25,7 @@ pub async fn setup_test_state() -> (AppState, SqlitePool) {
         gitlab_oauth_scopes: "read_user".to_string(),
         repos_dir: "data/repos".to_string(),
         session_secret: "test-secret-at-least-32-bytes-long!".to_string(),
+        initial_admin_usernames: Vec::new(),
     });
     config.database_url = "sqlite::memory:".to_string();
 

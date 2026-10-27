@@ -14,6 +14,7 @@ pub struct UserRecord {
     pub avatar_url: Option<String>,
     pub web_url: String,
     pub is_bot: bool,
+    pub is_admin: bool,
     pub created_at: Option<DateTime<Utc>>,
     pub updated_at: Option<DateTime<Utc>>,
 }
@@ -46,7 +47,7 @@ pub async fn upsert_user(
             web_url = excluded.web_url,
             is_bot = excluded.is_bot,
             updated_at = CURRENT_TIMESTAMP
-        RETURNING gitlab_id, username, name, custom_display_name, avatar_url, web_url, is_bot, created_at, updated_at
+        RETURNING gitlab_id, username, name, custom_display_name, avatar_url, web_url, is_bot, is_admin, created_at, updated_at
         "#,
     )
     .bind(gitlab_id)
@@ -67,7 +68,7 @@ pub async fn get_user_by_id(
 ) -> Result<Option<UserRecord>, AppError> {
     let row = sqlx::query_as::<_, UserRecord>(
         r#"
-        SELECT gitlab_id, username, name, custom_display_name, avatar_url, web_url, is_bot, created_at, updated_at
+        SELECT gitlab_id, username, name, custom_display_name, avatar_url, web_url, is_bot, is_admin, created_at, updated_at
         FROM users
         WHERE gitlab_id = ?1
         "#,
@@ -85,7 +86,7 @@ pub async fn get_user_by_username(
 ) -> Result<Option<UserRecord>, AppError> {
     let row = sqlx::query_as::<_, UserRecord>(
         r#"
-        SELECT gitlab_id, username, name, custom_display_name, avatar_url, web_url, is_bot, created_at, updated_at
+        SELECT gitlab_id, username, name, custom_display_name, avatar_url, web_url, is_bot, is_admin, created_at, updated_at
         FROM users
         WHERE username = ?1
         "#,
@@ -95,6 +96,49 @@ pub async fn get_user_by_username(
     .await?;
 
     Ok(row)
+}
+
+pub async fn set_user_admin(
+    pool: &SqlitePool,
+    gitlab_id: &str,
+    is_admin: bool,
+) -> Result<(), AppError> {
+    sqlx::query("UPDATE users SET is_admin = ?1, updated_at = CURRENT_TIMESTAMP WHERE gitlab_id = ?2")
+        .bind(is_admin)
+        .bind(gitlab_id)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
+pub async fn set_user_admin_by_username(
+    pool: &SqlitePool,
+    username: &str,
+    is_admin: bool,
+) -> Result<(), AppError> {
+    let result = sqlx::query("UPDATE users SET is_admin = ?1, updated_at = CURRENT_TIMESTAMP WHERE username = ?2")
+        .bind(is_admin)
+        .bind(username)
+        .execute(pool)
+        .await?;
+    if result.rows_affected() == 0 {
+        return Err(AppError::NotFound(format!("User '{username}' not found")));
+    }
+    Ok(())
+}
+
+pub async fn count_users(pool: &SqlitePool) -> Result<i64, AppError> {
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users")
+        .fetch_one(pool)
+        .await?;
+    Ok(count)
+}
+
+pub async fn count_admin_users(pool: &SqlitePool) -> Result<i64, AppError> {
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users WHERE is_admin = 1")
+        .fetch_one(pool)
+        .await?;
+    Ok(count)
 }
 
 pub async fn update_custom_display_name(
@@ -107,7 +151,7 @@ pub async fn update_custom_display_name(
         UPDATE users
         SET custom_display_name = ?1, updated_at = CURRENT_TIMESTAMP
         WHERE username = ?2
-        RETURNING gitlab_id, username, name, custom_display_name, avatar_url, web_url, is_bot, created_at, updated_at
+        RETURNING gitlab_id, username, name, custom_display_name, avatar_url, web_url, is_bot, is_admin, created_at, updated_at
         "#,
     )
     .bind(custom_display_name)
@@ -122,7 +166,7 @@ pub async fn update_custom_display_name(
 pub async fn get_all_users(pool: &SqlitePool) -> Result<Vec<UserRecord>, AppError> {
     let rows = sqlx::query_as::<_, UserRecord>(
         r#"
-        SELECT gitlab_id, username, name, custom_display_name, avatar_url, web_url, is_bot, created_at, updated_at
+        SELECT gitlab_id, username, name, custom_display_name, avatar_url, web_url, is_bot, is_admin, created_at, updated_at
         FROM users
         ORDER BY username ASC
         "#,

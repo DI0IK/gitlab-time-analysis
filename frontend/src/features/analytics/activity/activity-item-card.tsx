@@ -5,6 +5,7 @@ import { getAvatarUrl } from '@/lib/avatar'
 import { ExternalLink } from 'lucide-react'
 import type { components } from '@/lib/api/schema'
 import { formatTimeAgo, getActivityIcon } from './activity-helpers'
+import { useTenant } from '@/features/tenant/tenant-context'
 
 type GroupActivityItem = components['schemas']['GroupActivityItem']
 
@@ -15,6 +16,7 @@ export function ActivityItemCard({
   item: GroupActivityItem
   onSelectTarget?: (item: GroupActivityItem) => void
 }) {
+  const { rootSlug } = useTenant()
   const authorUsername = item.author_username
   const authorName = item.author_name || authorUsername || 'System'
   const isWi = item.target_type === 'work_item'
@@ -45,8 +47,8 @@ export function ActivityItemCard({
 
           {authorUsername ? (
             <Link
-              to="/users/$username"
-              params={{ username: authorUsername }}
+              to="/$rootSlug/users/$username"
+              params={{ rootSlug, username: authorUsername }}
               className="font-semibold text-foreground hover:underline shrink-0"
             >
               {authorName}

@@ -8,18 +8,50 @@ import { Trophy, RefreshCw, Award } from 'lucide-react'
 import { getAvatarUrl } from '@/lib/avatar'
 import { UserProfileModal } from '@/features/profile/user-profile-modal'
 
-export function LeaderboardView({ slug }: { slug: string }) {
+import { useTenant } from '@/features/tenant/tenant-context'
+import { apiKeys } from '@/lib/api/keys'
+
+export function LeaderboardView({
+  slug,
+  rootSlug: propRootSlug,
+  groupSlug: propGroupSlug,
+}: {
+  slug?: string
+  rootSlug?: string
+  groupSlug?: string
+}) {
+  const tenant = useTenant()
+  const effectiveRootSlug = propRootSlug || tenant.rootSlug
+  const effectiveGroupSlug = propGroupSlug || slug || tenant.groupSlug || ''
+
   const [modalUser, setModalUser] = React.useState<string | null>(null)
 
   const { data, isLoading, error, refetch, isFetching } = useQuery({
-    queryKey: ['leaderboard', slug],
+    queryKey: apiKeys.rootLeaderboard(effectiveRootSlug, effectiveGroupSlug),
     queryFn: async () => {
-      const { data, error } = await apiClient.GET('/api/groups/{slug}/leaderboard', {
-        params: { path: { slug } },
-      })
-      if (error || !data) throw new Error('Failed to load group leaderboard')
-      return data as LeaderboardItem[]
+      if (effectiveGroupSlug) {
+        const { data, error } = await apiClient.GET(
+          '/api/{root_slug}/groups/{group_slug}/leaderboard',
+          {
+            params: {
+              path: {
+                root_slug: effectiveRootSlug,
+                group_slug: effectiveGroupSlug,
+              },
+            },
+          }
+        )
+        if (error || !data) throw new Error('Failed to load group leaderboard')
+        return data as LeaderboardItem[]
+      } else {
+        const { data, error } = await apiClient.GET('/api/{root_slug}/leaderboard', {
+          params: { path: { root_slug: effectiveRootSlug } },
+        })
+        if (error || !data) throw new Error('Failed to load cohort leaderboard')
+        return data as LeaderboardItem[]
+      }
     },
+    enabled: Boolean(effectiveRootSlug),
   })
 
   const items = data || []
