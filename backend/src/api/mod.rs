@@ -113,18 +113,27 @@ pub fn router(state: AppState) -> Router {
         )
         // Multi-Tenant Scoped Notes, Repositories & Wiki
         .route("/:root_slug/notes", get(tenant::get_root_notes))
-        .route("/:root_slug/repo/branches", get(tenant::get_root_repo_branches))
+        .route(
+            "/:root_slug/repo/branches",
+            get(tenant::get_root_repo_branches),
+        )
         .route("/:root_slug/repo/tree", get(tenant::get_root_repo_tree))
         .route("/:root_slug/repo/blob", get(tenant::get_root_repo_blob))
-        .route("/:root_slug/repo/commits", get(tenant::get_root_repo_commits))
-        .route("/:root_slug/repo/sync", post(tenant::trigger_root_repo_sync))
+        .route(
+            "/:root_slug/repo/commits",
+            get(tenant::get_root_repo_commits),
+        )
+        .route(
+            "/:root_slug/repo/sync",
+            post(tenant::trigger_root_repo_sync),
+        )
         .route("/:root_slug/wiki/pages", get(tenant::get_root_wiki_pages))
         .route("/:root_slug/wiki/page", get(tenant::get_root_wiki_page))
-        .route("/:root_slug/wiki/history", get(tenant::get_root_wiki_history))
-        .route_layer(from_fn_with_state(
-            state.clone(),
-            middleware::require_auth,
-        ));
+        .route(
+            "/:root_slug/wiki/history",
+            get(tenant::get_root_wiki_history),
+        )
+        .route_layer(from_fn_with_state(state.clone(), middleware::require_auth));
 
     let api_routes = Router::new()
         .merge(public_routes)

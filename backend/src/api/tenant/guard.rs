@@ -1,6 +1,6 @@
 use crate::{
     db::{
-        groups::{get_group_by_slug, GroupRecord},
+        groups::{GroupRecord, get_group_by_slug},
         managed_root_groups::ManagedRootGroupRecord,
     },
     error::AppError,
@@ -12,7 +12,11 @@ pub fn verify_project_under_root(
     project: &str,
 ) -> Result<(), AppError> {
     let clean_project = project.trim().trim_matches('/').to_lowercase();
-    let root_path = root.gitlab_group_path.trim().trim_matches('/').to_lowercase();
+    let root_path = root
+        .gitlab_group_path
+        .trim()
+        .trim_matches('/')
+        .to_lowercase();
     if clean_project == root_path || clean_project.starts_with(&format!("{root_path}/")) {
         Ok(())
     } else {

@@ -122,13 +122,8 @@ pub async fn get_root_group_dashboard(
 
     let group = resolve_group_under_root(&state.db, &root, &group_slug).await?;
 
-    let dashboard = compute_group_dashboard_scoped(
-        &state.db,
-        &group,
-        Some(&state.config),
-        Some(&root),
-    )
-    .await?;
+    let dashboard =
+        compute_group_dashboard_scoped(&state.db, &group, Some(&state.config), Some(&root)).await?;
 
     if let Ok(serialized) = serde_json::to_string(&dashboard) {
         state.cache.insert(cache_key, serialized).await;

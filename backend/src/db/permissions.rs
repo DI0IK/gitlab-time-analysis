@@ -84,11 +84,7 @@ pub async fn check_user_root_group_access(
     .fetch_one(pool)
     .await?;
 
-    if has_perm {
-        Ok(Some(root))
-    } else {
-        Ok(None)
-    }
+    if has_perm { Ok(Some(root)) } else { Ok(None) }
 }
 
 pub async fn upsert_user_permission(
@@ -163,7 +159,11 @@ pub async fn sync_gitlab_user_permissions(
     let mut granted_count = 0;
 
     for root in all_roots {
-        let root_path_clean = root.gitlab_group_path.trim().trim_matches('/').to_lowercase();
+        let root_path_clean = root
+            .gitlab_group_path
+            .trim()
+            .trim_matches('/')
+            .to_lowercase();
         let matches = user_group_paths.iter().any(|ug| {
             let ug_clean = ug.trim().trim_matches('/').to_lowercase();
             ug_clean == root_path_clean
@@ -198,17 +198,14 @@ pub async fn replace_manual_permissions(
 ) -> Result<(), AppError> {
     // Delete permissions that are not in target_root_group_ids
     if target_root_group_ids.is_empty() {
-        sqlx::query(
-            "DELETE FROM user_group_permissions WHERE user_gitlab_id = ?1",
-        )
-        .bind(user_gitlab_id)
-        .execute(pool)
-        .await?;
+        sqlx::query("DELETE FROM user_group_permissions WHERE user_gitlab_id = ?1")
+            .bind(user_gitlab_id)
+            .execute(pool)
+            .await?;
     } else {
         // Delete ones not in target list
-        let mut builder = sqlx::QueryBuilder::new(
-            "DELETE FROM user_group_permissions WHERE user_gitlab_id = ",
-        );
+        let mut builder =
+            sqlx::QueryBuilder::new("DELETE FROM user_group_permissions WHERE user_gitlab_id = ");
         builder.push_bind(user_gitlab_id);
         builder.push(" AND root_group_id NOT IN (");
         let mut separated = builder.separated(", ");

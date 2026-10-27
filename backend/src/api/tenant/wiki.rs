@@ -35,7 +35,8 @@ pub async fn get_root_wiki_pages(
 ) -> Result<Json<Vec<WikiPageItem>>, AppError> {
     let root = verify_root_access(&state.db, &auth.user, &root_slug).await?;
     verify_project_under_root(&root, &query.project)?;
-    crate::api::wiki::list_wiki_pages(State(state), OptionalAuthUser(Some(auth)), Query(query)).await
+    crate::api::wiki::list_wiki_pages(State(state), OptionalAuthUser(Some(auth)), Query(query))
+        .await
 }
 
 #[utoipa::path(
@@ -83,5 +84,6 @@ pub async fn get_root_wiki_history(
 ) -> Result<Json<Vec<crate::api::repo::RepoCommit>>, AppError> {
     let root = verify_root_access(&state.db, &auth.user, &root_slug).await?;
     verify_project_under_root(&root, &query.project)?;
-    crate::api::wiki::get_wiki_history(State(state), OptionalAuthUser(Some(auth)), Query(query)).await
+    crate::api::wiki::get_wiki_history(State(state), OptionalAuthUser(Some(auth)), Query(query))
+        .await
 }

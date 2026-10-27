@@ -8,8 +8,7 @@ use tower::ServiceExt;
 use gitlab_platform::{
     api,
     db::{
-        managed_root_groups::create_managed_root_group,
-        permissions::check_user_root_group_access,
+        managed_root_groups::create_managed_root_group, permissions::check_user_root_group_access,
         users::set_user_admin,
     },
     ingest::calculate_sprint_dynamic,
@@ -23,15 +22,8 @@ async fn test_dynamic_sprint_calculation() {
     let sprint_duration_weeks = 2; // 2-week sprints
 
     // Day 0: exactly project start -> Sprint 1
-    let day_start = project_start
-        .and_hms_opt(10, 0, 0)
-        .unwrap()
-        .and_utc();
-    let s_start = calculate_sprint_dynamic(
-        day_start,
-        project_start,
-        sprint_duration_weeks,
-    );
+    let day_start = project_start.and_hms_opt(10, 0, 0).unwrap().and_utc();
+    let s_start = calculate_sprint_dynamic(day_start, project_start, sprint_duration_weeks);
     assert_eq!(s_start, Some(1));
 
     // 13 days later (within 14 days): Sprint 1
@@ -131,9 +123,10 @@ async fn test_tenant_permission_checks_and_timeframe_isolation() {
     .await
     .unwrap();
 
-    let has_access_a_after = check_user_root_group_access(&pool, &user.gitlab_id, false, &root_a.slug)
-        .await
-        .unwrap();
+    let has_access_a_after =
+        check_user_root_group_access(&pool, &user.gitlab_id, false, &root_a.slug)
+            .await
+            .unwrap();
     assert!(has_access_a_after.is_some());
 
     let has_access_b = check_user_root_group_access(&pool, &user.gitlab_id, false, &root_b.slug)
@@ -160,9 +153,7 @@ async fn test_tenant_permission_checks_and_timeframe_isolation() {
     assert_eq!(resp.status(), StatusCode::FORBIDDEN);
 
     // 4. Make user platform admin -> gains automatic access to all tenants
-    set_user_admin(&pool, &user.gitlab_id, true)
-        .await
-        .unwrap();
+    set_user_admin(&pool, &user.gitlab_id, true).await.unwrap();
 
     let req = Request::builder()
         .uri("/api/cohort-b/groups")

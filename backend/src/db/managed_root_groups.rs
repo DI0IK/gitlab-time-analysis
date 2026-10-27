@@ -173,7 +173,9 @@ pub async fn update_managed_root_group(
 ) -> Result<ManagedRootGroupRecord, AppError> {
     let current = get_managed_root_group_by_id(pool, id)
         .await?
-        .ok_or_else(|| AppError::NotFound(format!("Managed root group with ID '{id}' not found")))?;
+        .ok_or_else(|| {
+            AppError::NotFound(format!("Managed root group with ID '{id}' not found"))
+        })?;
 
     let new_slug = slug
         .map(|s| s.trim().to_lowercase())

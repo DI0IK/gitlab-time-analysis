@@ -51,19 +51,16 @@ pub async fn sync_group_issues(
                 .as_deref()
                 .and_then(|c| DateTime::parse_from_rfc3339(c).ok())
                 .map(|d| d.with_timezone(&Utc));
-            let due_date = item
-                .due_date
-                .as_deref()
-                .and_then(|d| {
-                    if let Ok(dt) = DateTime::parse_from_rfc3339(d) {
-                        Some(dt.with_timezone(&Utc))
-                    } else {
-                        chrono::NaiveDate::parse_from_str(d, "%Y-%m-%d")
-                            .ok()
-                            .and_then(|nd| nd.and_hms_opt(0, 0, 0))
-                            .map(|dt| dt.and_utc())
-                    }
-                });
+            let due_date = item.due_date.as_deref().and_then(|d| {
+                if let Ok(dt) = DateTime::parse_from_rfc3339(d) {
+                    Some(dt.with_timezone(&Utc))
+                } else {
+                    chrono::NaiveDate::parse_from_str(d, "%Y-%m-%d")
+                        .ok()
+                        .and_then(|nd| nd.and_hms_opt(0, 0, 0))
+                        .map(|dt| dt.and_utc())
+                }
+            });
 
             let mut parent_id = None;
             if let Some(epic) = &item.epic {

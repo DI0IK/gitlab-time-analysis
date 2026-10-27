@@ -35,7 +35,9 @@ pub async fn run_sync_for_path(
 ) -> Result<SyncSummary, AppError> {
     let clean_path = group_path.trim().trim_matches('/');
     if clean_path.is_empty() {
-        return Err(AppError::BadRequest("Target group path cannot be empty".to_string()));
+        return Err(AppError::BadRequest(
+            "Target group path cannot be empty".to_string(),
+        ));
     }
 
     let token = token_override
@@ -114,7 +116,8 @@ pub async fn run_sync(state: &AppState) -> Result<SyncSummary, AppError> {
     .await
     .unwrap_or_default();
 
-    let mut targets_map: std::collections::HashMap<String, Option<String>> = std::collections::HashMap::new();
+    let mut targets_map: std::collections::HashMap<String, Option<String>> =
+        std::collections::HashMap::new();
     for (path, token) in db_targets {
         let clean = path.trim().trim_matches('/').to_string();
         if !clean.is_empty() {
@@ -170,7 +173,10 @@ pub async fn run_sync(state: &AppState) -> Result<SyncSummary, AppError> {
             if token.is_empty() { None } else { Some(token) },
         );
 
-        tracing::info!("Starting GitLab singular sync for root path: {}", target_path);
+        tracing::info!(
+            "Starting GitLab singular sync for root path: {}",
+            target_path
+        );
 
         // 1. Sync group hierarchy & members for this root group
         match sync_group_hierarchy(&client, state, &target_path).await {
@@ -178,22 +184,16 @@ pub async fn run_sync(state: &AppState) -> Result<SyncSummary, AppError> {
                 total_groups_synced += group_ids.len();
             }
             Err(e) => {
-                tracing::error!(
-                    "Failed to sync group hierarchy for {}: {e}",
-                    target_path
-                );
+                tracing::error!("Failed to sync group hierarchy for {}: {e}", target_path);
                 continue;
             }
         }
 
         // 2. Sync all projects under this root group hierarchy
-        match crate::ingest::sync_projects::sync_group_projects(&client, state, &target_path).await {
+        match crate::ingest::sync_projects::sync_group_projects(&client, state, &target_path).await
+        {
             Ok(project_ids) => {
-                tracing::info!(
-                    "Synced {} projects for {}",
-                    project_ids.len(),
-                    target_path
-                );
+                tracing::info!("Synced {} projects for {}", project_ids.len(), target_path);
             }
             Err(e) => {
                 tracing::error!("Failed to sync projects for {}: {e}", target_path);

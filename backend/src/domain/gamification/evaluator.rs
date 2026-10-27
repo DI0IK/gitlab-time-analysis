@@ -164,7 +164,14 @@ pub async fn fetch_user_contribution_stats_scoped(
     }
     let streak_days = active_days.len() as u32;
 
-    let (merged_mrs_count, reviews_count, closed_wi_count, max_closed_est_secs, total_closed_est_secs, sharp_shooter_count) = if let Some(mr) = managed_root {
+    let (
+        merged_mrs_count,
+        reviews_count,
+        closed_wi_count,
+        max_closed_est_secs,
+        total_closed_est_secs,
+        sharp_shooter_count,
+    ) = if let Some(mr) = managed_root {
         let prefix = format!("{}/%", mr.gitlab_group_path.trim_matches('/'));
         let exact = mr.gitlab_group_path.trim_matches('/').to_string();
 
@@ -431,7 +438,8 @@ pub async fn evaluate_user_gamification_scoped(
         .await?
         .ok_or_else(|| AppError::NotFound(format!("User '{username}' not found")))?;
 
-    let (stats, _timelogs) = fetch_user_contribution_stats_scoped(pool, username, managed_root).await?;
+    let (stats, _timelogs) =
+        fetch_user_contribution_stats_scoped(pool, username, managed_root).await?;
     let (unlocked, _all_progress, badge_xp) = evaluate_badges_progress(&stats);
 
     let base_xp = (stats.total_hours * 10.0) as u64 + (stats.timelog_count as u64 * 2);
@@ -510,7 +518,8 @@ pub async fn compute_leaderboard_scoped(
     let mut entries = Vec::new();
     for uname in usernames {
         if let Ok(eval) = evaluate_user_gamification_scoped(pool, &uname, managed_root).await {
-            if managed_root.is_some() && eval.total_seconds == 0 && eval.unlocked_badges.is_empty() {
+            if managed_root.is_some() && eval.total_seconds == 0 && eval.unlocked_badges.is_empty()
+            {
                 // If scoped to a semester and user has no tracked time in this semester, skip from leaderboard
                 continue;
             }

@@ -231,7 +231,12 @@ mod tests {
             cmd.current_dir(&tmp);
             cmd.args(args);
             let res = cmd.output().expect("run git command");
-            assert!(res.status.success(), "git {:?} failed: {:?}", args, String::from_utf8_lossy(&res.stderr));
+            assert!(
+                res.status.success(),
+                "git {:?} failed: {:?}",
+                args,
+                String::from_utf8_lossy(&res.stderr)
+            );
         };
 
         run_git(&["init"]);
@@ -240,37 +245,59 @@ mod tests {
         run_git(&["config", "commit.gpgsign", "false"]);
 
         fs::write(tmp.join("home.md"), "# Welcome Home\n\nWiki home page.").expect("write home.md");
-        fs::write(tmp.join("🚀-Roadmap.md"), "# Product Roadmap\n\nMilestones and goals.").expect("write emoji file 1");
-        fs::write(tmp.join("01-📋-Tasks.md"), "# Task List\n\nAction items.").expect("write emoji file 2");
+        fs::write(
+            tmp.join("🚀-Roadmap.md"),
+            "# Product Roadmap\n\nMilestones and goals.",
+        )
+        .expect("write emoji file 1");
+        fs::write(tmp.join("01-📋-Tasks.md"), "# Task List\n\nAction items.")
+            .expect("write emoji file 2");
 
         let docs_dir = tmp.join("docs");
         fs::create_dir_all(&docs_dir).expect("create docs dir");
-        fs::write(docs_dir.join("🎉-Release.md"), "# Release Notes\n\nV1 launch.").expect("write emoji file 3");
+        fs::write(
+            docs_dir.join("🎉-Release.md"),
+            "# Release Notes\n\nV1 launch.",
+        )
+        .expect("write emoji file 3");
 
         run_git(&["add", "."]);
         run_git(&["commit", "-m", "initial wiki commit"]);
 
         // 1. Test listing
-        let pages = list_local_wiki_pages(&tmp.join(".git"), None).await.expect("list pages");
-        assert_eq!(pages.len(), 4, "Expected 4 pages including emoji files, got: {:?}", pages);
+        let pages = list_local_wiki_pages(&tmp.join(".git"), None)
+            .await
+            .expect("list pages");
+        assert_eq!(
+            pages.len(),
+            4,
+            "Expected 4 pages including emoji files, got: {:?}",
+            pages
+        );
 
         let slugs: Vec<&str> = pages.iter().map(|p| p.slug.as_str()).collect();
         assert_eq!(slugs[0], "home", "Home page should be first");
         assert!(slugs.contains(&"🚀-Roadmap"), "Should contain 🚀-Roadmap");
         assert!(slugs.contains(&"01-📋-Tasks"), "Should contain 01-📋-Tasks");
-        assert!(slugs.contains(&"docs/🎉-Release"), "Should contain docs/🎉-Release");
+        assert!(
+            slugs.contains(&"docs/🎉-Release"),
+            "Should contain docs/🎉-Release"
+        );
 
         // 2. Test reading emoji page
-        let page = get_local_wiki_page(&tmp.join(".git"), "🚀-Roadmap", None).await.expect("get emoji page");
+        let page = get_local_wiki_page(&tmp.join(".git"), "🚀-Roadmap", None)
+            .await
+            .expect("get emoji page");
         assert_eq!(page.title, "Product Roadmap");
         assert!(page.content.contains("Milestones and goals"));
 
         // 3. Test reading with space-dash variation
-        let page_space = get_local_wiki_page(&tmp.join(".git"), "🚀 Roadmap", None).await.expect("get emoji page with space");
+        let page_space = get_local_wiki_page(&tmp.join(".git"), "🚀 Roadmap", None)
+            .await
+            .expect("get emoji page with space");
         assert_eq!(page_space.title, "Product Roadmap");
 
         // Cleanup
         let _ = fs::remove_dir_all(&tmp);
     }
 }
-

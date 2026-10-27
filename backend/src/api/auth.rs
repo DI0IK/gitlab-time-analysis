@@ -158,7 +158,9 @@ pub async fn callback(
 
     // CheckAdmin: Is in INITIAL_ADMIN_USERNAMES or first user in DB?
     let user_count = crate::db::users::count_users(&state.db).await.unwrap_or(1);
-    let admin_count = crate::db::users::count_admin_users(&state.db).await.unwrap_or(0);
+    let admin_count = crate::db::users::count_admin_users(&state.db)
+        .await
+        .unwrap_or(0);
     let is_initial_admin = state
         .config
         .initial_admin_usernames

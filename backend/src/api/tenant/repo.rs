@@ -134,5 +134,6 @@ pub async fn trigger_root_repo_sync(
 ) -> Result<impl IntoResponse, AppError> {
     let root = verify_root_access(&state.db, &auth.user, &root_slug).await?;
     verify_project_under_root(&root, &query.project)?;
-    crate::api::repo::trigger_repo_sync(State(state), OptionalAuthUser(Some(auth)), Query(query)).await
+    crate::api::repo::trigger_repo_sync(State(state), OptionalAuthUser(Some(auth)), Query(query))
+        .await
 }

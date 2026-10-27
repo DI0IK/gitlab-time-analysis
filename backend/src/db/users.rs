@@ -103,11 +103,13 @@ pub async fn set_user_admin(
     gitlab_id: &str,
     is_admin: bool,
 ) -> Result<(), AppError> {
-    sqlx::query("UPDATE users SET is_admin = ?1, updated_at = CURRENT_TIMESTAMP WHERE gitlab_id = ?2")
-        .bind(is_admin)
-        .bind(gitlab_id)
-        .execute(pool)
-        .await?;
+    sqlx::query(
+        "UPDATE users SET is_admin = ?1, updated_at = CURRENT_TIMESTAMP WHERE gitlab_id = ?2",
+    )
+    .bind(is_admin)
+    .bind(gitlab_id)
+    .execute(pool)
+    .await?;
     Ok(())
 }
 
@@ -116,11 +118,13 @@ pub async fn set_user_admin_by_username(
     username: &str,
     is_admin: bool,
 ) -> Result<(), AppError> {
-    let result = sqlx::query("UPDATE users SET is_admin = ?1, updated_at = CURRENT_TIMESTAMP WHERE username = ?2")
-        .bind(is_admin)
-        .bind(username)
-        .execute(pool)
-        .await?;
+    let result = sqlx::query(
+        "UPDATE users SET is_admin = ?1, updated_at = CURRENT_TIMESTAMP WHERE username = ?2",
+    )
+    .bind(is_admin)
+    .bind(username)
+    .execute(pool)
+    .await?;
     if result.rows_affected() == 0 {
         return Err(AppError::NotFound(format!("User '{username}' not found")));
     }

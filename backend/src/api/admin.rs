@@ -116,7 +116,11 @@ pub async fn list_admin_root_groups(
     let mut items = Vec::new();
 
     for r in roots {
-        let has_token = r.token.as_ref().map(|t| !t.trim().is_empty()).unwrap_or(false);
+        let has_token = r
+            .token
+            .as_ref()
+            .map(|t| !t.trim().is_empty())
+            .unwrap_or(false);
         let token_preview = r.token.as_ref().and_then(|t| {
             let t_trim = t.trim();
             if t_trim.is_empty() {
@@ -124,7 +128,11 @@ pub async fn list_admin_root_groups(
             } else if t_trim.len() <= 8 {
                 Some("••••••••".to_string())
             } else {
-                Some(format!("{}••••{}", &t_trim[..4], &t_trim[t_trim.len() - 3..]))
+                Some(format!(
+                    "{}••••{}",
+                    &t_trim[..4],
+                    &t_trim[t_trim.len() - 3..]
+                ))
             }
         });
 
@@ -173,18 +181,33 @@ pub async fn create_root_group_handler(
     Json(payload): Json<CreateRootGroupRequest>,
 ) -> Result<Json<ManagedRootGroupRecord>, AppError> {
     let clean_slug = payload.slug.trim().to_lowercase();
-    let clean_path = payload.gitlab_group_path.trim().trim_matches('/').to_string();
+    let clean_path = payload
+        .gitlab_group_path
+        .trim()
+        .trim_matches('/')
+        .to_string();
 
     if clean_slug.is_empty() || clean_path.is_empty() {
-        return Err(AppError::BadRequest("Slug and GitLab group path must not be empty".to_string()));
+        return Err(AppError::BadRequest(
+            "Slug and GitLab group path must not be empty".to_string(),
+        ));
     }
 
-    if !clean_slug.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
-        return Err(AppError::BadRequest("Slug must only contain alphanumeric characters and hyphens".to_string()));
+    if !clean_slug
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '-')
+    {
+        return Err(AppError::BadRequest(
+            "Slug must only contain alphanumeric characters and hyphens".to_string(),
+        ));
     }
 
     let id = format!("mrg_{}", uuid::Uuid::new_v4().simple());
-    let token = payload.token.as_deref().map(|t| t.trim()).filter(|t| !t.is_empty());
+    let token = payload
+        .token
+        .as_deref()
+        .map(|t| t.trim())
+        .filter(|t| !t.is_empty());
 
     let record = create_managed_root_group(
         &state.db,
@@ -289,12 +312,7 @@ pub async fn sync_root_group_handler(
         .await?
         .ok_or_else(|| AppError::NotFound(format!("Managed root group '{id}' not found")))?;
 
-    let summary = run_sync_for_path(
-        &state,
-        &root.gitlab_group_path,
-        root.token.as_deref(),
-    )
-    .await?;
+    let summary = run_sync_for_path(&state, &root.gitlab_group_path, root.token.as_deref()).await?;
 
     Ok(Json(summary))
 }
@@ -316,7 +334,9 @@ pub async fn list_admin_users(
     let mut items = Vec::new();
 
     for u in users {
-        let perms = get_permissions_for_user(&state.db, &u.gitlab_id).await.unwrap_or_default();
+        let perms = get_permissions_for_user(&state.db, &u.gitlab_id)
+            .await
+            .unwrap_or_default();
         let perm_items = perms
             .into_iter()
             .map(|p| AdminUserPermissionItem {
@@ -375,5 +395,7 @@ pub async fn update_user_permissions_handler(
     }
 
     state.cache.clear().await;
-    Ok(Json(serde_json::json!({ "updated": true, "username": username })))
+    Ok(Json(
+        serde_json::json!({ "updated": true, "username": username }),
+    ))
 }
