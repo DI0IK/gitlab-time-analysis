@@ -118,7 +118,7 @@ async fn test_tenant_permission_checks_and_timeframe_isolation() {
     gitlab_platform::db::permissions::replace_manual_permissions(
         &pool,
         &user.gitlab_id,
-        &[root_a.id.clone()],
+        std::slice::from_ref(&root_a.id),
     )
     .await
     .unwrap();

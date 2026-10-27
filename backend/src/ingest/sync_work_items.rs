@@ -133,14 +133,16 @@ pub async fn sync_group_work_items(
                         "MILESTONE" => {
                             if let Some(m) = w.get("milestone") {
                                 if start_date.is_none() {
-                                    if let Some(s) = m.get("startDate").and_then(|v| v.as_str()) {
-                                        start_date = parse_date_str(s);
-                                    }
+                                    start_date = m
+                                        .get("startDate")
+                                        .and_then(|v| v.as_str())
+                                        .and_then(parse_date_str);
                                 }
                                 if due_date.is_none() {
-                                    if let Some(d) = m.get("dueDate").and_then(|v| v.as_str()) {
-                                        due_date = parse_date_str(d);
-                                    }
+                                    due_date = m
+                                        .get("dueDate")
+                                        .and_then(|v| v.as_str())
+                                        .and_then(parse_date_str);
                                 }
                             }
                         }

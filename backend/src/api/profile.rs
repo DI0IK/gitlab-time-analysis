@@ -326,10 +326,8 @@ pub async fn compute_user_profile_details_scoped(
                 if d < mr.project_start_date {
                     return false;
                 }
-                if let Some(end) = mr.project_end_date {
-                    if d > end {
-                        return false;
-                    }
+                if mr.project_end_date.is_some_and(|end| d > end) {
+                    return false;
                 }
             }
             true

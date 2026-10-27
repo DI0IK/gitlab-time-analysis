@@ -75,6 +75,6 @@ pub fn calculate_sprint_dynamic(
     if days < 0 {
         return None;
     }
-    let duration_days = (sprint_duration_weeks.max(1) * 7) as i64;
+    let duration_days = sprint_duration_weeks.max(1) * 7;
     Some((days / duration_days) + 1)
 }

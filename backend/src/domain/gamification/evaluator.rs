@@ -112,10 +112,8 @@ pub async fn fetch_user_contribution_stats_scoped(
             if d < mr.project_start_date {
                 continue;
             }
-            if let Some(end) = mr.project_end_date {
-                if d > end {
-                    continue;
-                }
+            if mr.project_end_date.is_some_and(|end| d > end) {
+                continue;
             }
 
             let is_under_root: bool = sqlx::query_scalar(
@@ -485,7 +483,7 @@ pub async fn compute_leaderboard_scoped(
     } else if let Some(mr) = managed_root {
         let prefix = format!("{}/%", mr.gitlab_group_path.trim_matches('/'));
         let exact = mr.gitlab_group_path.trim_matches('/');
-        let rows = sqlx::query_scalar::<_, String>(
+        sqlx::query_scalar::<_, String>(
             r#"
             SELECT DISTINCT username FROM (
                 SELECT username FROM group_members gm
@@ -503,9 +501,7 @@ pub async fn compute_leaderboard_scoped(
         .bind(&prefix)
         .fetch_all(pool)
         .await
-        .unwrap_or_default();
-
-        rows
+        .unwrap_or_default()
     } else {
         let users = get_all_users(pool).await?;
         users
