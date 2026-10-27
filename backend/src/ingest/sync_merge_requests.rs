@@ -107,6 +107,23 @@ pub async fn sync_group_merge_requests(
                 .unwrap_or_else(|| "[]".to_string());
             let discussion_count = item.user_discussions_count.unwrap_or(0);
 
+            let discussion_authors: Vec<String> = item
+                .notes
+                .as_ref()
+                .and_then(|n| n.nodes.as_ref())
+                .map(|nodes| {
+                    nodes
+                        .iter()
+                        .filter(|n| !n.system)
+                        .filter_map(|n| n.author.as_ref().map(|a| a.username.clone()))
+                        .collect::<std::collections::HashSet<_>>()
+                        .into_iter()
+                        .collect()
+                })
+                .unwrap_or_default();
+            let discussion_authors_json =
+                serde_json::to_string(&discussion_authors).unwrap_or_else(|_| "[]".to_string());
+
             upsert_merge_request(
                 &state.db,
                 &item.id,
@@ -123,7 +140,7 @@ pub async fn sync_group_merge_requests(
                 pipeline_status.as_deref(),
                 &item.web_url,
                 &approved_by_json,
-                "[]",
+                &discussion_authors_json,
                 discussion_count,
                 created,
                 merged,

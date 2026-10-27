@@ -1,6 +1,6 @@
 use chrono::Datelike;
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use utoipa::ToSchema;
 
 use crate::{
@@ -10,9 +10,12 @@ use crate::{
         timelogs::{get_timelogs_by_user, get_timelogs_for_group},
         users::{get_all_users, get_user_by_username},
     },
-    domain::gamification::{
-        catalog::{BadgeMeta, all_badges},
-        levels::{LevelProgress, calculate_level},
+    domain::{
+        categories::CategoryId,
+        gamification::{
+            catalog::{BadgeMeta, all_badges},
+            levels::{LevelProgress, calculate_level},
+        },
     },
     error::AppError,
 };
@@ -74,6 +77,68 @@ pub struct UserContributionStats {
     pub total_closed_est_hours: u64,
     pub sharp_shooter_count: i64,
     pub sprint_count: u64,
+    pub longest_sprint_streak: u64,
+    pub distinct_teammates_reviewed: u64,
+    pub total_active_teammates: u64,
+    pub is_bot: bool,
+    pub bot_actions_count: u64,
+    pub full_stack_sprint_unlocked: bool,
+    pub team_player_unlocked: bool,
+    pub community_pillar_unlocked: bool,
+    pub base_xp: u64,
+}
+
+fn longest_consecutive_run(sorted_sprints: &[i64]) -> u64 {
+    if sorted_sprints.is_empty() {
+        return 0;
+    }
+    let mut max_run = 1;
+    let mut current_run = 1;
+    for i in 1..sorted_sprints.len() {
+        if sorted_sprints[i] == sorted_sprints[i - 1] + 1 {
+            current_run += 1;
+            if current_run > max_run {
+                max_run = current_run;
+            }
+        } else if sorted_sprints[i] != sorted_sprints[i - 1] {
+            current_run = 1;
+        }
+    }
+    max_run
+}
+
+fn is_protected_branch(branch: &str) -> bool {
+    let b = branch.to_lowercase();
+    matches!(
+        b.as_str(),
+        "main" | "master" | "develop" | "developer" | "production"
+    ) || b.starts_with("release")
+}
+
+#[derive(Deserialize)]
+struct ApproverObj {
+    username: String,
+}
+
+fn parse_approvers(json_str: &str) -> HashSet<String> {
+    if let Ok(objs) = serde_json::from_str::<Vec<ApproverObj>>(json_str) {
+        return objs
+            .into_iter()
+            .map(|o| o.username.to_lowercase())
+            .collect();
+    }
+    if let Ok(strings) = serde_json::from_str::<Vec<String>>(json_str) {
+        return strings.into_iter().map(|s| s.to_lowercase()).collect();
+    }
+    HashSet::new()
+}
+
+fn parse_discussion_authors(json_str: &str) -> HashSet<String> {
+    serde_json::from_str::<Vec<String>>(json_str)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|s| s.to_lowercase())
+        .collect()
 }
 
 pub async fn fetch_user_contribution_stats(
@@ -100,6 +165,10 @@ pub async fn fetch_user_contribution_stats_scoped(
     ),
     AppError,
 > {
+    let lower_user = username.to_lowercase();
+    let user_rec = get_user_by_username(pool, username).await?;
+    let is_bot = crate::domain::analytics::engine::is_bot_user(username, user_rec.as_ref());
+
     let raw_timelogs = get_timelogs_by_user(pool, username).await?;
 
     let timelogs: Vec<crate::db::timelogs::TimelogRecord> = if let Some(mr) = managed_root {
@@ -154,147 +223,301 @@ pub async fn fetch_user_contribution_stats_scoped(
 
     let total_seconds: i64 = timelogs.iter().map(|t| t.time_spent).sum();
     let total_hours = (total_seconds as f64 / 3600.0 * 10.0).round() / 10.0;
+    let hours_xp = (total_hours * 20.0).floor() as u64;
 
     let mut active_days = HashSet::new();
+    let mut sprint_hours_map: HashMap<i64, f64> = HashMap::new();
     for t in &timelogs {
         let d = t.spent_at.date_naive();
         active_days.insert((d.year(), d.ordinal()));
+        if let Some(sp) = t.sprint_number {
+            *sprint_hours_map.entry(sp).or_default() += t.time_spent as f64 / 3600.0;
+        }
     }
     let streak_days = active_days.len() as u32;
 
-    let (
-        merged_mrs_count,
-        reviews_count,
-        closed_wi_count,
-        max_closed_est_secs,
-        total_closed_est_secs,
-        sharp_shooter_count,
-    ) = if let Some(mr) = managed_root {
+    let mut active_sprints: Vec<i64> = sprint_hours_map.keys().copied().collect();
+    active_sprints.sort_unstable();
+    let sprint_count = active_sprints.len() as u64;
+    let longest_sprint_streak = longest_consecutive_run(&active_sprints);
+    let sprints_xp = sprint_count * 25;
+
+    // Full-Stack Sprint: >= 1h across all 4 categories in a single sprint
+    let work_item_ids: HashSet<String> = timelogs
+        .iter()
+        .filter_map(|t| t.work_item_id.clone())
+        .collect();
+    let mut wi_labels_map: HashMap<String, Vec<String>> = HashMap::new();
+    if !work_item_ids.is_empty() {
+        let id_list: Vec<String> = work_item_ids.into_iter().collect();
+        for chunk in id_list.chunks(200) {
+            let placeholders = chunk.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+            let q = format!("SELECT id, labels_json FROM work_items WHERE id IN ({placeholders})");
+            let mut query = sqlx::query_as::<_, (String, String)>(&q);
+            for id in chunk {
+                query = query.bind(id);
+            }
+            if let Ok(rows) = query.fetch_all(pool).await {
+                for (id, labels_json) in rows {
+                    let labels: Vec<String> =
+                        serde_json::from_str(&labels_json).unwrap_or_default();
+                    wi_labels_map.insert(id, labels);
+                }
+            }
+        }
+    }
+
+    let mut sprint_category_hours: HashMap<i64, HashMap<&'static str, f64>> = HashMap::new();
+    for t in &timelogs {
+        if let Some(sprint_num) = t.sprint_number
+            && let Some(wi_id) = &t.work_item_id
+            && let Some(labels) = wi_labels_map.get(wi_id)
+        {
+            let mut matched_cat = None;
+            for label in labels {
+                let cat = CategoryId::match_label(label);
+                if cat != CategoryId::Other {
+                    matched_cat = Some(cat.as_str());
+                    break;
+                }
+            }
+            if let Some(cat_str) = matched_cat {
+                let cat_map = sprint_category_hours.entry(sprint_num).or_default();
+                *cat_map.entry(cat_str).or_default() += t.time_spent as f64 / 3600.0;
+            }
+        }
+    }
+
+    let full_stack_sprint_unlocked = sprint_category_hours.values().any(|cats| {
+        cats.get("project-management").copied().unwrap_or(0.0) >= 1.0
+            && cats.get("requirements-engineering").copied().unwrap_or(0.0) >= 1.0
+            && cats.get("implementation").copied().unwrap_or(0.0) >= 1.0
+            && cats.get("architecture").copied().unwrap_or(0.0) >= 1.0
+    });
+
+    // Closed work items user contributed to
+    let closed_work_items: Vec<(String, i64, i64, i64)> = if let Some(mr) = managed_root {
         let prefix = format!("{}/%", mr.gitlab_group_path.trim_matches('/'));
         let exact = mr.gitlab_group_path.trim_matches('/').to_string();
-
-        let merged_mrs: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM merge_requests WHERE author_username = ?1 AND state = 'merged' AND (project_path = ?2 OR project_path LIKE ?3)"
+        sqlx::query_as(
+            r#"
+            SELECT 
+                wi.id,
+                wi.time_estimate,
+                COALESCE((SELECT SUM(time_spent) FROM timelogs WHERE work_item_id = wi.id AND username = ?1), 0) AS user_time,
+                COALESCE((SELECT SUM(time_spent) FROM timelogs WHERE work_item_id = wi.id), 0) AS total_time
+            FROM work_items wi
+            WHERE wi.state = 'closed'
+              AND (wi.project_path = ?2 OR wi.project_path LIKE ?3 OR wi.group_id IN (SELECT id FROM groups WHERE full_path = ?2 OR full_path LIKE ?3))
+              AND wi.id IN (SELECT DISTINCT work_item_id FROM timelogs WHERE username = ?1 AND work_item_id IS NOT NULL)
+            "#,
         )
         .bind(username)
         .bind(&exact)
         .bind(&prefix)
-        .fetch_one(pool)
+        .fetch_all(pool)
         .await
-        .unwrap_or(0);
-
-        let user_pat = format!("%\"{username}\"%");
-        let reviews: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM merge_requests WHERE author_username != ?1 AND (approved_by_json LIKE ?2 OR discussion_authors_json LIKE ?2) AND (project_path = ?3 OR project_path LIKE ?4)"
-        )
-        .bind(username)
-        .bind(&user_pat)
-        .bind(&exact)
-        .bind(&prefix)
-        .fetch_one(pool)
-        .await
-        .unwrap_or(0);
-
-        let closed_wi: i64 = sqlx::query_scalar(
-            "SELECT COUNT(DISTINCT wi.id) FROM work_items wi JOIN timelogs t ON t.work_item_id = wi.id WHERE t.username = ?1 AND wi.state = 'closed' AND (wi.project_path = ?2 OR wi.project_path LIKE ?3 OR wi.group_id IN (SELECT id FROM groups WHERE full_path = ?2 OR full_path LIKE ?3))"
-        )
-        .bind(username)
-        .bind(&exact)
-        .bind(&prefix)
-        .fetch_one(pool)
-        .await
-        .unwrap_or(0);
-
-        let max_est: i64 = sqlx::query_scalar(
-            "SELECT COALESCE(MAX(wi.time_estimate), 0) FROM work_items wi JOIN timelogs t ON t.work_item_id = wi.id WHERE t.username = ?1 AND wi.state = 'closed' AND (wi.project_path = ?2 OR wi.project_path LIKE ?3 OR wi.group_id IN (SELECT id FROM groups WHERE full_path = ?2 OR full_path LIKE ?3))"
-        )
-        .bind(username)
-        .bind(&exact)
-        .bind(&prefix)
-        .fetch_one(pool)
-        .await
-        .unwrap_or(0);
-
-        let total_est: i64 = sqlx::query_scalar(
-            "SELECT COALESCE(SUM(wi.time_estimate), 0) FROM work_items wi WHERE wi.state = 'closed' AND (wi.project_path = ?2 OR wi.project_path LIKE ?3 OR wi.group_id IN (SELECT id FROM groups WHERE full_path = ?2 OR full_path LIKE ?3)) AND wi.id IN (SELECT DISTINCT work_item_id FROM timelogs WHERE username = ?1)"
-        )
-        .bind(username)
-        .bind(&exact)
-        .bind(&prefix)
-        .fetch_one(pool)
-        .await
-        .unwrap_or(0);
-
-        let sharp: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM work_items wi WHERE wi.state = 'closed' AND wi.time_estimate >= 3600 AND wi.total_time_spent >= (wi.time_estimate * 0.9) AND wi.total_time_spent <= (wi.time_estimate * 1.1) AND (wi.project_path = ?2 OR wi.project_path LIKE ?3 OR wi.group_id IN (SELECT id FROM groups WHERE full_path = ?2 OR full_path LIKE ?3)) AND wi.id IN (SELECT DISTINCT work_item_id FROM timelogs WHERE username = ?1)"
-        )
-        .bind(username)
-        .bind(&exact)
-        .bind(&prefix)
-        .fetch_one(pool)
-        .await
-        .unwrap_or(0);
-
-        (merged_mrs, reviews, closed_wi, max_est, total_est, sharp)
+        .unwrap_or_default()
     } else {
-        let merged_mrs: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM merge_requests WHERE author_username = ?1 AND state = 'merged'",
+        sqlx::query_as(
+            r#"
+            SELECT 
+                wi.id,
+                wi.time_estimate,
+                COALESCE((SELECT SUM(time_spent) FROM timelogs WHERE work_item_id = wi.id AND username = ?1), 0) AS user_time,
+                COALESCE((SELECT SUM(time_spent) FROM timelogs WHERE work_item_id = wi.id), 0) AS total_time
+            FROM work_items wi
+            WHERE wi.state = 'closed'
+              AND wi.id IN (SELECT DISTINCT work_item_id FROM timelogs WHERE username = ?1 AND work_item_id IS NOT NULL)
+            "#,
         )
         .bind(username)
-        .fetch_one(pool)
+        .fetch_all(pool)
         .await
-        .unwrap_or(0);
-
-        let user_pat = format!("%\"{username}\"%");
-        let reviews: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM merge_requests WHERE author_username != ?1 AND (approved_by_json LIKE ?2 OR discussion_authors_json LIKE ?2)",
-        )
-        .bind(username)
-        .bind(&user_pat)
-        .fetch_one(pool)
-        .await
-        .unwrap_or(0);
-
-        let closed_wi: i64 = sqlx::query_scalar(
-            "SELECT COUNT(DISTINCT wi.id) FROM work_items wi JOIN timelogs t ON t.work_item_id = wi.id WHERE t.username = ?1 AND wi.state = 'closed'",
-        )
-        .bind(username)
-        .fetch_one(pool)
-        .await
-        .unwrap_or(0);
-
-        let max_est: i64 = sqlx::query_scalar(
-            "SELECT COALESCE(MAX(wi.time_estimate), 0) FROM work_items wi JOIN timelogs t ON t.work_item_id = wi.id WHERE t.username = ?1 AND wi.state = 'closed'",
-        )
-        .bind(username)
-        .fetch_one(pool)
-        .await
-        .unwrap_or(0);
-
-        let total_est: i64 = sqlx::query_scalar(
-            "SELECT COALESCE(SUM(wi.time_estimate), 0) FROM work_items wi WHERE wi.state = 'closed' AND wi.id IN (SELECT DISTINCT work_item_id FROM timelogs WHERE username = ?1)",
-        )
-        .bind(username)
-        .fetch_one(pool)
-        .await
-        .unwrap_or(0);
-
-        let sharp: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM work_items wi WHERE wi.state = 'closed' AND wi.time_estimate >= 3600 AND wi.total_time_spent >= (wi.time_estimate * 0.9) AND wi.total_time_spent <= (wi.time_estimate * 1.1) AND wi.id IN (SELECT DISTINCT work_item_id FROM timelogs WHERE username = ?1)",
-        )
-        .bind(username)
-        .fetch_one(pool)
-        .await
-        .unwrap_or(0);
-
-        (merged_mrs, reviews, closed_wi, max_est, total_est, sharp)
+        .unwrap_or_default()
     };
 
-    let max_closed_est_hours = max_closed_est_secs as f64 / 3600.0;
-    let total_closed_est_hours = (total_closed_est_secs as f64 / 3600.0) as u64;
+    let closed_wi_count = closed_work_items.len() as i64;
+    let mut total_closed_estimate_seconds = 0.0;
+    let mut max_estimate_share_hours = 0.0;
+    let mut sharp_shooter_count = 0i64;
+    let mut issues_xp = 0u64;
+    let mut blind_flight_penalty = 0u64;
 
-    let distinct_sprints: HashSet<i64> = timelogs.iter().filter_map(|t| t.sprint_number).collect();
-    let sprint_count = distinct_sprints.len() as u64;
+    for (_id, estimate, user_time, total_time) in closed_work_items {
+        if total_time <= 0 {
+            continue;
+        }
+        let share = user_time as f64 / total_time as f64;
+        if estimate > 0 {
+            let total_issue_xp = ((estimate as f64 / 3600.0) * 15.0).floor() as u64;
+            issues_xp += (share * total_issue_xp as f64).floor() as u64;
+
+            let share_secs = share * estimate as f64;
+            total_closed_estimate_seconds += share_secs;
+
+            let share_hours = share_secs / 3600.0;
+            if share_hours > max_estimate_share_hours {
+                max_estimate_share_hours = share_hours;
+            }
+
+            let diff_pct = ((total_time - estimate).abs() as f64) / (estimate as f64);
+            if diff_pct <= 0.1 {
+                sharp_shooter_count += 1;
+            }
+        } else {
+            blind_flight_penalty += (share * 30.0).floor() as u64;
+        }
+    }
+
+    let total_closed_est_hours = (total_closed_estimate_seconds / 3600.0) as u64;
+    let max_closed_est_hours = max_estimate_share_hours;
+
+    // Merge requests analysis
+    let merge_requests = if let Some(mr) = managed_root {
+        let prefix = format!("{}/%", mr.gitlab_group_path.trim_matches('/'));
+        let exact = mr.gitlab_group_path.trim_matches('/').to_string();
+        sqlx::query_as::<_, crate::db::merge_requests::MergeRequestRecord>(
+            r#"
+            SELECT id, project_path, iid, title, description, state, author_username,
+                   source_branch, target_branch, additions, deletions, pipeline_status,
+                   web_url, approved_by_json, discussion_authors_json, discussion_count,
+                   created_at, merged_at, closed_at, synced_at
+            FROM merge_requests
+            WHERE project_path = ?1 OR project_path LIKE ?2
+            "#,
+        )
+        .bind(&exact)
+        .bind(&prefix)
+        .fetch_all(pool)
+        .await
+        .unwrap_or_default()
+    } else {
+        sqlx::query_as::<_, crate::db::merge_requests::MergeRequestRecord>(
+            r#"
+            SELECT id, project_path, iid, title, description, state, author_username,
+                   source_branch, target_branch, additions, deletions, pipeline_status,
+                   web_url, approved_by_json, discussion_authors_json, discussion_count,
+                   created_at, merged_at, closed_at, synced_at
+            FROM merge_requests
+            "#,
+        )
+        .fetch_all(pool)
+        .await
+        .unwrap_or_default()
+    };
+
+    let merged_mrs_count = merge_requests
+        .iter()
+        .filter(|mr| {
+            mr.author_username.to_lowercase() == lower_user
+                && mr.state == "merged"
+                && is_protected_branch(&mr.target_branch)
+                && !is_protected_branch(&mr.source_branch)
+        })
+        .count() as i64;
+    let merges_xp = (merged_mrs_count as u64) * 50;
+
+    let mut approved_mrs_count = 0u64;
+    let mut commented_only_mrs_count = 0u64;
+    let mut approved_teammates = HashSet::new();
+    let mut commented_teammates = HashSet::new();
+
+    for mr in &merge_requests {
+        let author_lower = mr.author_username.to_lowercase();
+        if author_lower == lower_user {
+            continue;
+        }
+        let approvers = parse_approvers(&mr.approved_by_json);
+        let is_approver = approvers.contains(&lower_user);
+        if is_approver {
+            approved_mrs_count += 1;
+            approved_teammates.insert(author_lower);
+        } else {
+            let commenters = parse_discussion_authors(&mr.discussion_authors_json);
+            if commenters.contains(&lower_user) {
+                commented_only_mrs_count += 1;
+                commented_teammates.insert(author_lower);
+            }
+        }
+    }
+
+    let reviews_count = (approved_mrs_count + commented_only_mrs_count) as i64;
+    let reviews_xp = (approved_mrs_count * 15) + (commented_only_mrs_count * 10);
+
+    let mut unique_teammates_reviewed = approved_teammates;
+    unique_teammates_reviewed.extend(commented_teammates);
+
+    let active_usernames: Vec<String> = if let Some(mr) = managed_root {
+        let exact = mr.gitlab_group_path.trim_matches('/').to_string();
+        let prefix = format!("{}/%", exact);
+        let start_date = mr.project_start_date.to_string();
+        let end_date = mr.project_end_date.map(|d| d.to_string());
+
+        sqlx::query_scalar::<_, String>(
+            r#"
+            SELECT DISTINCT t.username 
+            FROM timelogs t
+            LEFT JOIN work_items wi ON t.work_item_id = wi.id
+            LEFT JOIN merge_requests m ON t.merge_request_id = m.id
+            WHERE (
+                wi.project_path = ?1 OR wi.project_path LIKE ?2 
+                OR wi.group_id IN (SELECT id FROM groups WHERE full_path = ?1 OR full_path LIKE ?2)
+                OR m.project_path = ?1 OR m.project_path LIKE ?2
+            )
+            AND date(t.spent_at) >= date(?3)
+            AND (?4 IS NULL OR date(t.spent_at) <= date(?4))
+            AND t.time_spent > 0
+            "#,
+        )
+        .bind(&exact)
+        .bind(&prefix)
+        .bind(&start_date)
+        .bind(&end_date)
+        .fetch_all(pool)
+        .await
+        .unwrap_or_default()
+    } else {
+        sqlx::query_scalar::<_, String>(
+            "SELECT DISTINCT username FROM timelogs WHERE time_spent > 0",
+        )
+        .fetch_all(pool)
+        .await
+        .unwrap_or_default()
+    };
+
+    let mut active_teammates: HashSet<String> = HashSet::new();
+    for u in active_usernames {
+        let user_rec = get_user_by_username(pool, &u).await.ok().flatten();
+        if !crate::domain::analytics::engine::is_bot_user(&u, user_rec.as_ref()) {
+            active_teammates.insert(u.to_lowercase());
+        }
+    }
+
+    let other_active_teammates: HashSet<String> = active_teammates
+        .into_iter()
+        .filter(|u| u != &lower_user)
+        .collect();
+
+    if !other_active_teammates.is_empty() {
+        unique_teammates_reviewed.retain(|t| other_active_teammates.contains(t));
+    }
+    let distinct_teammates_reviewed = unique_teammates_reviewed.len() as u64;
+    let total_active_teammates = other_active_teammates.len() as u64;
+
+    let team_player_unlocked =
+        total_active_teammates > 0 && distinct_teammates_reviewed >= 3.min(total_active_teammates);
+    let community_pillar_unlocked =
+        total_active_teammates > 0 && distinct_teammates_reviewed >= total_active_teammates;
+
+    let bot_actions_count = merge_requests
+        .iter()
+        .map(|mr| mr.discussion_count as u64)
+        .sum::<u64>();
+    let bot_actions_xp = if is_bot { bot_actions_count * 2 } else { 0 };
+
+    let base_xp = (hours_xp + issues_xp + sprints_xp + reviews_xp + merges_xp + bot_actions_xp)
+        .saturating_sub(blind_flight_penalty);
 
     let stats = UserContributionStats {
         total_hours,
@@ -308,6 +531,15 @@ pub async fn fetch_user_contribution_stats_scoped(
         total_closed_est_hours,
         sharp_shooter_count,
         sprint_count,
+        longest_sprint_streak,
+        distinct_teammates_reviewed,
+        total_active_teammates,
+        is_bot,
+        bot_actions_count,
+        full_stack_sprint_unlocked,
+        team_player_unlocked,
+        community_pillar_unlocked,
+        base_xp,
     };
 
     Ok((stats, timelogs))
@@ -349,11 +581,19 @@ pub fn evaluate_badges_progress(
             }
             "Momentum" => {
                 if b.id.starts_with("momentum_streak") {
-                    let cur = stats.streak_days as u64;
+                    let cur = stats.longest_sprint_streak;
                     (cur, cur >= b.threshold)
                 } else {
                     let cur = stats.sprint_count;
                     (cur, cur >= b.threshold)
+                }
+            }
+            "Automation" => {
+                if stats.is_bot {
+                    let cur = stats.bot_actions_count;
+                    (cur, cur >= b.threshold)
+                } else {
+                    (0, false)
                 }
             }
             "Achievement" => match b.id.as_str() {
@@ -366,23 +606,42 @@ pub fn evaluate_badges_progress(
                     (cur, stats.merged_mrs_count >= 1)
                 }
                 "achievement_team_player" => {
-                    let cur = stats.reviews_count as u64;
-                    (cur, stats.reviews_count >= 3)
+                    let cur = stats.distinct_teammates_reviewed;
+                    (cur, stats.team_player_unlocked)
+                }
+                "achievement_community_pillar" => {
+                    let cur = if stats.total_active_teammates > 0 {
+                        ((stats.distinct_teammates_reviewed as f32
+                            / stats.total_active_teammates as f32)
+                            * 100.0)
+                            .round() as u64
+                    } else {
+                        0
+                    };
+                    (cur.min(100), stats.community_pillar_unlocked)
+                }
+                "achievement_full_stack_sprint" => {
+                    let cur = if stats.full_stack_sprint_unlocked {
+                        1
+                    } else {
+                        0
+                    };
+                    (cur, stats.full_stack_sprint_unlocked)
                 }
                 "achievement_sharp_shooter" => {
                     let cur = (stats.sharp_shooter_count as u64).min(1);
                     (cur, stats.sharp_shooter_count >= 1)
                 }
                 "achievement_heavy_lifter" => {
-                    let cur = stats.max_closed_est_hours as u64;
+                    let cur = stats.max_closed_est_hours.round() as u64;
                     (cur, stats.max_closed_est_hours >= 8.0)
                 }
                 "achievement_colossal_lifter" => {
-                    let cur = stats.max_closed_est_hours as u64;
+                    let cur = stats.max_closed_est_hours.round() as u64;
                     (cur, stats.max_closed_est_hours >= 10.0)
                 }
                 "achievement_titan_lifter" => {
-                    let cur = stats.max_closed_est_hours as u64;
+                    let cur = stats.max_closed_est_hours.round() as u64;
                     (cur, stats.max_closed_est_hours >= 12.0)
                 }
                 _ => (0, false),
@@ -440,7 +699,7 @@ pub async fn evaluate_user_gamification_scoped(
         fetch_user_contribution_stats_scoped(pool, username, managed_root).await?;
     let (unlocked, _all_progress, badge_xp) = evaluate_badges_progress(&stats);
 
-    let base_xp = (stats.total_hours * 10.0) as u64 + (stats.timelog_count as u64 * 2);
+    let base_xp = stats.base_xp;
     let total_xp = base_xp + badge_xp;
     let level_progress = calculate_level(total_xp);
 

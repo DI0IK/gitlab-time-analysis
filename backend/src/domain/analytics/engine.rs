@@ -20,7 +20,7 @@ use crate::{
     error::AppError,
 };
 
-fn is_bot_user(username: &str, user: Option<&crate::db::users::UserRecord>) -> bool {
+pub fn is_bot_user(username: &str, user: Option<&crate::db::users::UserRecord>) -> bool {
     if user.is_some_and(|u| u.is_bot) {
         return true;
     }

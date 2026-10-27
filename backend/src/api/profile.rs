@@ -199,7 +199,7 @@ pub async fn compute_user_profile_details_scoped(
         fetch_user_contribution_stats_scoped(&state.db, &username, managed_root).await?;
     let (unlocked_badges, all_badges_progress, badge_xp) = evaluate_badges_progress(&stats);
 
-    let base_xp = (stats.total_hours * 10.0) as u64 + (stats.timelog_count as u64 * 2);
+    let base_xp = stats.base_xp;
     let total_xp = base_xp + badge_xp;
     let level_progress = calculate_level(total_xp);
 
