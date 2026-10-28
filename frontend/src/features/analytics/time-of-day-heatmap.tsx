@@ -35,6 +35,7 @@ export function TimeOfDayHeatmap({ timeOfDay }: TimeOfDayHeatmapProps) {
     night_owl_pct = 0,
     time_blocks = [],
     hourly_totals = [],
+    excluded_date_only_count = 0,
   } = timeOfDay || {}
 
   const cellMap = useMemo(() => {
@@ -53,10 +54,12 @@ export function TimeOfDayHeatmap({ timeOfDay }: TimeOfDayHeatmapProps) {
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-semibold flex items-center gap-2">
             <Clock className="h-4 w-4 text-primary" />
-            Time of Day Rhythm Heatmap
+            Time of Day Activity Heatmap
           </CardTitle>
           <CardDescription className="text-xs text-muted-foreground">
-            No timelogs recorded with timestamp data yet.
+            {excluded_date_only_count > 0
+              ? `No timestamped timelogs recorded yet (${excluded_date_only_count} entries were logged with date-only defaults at exact hh:00:00).`
+              : 'No timelogs recorded with timestamp data yet.'}
           </CardDescription>
         </CardHeader>
       </Card>
@@ -75,7 +78,11 @@ export function TimeOfDayHeatmap({ timeOfDay }: TimeOfDayHeatmapProps) {
               Time of Day Activity Heatmap
             </CardTitle>
             <CardDescription className="text-xs text-muted-foreground mt-0.5">
-              Distribution of logged engineering time by day of week &times; hour of day (24-hour cycle).
+              Distribution of logged engineering time by day of week &times; hour of day (24-hour cycle)
+              {excluded_date_only_count > 0
+                ? ` • Excluded ${excluded_date_only_count} date-only ${excluded_date_only_count === 1 ? 'entry' : 'entries'} at exact hh:00:00`
+                : ''}
+              .
             </CardDescription>
           </div>
 

@@ -3831,7 +3831,8 @@
           "core_hours_pct",
           "night_owl_pct",
           "time_blocks",
-          "hourly_totals"
+          "hourly_totals",
+          "excluded_date_only_count"
         ],
         "properties": {
           "cells": {
@@ -3843,6 +3844,10 @@
           "core_hours_pct": {
             "type": "number",
             "format": "double"
+          },
+          "excluded_date_only_count": {
+            "type": "integer",
+            "minimum": 0
           },
           "hourly_totals": {
             "type": "array",

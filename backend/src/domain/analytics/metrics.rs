@@ -168,6 +168,7 @@ pub struct TimeOfDayHeatmap {
     pub night_owl_pct: f64,
     pub time_blocks: Vec<TimeBlockSummary>,
     pub hourly_totals: Vec<f64>,
+    pub excluded_date_only_count: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]

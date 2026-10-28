@@ -1180,6 +1180,7 @@ export interface components {
             cells: components["schemas"]["TimeOfDayCell"][];
             /** Format: double */
             core_hours_pct: number;
+            excluded_date_only_count: number;
             hourly_totals: number[];
             /** Format: double */
             max_hours: number;
