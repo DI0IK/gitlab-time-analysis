@@ -4,7 +4,7 @@ import { apiClient } from '@/lib/api/client'
 import { LeaderboardPodium, type LeaderboardItem } from './leaderboard-podium'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Trophy, RefreshCw, Award } from 'lucide-react'
+import { Trophy, RefreshCw } from 'lucide-react'
 import { getAvatarUrl } from '@/lib/avatar'
 import { UserProfileModal } from '@/features/profile/user-profile-modal'
 
@@ -143,15 +143,6 @@ export function LeaderboardView({
                         >
                           Lvl {m.level}
                         </span>
-                        <a
-                          href={`/api/render/badge/endurance_${Math.min(m.level, 7)}.svg`}
-                          target="_blank"
-                          rel="noreferrer"
-                          title="View dynamic badge SVG"
-                          className="p-1.5 text-muted-foreground hover:text-foreground rounded-md hover:bg-muted min-h-[44px] min-w-[44px] flex items-center justify-center"
-                        >
-                          <Award className="h-4 w-4" />
-                        </a>
                       </div>
                     </div>
                   )

@@ -6,6 +6,11 @@ import { GroupCategoriesCard } from './group-categories-card'
 import { GroupMembersTable } from './group-members-table'
 import { GroupSprintChart } from './group-sprint-chart'
 import { GroupWeekdayHeatmap } from './group-weekday-heatmap'
+import { GroupSubgroupComparison } from './group-subgroup-comparison'
+import { TimeOfDayHeatmap } from './time-of-day-heatmap'
+import { SprintDeadlineRushCard } from './sprint-deadline-rush'
+import { CategoryShiftChart } from './category-shift-chart'
+import { MemberSpecializationRadar } from './member-specialization-radar'
 import { SprintMatrixTable } from './sprint-matrix'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -136,17 +141,33 @@ export function GroupAnalyticsView({
         accuracyRatio={accuracy_ratio}
       />
 
+      {/* Subgroup Comparison / Peer Benchmarking */}
+      <GroupSubgroupComparison
+        subgroups={data.subgroups}
+        peers={data.peers}
+        currentGroupId={group.id}
+        currentGroupName={group.name}
+      />
+
       {/* Fairness & Activity Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <GroupFairnessCard fairness={fairness} />
         <GroupCategoriesCard categories={categories} />
       </div>
 
-      {/* Sprint Cadence Chart */}
+      {/* Sprint Cadence & Rush Crunch Metrics */}
       <GroupSprintChart sprints={sprints} />
+      <SprintDeadlineRushCard deadlineRush={data.deadline_rush} />
 
-      {/* Weekday x Sprint Activity Heatmap */}
+      {/* Category Evolution Across Sprints */}
+      <CategoryShiftChart shifts={data.category_shift} />
+
+      {/* Activity Heatmaps: Weekday x Sprint and Time of Day Rhythm */}
       <GroupWeekdayHeatmap heatmap={data.heatmap} />
+      <TimeOfDayHeatmap timeOfDay={data.time_of_day} />
+
+      {/* Member Role Specializations */}
+      <MemberSpecializationRadar specializations={data.role_specializations} />
 
       {/* Historical Progress: User x Category Matrix Table */}
       <SprintMatrixTable

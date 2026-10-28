@@ -83,7 +83,6 @@ use crate::{
         admin::sync_root_group_handler,
         admin::list_admin_users,
         admin::update_user_permissions_handler,
-        render::render_badge,
         render::render_user_card,
         render::render_group_banner,
         render::render_sprint_matrix,

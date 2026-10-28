@@ -2,39 +2,9 @@ use crate::{
     db::{groups::GroupRecord, users::UserRecord},
     domain::{
         analytics::metrics::{FairnessMetric, UserCategoryMatrixRow},
-        gamification::{catalog::BadgeMeta, evaluator::UserGamificationSummary},
+        gamification::evaluator::UserGamificationSummary,
     },
 };
-
-pub fn render_badge_svg(badge: &BadgeMeta) -> String {
-    let title = html_escape(&badge.title);
-    let track = html_escape(&badge.track);
-    let desc = html_escape(&badge.description);
-    let xp = badge.reward_xp;
-
-    format!(
-        r##"<svg xmlns="http://www.w3.org/2000/svg" width="340" height="96" viewBox="0 0 340 96" fill="none">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="340" y2="96" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#18181b"/>
-      <stop offset="100%" stop-color="#09090b"/>
-    </linearGradient>
-    <linearGradient id="border" x1="0" y1="0" x2="340" y2="96" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.8"/>
-      <stop offset="100%" stop-color="#ef4444" stop-opacity="0.4"/>
-    </linearGradient>
-  </defs>
-  <rect x="1" y="1" width="338" height="94" rx="14" fill="url(#bg)" stroke="url(#border)" stroke-width="1.5"/>
-  <circle cx="48" cy="48" r="24" fill="#27272a"/>
-  <text x="48" y="55" font-family="system-ui, sans-serif" font-size="20" text-anchor="middle" fill="#f59e0b">★</text>
-  <text x="86" y="32" font-family="system-ui, sans-serif" font-size="11" font-weight="600" fill="#a1a1aa" letter-spacing="0.05em">{track}</text>
-  <text x="86" y="50" font-family="system-ui, sans-serif" font-size="15" font-weight="700" fill="#fafafa">{title}</text>
-  <text x="86" y="68" font-family="system-ui, sans-serif" font-size="11" fill="#71717a">{desc}</text>
-  <rect x="264" y="22" width="60" height="22" rx="11" fill="#f59e0b" fill-opacity="0.15"/>
-  <text x="294" y="37" font-family="system-ui, sans-serif" font-size="11" font-weight="700" text-anchor="middle" fill="#f59e0b">+{xp} XP</text>
-</svg>"##
-    )
-}
 
 pub fn render_user_card_svg(user: &UserRecord, summary: &UserGamificationSummary) -> String {
     let name = html_escape(user.custom_display_name.as_deref().unwrap_or(&user.name));
@@ -47,30 +17,37 @@ pub fn render_user_card_svg(user: &UserRecord, summary: &UserGamificationSummary
     let xp = summary.level_progress.current_xp;
     let next_xp = summary.level_progress.next_level_xp;
     let pct = (summary.level_progress.progress_pct * 100.0).clamp(0.0, 100.0);
-    let bar_width = (pct / 100.0 * 240.0) as u32;
+    let bar_width = (pct / 100.0 * 368.0) as u32;
 
     format!(
-        r##"<svg xmlns="http://www.w3.org/2000/svg" width="440" height="190" viewBox="0 0 440 190" fill="none">
-  <defs>
-    <linearGradient id="cardBg" x1="0" y1="0" x2="440" y2="190" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#13151b"/>
-      <stop offset="100%" stop-color="#0b0d13"/>
-    </linearGradient>
-  </defs>
-  <rect width="440" height="190" rx="16" fill="url(#cardBg)" stroke="#27272a" stroke-width="1.5"/>
-  <circle cx="52" cy="52" r="26" fill="{tier_color}" fill-opacity="0.2"/>
-  <circle cx="52" cy="52" r="26" stroke="{tier_color}" stroke-width="2"/>
-  <text x="52" y="60" font-family="system-ui, sans-serif" font-size="20" font-weight="800" text-anchor="middle" fill="{tier_color}">L{level}</text>
-  <text x="94" y="44" font-family="system-ui, sans-serif" font-size="16" font-weight="700" fill="#fafafa">{name}</text>
-  <text x="94" y="62" font-family="system-ui, sans-serif" font-size="12" fill="#71717a">@{username} • {tier_name} Tier</text>
-  <rect x="36" y="96" width="368" height="1" fill="#27272a"/>
-  <text x="36" y="122" font-family="system-ui, sans-serif" font-size="11" fill="#a1a1aa">Level Progress</text>
-  <text x="404" y="122" font-family="system-ui, sans-serif" font-size="11" text-anchor="end" fill="#71717a">{xp} / {next_xp} XP</text>
-  <rect x="36" y="130" width="368" height="6" rx="3" fill="#27272a"/>
-  <rect x="36" y="130" width="{bar_width}" height="6" rx="3" fill="{tier_color}"/>
-  <text x="36" y="162" font-family="system-ui, sans-serif" font-size="12" font-weight="600" fill="#fafafa">{hours}h Logged</text>
-  <text x="140" y="162" font-family="system-ui, sans-serif" font-size="12" fill="#71717a">• {streak} Sprint Streak</text>
-  <text x="404" y="162" font-family="system-ui, sans-serif" font-size="11" font-weight="600" text-anchor="end" fill="#f59e0b">{badge_count} Badges Unlocked</text>
+        r##"<svg xmlns="http://www.w3.org/2000/svg" width="440" height="176" viewBox="0 0 440 176" fill="none">
+  <rect x="0.5" y="0.5" width="439" height="175" rx="4" fill="#09090b" stroke="#27272a"/>
+  
+  <!-- Level Badge -->
+  <rect x="24" y="24" width="38" height="38" rx="4" fill="#18181b" stroke="#27272a"/>
+  <text x="43" y="48" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="700" text-anchor="middle" fill="{tier_color}">L{level}</text>
+
+  <!-- User Info -->
+  <text x="74" y="38" font-family="system-ui, -apple-system, sans-serif" font-size="15" font-weight="600" fill="#f4f4f5">{name}</text>
+  <text x="74" y="55" font-family="monospace" font-size="12" fill="#71717a">@{username} <tspan font-family="system-ui, -apple-system, sans-serif" fill="#52525b">•</tspan> {tier_name} Tier</text>
+
+  <!-- Divider -->
+  <line x1="24" y1="78" x2="416" y2="78" stroke="#27272a" stroke-width="1"/>
+
+  <!-- XP Progress -->
+  <text x="24" y="98" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="500" fill="#a1a1aa">Level Progress</text>
+  <text x="416" y="98" font-family="monospace" font-size="11" text-anchor="end" fill="#71717a">{xp} / {next_xp} XP</text>
+  <rect x="24" y="105" width="392" height="4" rx="2" fill="#27272a"/>
+  <rect x="24" y="105" width="{bar_width}" height="4" rx="2" fill="{tier_color}"/>
+
+  <!-- Bottom Stats -->
+  <text x="24" y="142" font-family="monospace" font-size="12" font-weight="600" fill="#f4f4f5">{hours}h</text>
+  <text x="66" y="142" font-family="system-ui, -apple-system, sans-serif" font-size="12" fill="#71717a">Logged</text>
+  
+  <text x="124" y="142" font-family="monospace" font-size="12" font-weight="600" fill="#f4f4f5">{streak}</text>
+  <text x="142" y="142" font-family="system-ui, -apple-system, sans-serif" font-size="12" fill="#71717a">Sprint Streak</text>
+
+  <text x="416" y="142" font-family="monospace" font-size="12" font-weight="600" text-anchor="end" fill="#d4d4d8">{badge_count} <tspan font-family="system-ui, -apple-system, sans-serif" font-weight="400" fill="#71717a">Badges</tspan></text>
 </svg>"##,
         badge_count = summary.unlocked_badges.len()
     )
@@ -87,15 +64,19 @@ pub fn render_group_banner_svg(
     let cv = fairness.coefficient_of_variation;
 
     format!(
-        r##"<svg xmlns="http://www.w3.org/2000/svg" width="500" height="150" viewBox="0 0 500 150" fill="none">
-  <rect width="500" height="150" rx="16" fill="#0f172a" stroke="#334155" stroke-width="1.5"/>
-  <text x="32" y="44" font-family="system-ui, sans-serif" font-size="18" font-weight="800" fill="#f8fafc">{name}</text>
-  <text x="32" y="66" font-family="monospace" font-size="12" fill="#94a3b8">{path}</text>
-  <rect x="32" y="86" width="436" height="1" fill="#1e293b"/>
-  <text x="32" y="118" font-family="system-ui, sans-serif" font-size="12" fill="#94a3b8">Total Effort</text>
-  <text x="32" y="136" font-family="system-ui, sans-serif" font-size="16" font-weight="700" fill="#38bdf8">{total_hours}h</text>
-  <text x="200" y="118" font-family="system-ui, sans-serif" font-size="12" fill="#94a3b8">Workload Balance</text>
-  <text x="200" y="136" font-family="system-ui, sans-serif" font-size="16" font-weight="700" fill="#4ade80">{rating} (CV {cv})</text>
+        r##"<svg xmlns="http://www.w3.org/2000/svg" width="480" height="136" viewBox="0 0 480 136" fill="none">
+  <rect x="0.5" y="0.5" width="479" height="135" rx="4" fill="#09090b" stroke="#27272a"/>
+  
+  <text x="24" y="34" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="600" fill="#f4f4f5">{name}</text>
+  <text x="24" y="52" font-family="monospace" font-size="11" fill="#71717a">{path}</text>
+  
+  <line x1="24" y1="68" x2="456" y2="68" stroke="#27272a" stroke-width="1"/>
+
+  <text x="24" y="92" font-family="system-ui, -apple-system, sans-serif" font-size="11" fill="#71717a">Total Effort</text>
+  <text x="24" y="112" font-family="monospace" font-size="15" font-weight="600" fill="#f4f4f5">{total_hours}h</text>
+
+  <text x="200" y="92" font-family="system-ui, -apple-system, sans-serif" font-size="11" fill="#71717a">Fairness Balance</text>
+  <text x="200" y="112" font-family="system-ui, -apple-system, sans-serif" font-size="15" font-weight="600" fill="#f4f4f5">{rating} <tspan font-family="monospace" font-size="12" font-weight="400" fill="#71717a">(CV {cv})</tspan></text>
 </svg>"##
     )
 }
@@ -111,9 +92,9 @@ pub fn render_sprint_matrix_svg(
     let row_count = rows.len();
     let has_rows = row_count > 0;
     let card_height = if has_rows {
-        120 + (row_count as u32 * 36) + 42 + 20
+        100 + (row_count as u32 * 32) + 38 + 16
     } else {
-        200
+        180
     };
 
     let mut tot_pm = 0.0;
@@ -133,11 +114,9 @@ pub fn render_sprint_matrix_svg(
         tot_other += r.other_hours;
         tot_all += r.total_hours;
 
-        let row_y = 120 + (i as u32 * 36);
+        let row_y = 100 + (i as u32 * 32);
         let zebra = if i % 2 == 1 {
-            format!(
-                r##"<rect x="24" y="{row_y}" width="672" height="34" rx="4" fill="#1e293b" fill-opacity="0.25"/>"##
-            )
+            format!(r##"<rect x="20" y="{row_y}" width="680" height="30" fill="#121214"/>"##)
         } else {
             String::new()
         };
@@ -145,87 +124,83 @@ pub fn render_sprint_matrix_svg(
         let disp_name = html_escape(r.custom_display_name.as_deref().unwrap_or(&r.name));
         let uname = html_escape(&r.username);
 
-        fn fmt_val(v: f64, col: &str) -> String {
+        fn fmt_val(v: f64) -> String {
             if v > 0.0 {
-                format!(r#"<tspan fill="{col}">{:.1}h</tspan>"#, v)
+                format!(r#"{:.1}h"#, v)
             } else {
-                r##"<tspan fill="#475569">-</tspan>"##.to_string()
+                "-".to_string()
             }
         }
 
-        let pm_str = fmt_val(r.pm_hours, "#e9d5ff");
-        let re_str = fmt_val(r.re_hours, "#bfdbfe");
-        let arch_str = fmt_val(r.arch_hours, "#fde68a");
-        let impl_str = fmt_val(r.impl_hours, "#a7f3d0");
-        let other_str = fmt_val(r.other_hours, "#cbd5e1");
+        let pm_str = fmt_val(r.pm_hours);
+        let re_str = fmt_val(r.re_hours);
+        let arch_str = fmt_val(r.arch_hours);
+        let impl_str = fmt_val(r.impl_hours);
+        let other_str = fmt_val(r.other_hours);
         let tot_str = format!("{:.1}h", r.total_hours);
 
-        let text_y = row_y + 22;
+        let text_y = row_y + 20;
         rows_svg.push_str(&format!(
             r##"{zebra}
-  <text x="36" y="{text_y}" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="600" fill="#f1f5f9">{disp_name} <tspan font-family="monospace" font-size="10" font-weight="400" fill="#64748b">@{uname}</tspan></text>
-  <text x="235" y="{text_y}" font-family="monospace" font-size="11" text-anchor="end">{pm_str}</text>
-  <text x="325" y="{text_y}" font-family="monospace" font-size="11" text-anchor="end">{re_str}</text>
-  <text x="425" y="{text_y}" font-family="monospace" font-size="11" text-anchor="end">{arch_str}</text>
-  <text x="535" y="{text_y}" font-family="monospace" font-size="11" text-anchor="end">{impl_str}</text>
-  <text x="615" y="{text_y}" font-family="monospace" font-size="11" text-anchor="end">{other_str}</text>
-  <text x="684" y="{text_y}" font-family="monospace" font-size="12" font-weight="700" fill="#38bdf8" text-anchor="end">{tot_str}</text>
-  <line x1="24" y1="{line_y}" x2="696" y2="{line_y}" stroke="#1e293b" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="28" y="{text_y}" font-family="system-ui, -apple-system, sans-serif" font-size="12" fill="#f4f4f5">{disp_name} <tspan font-family="monospace" font-size="10" fill="#71717a">@{uname}</tspan></text>
+  <text x="235" y="{text_y}" font-family="monospace" font-size="11" fill="#a1a1aa" text-anchor="end">{pm_str}</text>
+  <text x="325" y="{text_y}" font-family="monospace" font-size="11" fill="#a1a1aa" text-anchor="end">{re_str}</text>
+  <text x="425" y="{text_y}" font-family="monospace" font-size="11" fill="#a1a1aa" text-anchor="end">{arch_str}</text>
+  <text x="535" y="{text_y}" font-family="monospace" font-size="11" fill="#a1a1aa" text-anchor="end">{impl_str}</text>
+  <text x="615" y="{text_y}" font-family="monospace" font-size="11" fill="#a1a1aa" text-anchor="end">{other_str}</text>
+  <text x="690" y="{text_y}" font-family="monospace" font-size="11" font-weight="600" fill="#f4f4f5" text-anchor="end">{tot_str}</text>
+  <line x1="20" y1="{line_y}" x2="700" y2="{line_y}" stroke="#1f1f23" stroke-width="1"/>
 "##,
-            line_y = row_y + 35
+            line_y = row_y + 31
         ));
     }
 
     let summary_svg = if has_rows {
-        let total_y = 120 + (row_count as u32 * 36) + 4;
-        let text_y = total_y + 23;
+        let total_y = 100 + (row_count as u32 * 32) + 2;
+        let text_y = total_y + 20;
         format!(
-            r##"<rect x="24" y="{total_y}" width="672" height="36" rx="6" fill="#1e293b" fill-opacity="0.7" stroke="#334155" stroke-width="1"/>
-  <text x="36" y="{text_y}" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="700" fill="#f8fafc">Total</text>
-  <text x="235" y="{text_y}" font-family="monospace" font-size="11" font-weight="700" fill="#c084fc" text-anchor="end">{tot_pm:.1}h</text>
-  <text x="325" y="{text_y}" font-family="monospace" font-size="11" font-weight="700" fill="#60a5fa" text-anchor="end">{tot_re:.1}h</text>
-  <text x="425" y="{text_y}" font-family="monospace" font-size="11" font-weight="700" fill="#fbbf24" text-anchor="end">{tot_arch:.1}h</text>
-  <text x="535" y="{text_y}" font-family="monospace" font-size="11" font-weight="700" fill="#34d399" text-anchor="end">{tot_impl:.1}h</text>
-  <text x="615" y="{text_y}" font-family="monospace" font-size="11" font-weight="700" fill="#94a3b8" text-anchor="end">{tot_other:.1}h</text>
-  <text x="684" y="{text_y}" font-family="monospace" font-size="12" font-weight="800" fill="#38bdf8" text-anchor="end">{tot_all:.1}h</text>"##
+            r##"<rect x="20" y="{total_y}" width="680" height="32" rx="2" fill="#18181b" stroke="#27272a" stroke-width="1"/>
+  <text x="28" y="{text_y}" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="600" fill="#f4f4f5">Total</text>
+  <text x="235" y="{text_y}" font-family="monospace" font-size="11" font-weight="600" fill="#f4f4f5" text-anchor="end">{tot_pm:.1}h</text>
+  <text x="325" y="{text_y}" font-family="monospace" font-size="11" font-weight="600" fill="#f4f4f5" text-anchor="end">{tot_re:.1}h</text>
+  <text x="425" y="{text_y}" font-family="monospace" font-size="11" font-weight="600" fill="#f4f4f5" text-anchor="end">{tot_arch:.1}h</text>
+  <text x="535" y="{text_y}" font-family="monospace" font-size="11" font-weight="600" fill="#f4f4f5" text-anchor="end">{tot_impl:.1}h</text>
+  <text x="615" y="{text_y}" font-family="monospace" font-size="11" font-weight="600" fill="#f4f4f5" text-anchor="end">{tot_other:.1}h</text>
+  <text x="690" y="{text_y}" font-family="monospace" font-size="11" font-weight="700" fill="#38bdf8" text-anchor="end">{tot_all:.1}h</text>"##
         )
     } else {
-        r##"<text x="360" y="145" font-family="system-ui, -apple-system, sans-serif" font-size="13" fill="#64748b" text-anchor="middle">No timelogs recorded for this sprint.</text>"##.to_string()
+        r##"<text x="360" y="130" font-family="system-ui, -apple-system, sans-serif" font-size="12" fill="#71717a" text-anchor="middle">No timelogs recorded for this sprint.</text>"##.to_string()
     };
 
     let total_badge = format!("{tot_all:.1}h Total");
 
     format!(
         r##"<svg xmlns="http://www.w3.org/2000/svg" width="720" height="{card_height}" viewBox="0 0 720 {card_height}" fill="none">
-  <defs>
-    <linearGradient id="cardBg" x1="0" y1="0" x2="720" y2="{card_height}" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#0f172a"/>
-      <stop offset="100%" stop-color="#0b0f19"/>
-    </linearGradient>
-  </defs>
-  <rect width="720" height="{card_height}" rx="14" fill="url(#cardBg)" stroke="#334155" stroke-width="1.5"/>
+  <rect x="0.5" y="0.5" width="719" height="{card_height_inner}" rx="4" fill="#09090b" stroke="#27272a"/>
 
   <!-- Card Header -->
-  <text x="32" y="38" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="700" fill="#f8fafc">{group_name}</text>
-  <text x="32" y="58" font-family="system-ui, -apple-system, sans-serif" font-size="12" fill="#94a3b8">Sprint Time Matrix • {title}</text>
-  <rect x="588" y="25" width="108" height="26" rx="13" fill="#0284c7" fill-opacity="0.15" stroke="#38bdf8" stroke-opacity="0.3"/>
-  <text x="642" y="42" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="700" text-anchor="middle" fill="#38bdf8">{total_badge}</text>
+  <text x="24" y="32" font-family="system-ui, -apple-system, sans-serif" font-size="15" font-weight="600" fill="#f4f4f5">{group_name}</text>
+  <text x="24" y="48" font-family="monospace" font-size="11" fill="#71717a">Sprint Time Matrix • {title}</text>
+  
+  <rect x="612" y="18" width="84" height="22" rx="2" fill="#18181b" stroke="#27272a"/>
+  <text x="654" y="33" font-family="monospace" font-size="11" font-weight="600" text-anchor="middle" fill="#38bdf8">{total_badge}</text>
 
   <!-- Table Header -->
-  <rect x="24" y="80" width="672" height="28" rx="6" fill="#1e293b" fill-opacity="0.6"/>
-  <text x="36" y="98" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="600" fill="#94a3b8">ENGINEER</text>
-  <text x="235" y="98" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="600" fill="#c084fc" text-anchor="end">PM</text>
-  <text x="325" y="98" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="600" fill="#60a5fa" text-anchor="end">REQ ENG</text>
-  <text x="425" y="98" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="600" fill="#fbbf24" text-anchor="end">ARCH</text>
-  <text x="535" y="98" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="600" fill="#34d399" text-anchor="end">IMPL</text>
-  <text x="615" y="98" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="600" fill="#94a3b8" text-anchor="end">OTHER</text>
-  <text x="684" y="98" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="700" fill="#f8fafc" text-anchor="end">TOTAL</text>
+  <rect x="20" y="66" width="680" height="26" rx="2" fill="#18181b"/>
+  <text x="28" y="83" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="600" fill="#71717a">ENGINEER</text>
+  <text x="235" y="83" font-family="monospace" font-size="10" font-weight="600" fill="#71717a" text-anchor="end">PM</text>
+  <text x="325" y="83" font-family="monospace" font-size="10" font-weight="600" fill="#71717a" text-anchor="end">REQ ENG</text>
+  <text x="425" y="83" font-family="monospace" font-size="10" font-weight="600" fill="#71717a" text-anchor="end">ARCH</text>
+  <text x="535" y="83" font-family="monospace" font-size="10" font-weight="600" fill="#71717a" text-anchor="end">IMPL</text>
+  <text x="615" y="83" font-family="monospace" font-size="10" font-weight="600" fill="#71717a" text-anchor="end">OTHER</text>
+  <text x="690" y="83" font-family="monospace" font-size="10" font-weight="600" fill="#71717a" text-anchor="end">TOTAL</text>
 
   <!-- Data Rows -->
   {rows_svg}
   <!-- Totals Summary -->
   {summary_svg}
-</svg>"##
+</svg>"##,
+        card_height_inner = card_height - 1
     )
 }
 

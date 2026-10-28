@@ -139,3 +139,76 @@ pub struct WeekdaySprintHeatmap {
     pub sprint_numbers: Vec<i64>,
     pub sprint_start_weekday: String,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct TimeOfDayCell {
+    pub weekday: u32,
+    pub weekday_name: String,
+    pub hour: u32,
+    pub total_seconds: i64,
+    pub total_hours: f64,
+    pub timelog_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct TimeBlockSummary {
+    pub name: String,
+    pub hours: f64,
+    pub percentage: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct TimeOfDayHeatmap {
+    pub cells: Vec<TimeOfDayCell>,
+    pub max_hours: f64,
+    pub total_hours: f64,
+    pub peak_hour: u32,
+    pub peak_hour_hours: f64,
+    pub core_hours_pct: f64,
+    pub night_owl_pct: f64,
+    pub time_blocks: Vec<TimeBlockSummary>,
+    pub hourly_totals: Vec<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct SprintDeadlineRush {
+    pub sprint_number: i64,
+    pub rush_hours: f64,
+    pub total_hours: f64,
+    pub rush_percentage: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct DeadlineRushMetric {
+    pub overall_rush_hours: f64,
+    pub overall_total_hours: f64,
+    pub rush_percentage: f64,
+    pub rating: String,
+    pub explanation: String,
+    pub sprints: Vec<SprintDeadlineRush>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct CategorySprintShift {
+    pub sprint_number: i64,
+    pub pm_hours: f64,
+    pub re_hours: f64,
+    pub impl_hours: f64,
+    pub arch_hours: f64,
+    pub other_hours: f64,
+    pub total_hours: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct MemberRoleSpecialization {
+    pub username: String,
+    pub name: String,
+    pub avatar_url: Option<String>,
+    pub pm_percentage: f64,
+    pub re_percentage: f64,
+    pub impl_percentage: f64,
+    pub arch_percentage: f64,
+    pub other_percentage: f64,
+    pub primary_role: String,
+    pub total_hours: f64,
+}

@@ -38,7 +38,6 @@ pub fn router(state: AppState) -> Router {
         .route("/auth/callback", get(auth::callback))
         .route("/auth/me", get(auth::me))
         .route("/auth/logout", post(auth::logout))
-        .route("/render/badge/:id", get(render::render_badge))
         .route("/render/user/:username", get(render::render_user_card))
         .route("/render/group/:slug", get(render::render_group_banner))
         .route(

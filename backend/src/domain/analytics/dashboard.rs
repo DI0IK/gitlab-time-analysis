@@ -3,9 +3,13 @@ use utoipa::ToSchema;
 
 use crate::{
     db::groups::GroupRecord,
-    domain::analytics::metrics::{
-        CategoryDistribution, FairnessMetric, MemberMetric, SprintMetric, UserCategoryMatrixRow,
-        WeekdaySprintHeatmap,
+    domain::analytics::{
+        comparison::GroupComparisonSummary,
+        metrics::{
+            CategoryDistribution, CategorySprintShift, DeadlineRushMetric, FairnessMetric,
+            MemberMetric, MemberRoleSpecialization, SprintMetric, TimeOfDayHeatmap,
+            UserCategoryMatrixRow, WeekdaySprintHeatmap,
+        },
     },
 };
 
@@ -24,6 +28,12 @@ pub struct GroupDashboardResponse {
     pub sprints: Vec<SprintMetric>,
     pub matrix: Vec<UserCategoryMatrixRow>,
     pub heatmap: WeekdaySprintHeatmap,
+    pub time_of_day: TimeOfDayHeatmap,
+    pub deadline_rush: DeadlineRushMetric,
+    pub category_shift: Vec<CategorySprintShift>,
+    pub role_specializations: Vec<MemberRoleSpecialization>,
+    pub subgroups: Vec<GroupComparisonSummary>,
+    pub peers: Vec<GroupComparisonSummary>,
     pub current_sprint: Option<i64>,
     pub default_sprint: Option<i64>,
 }

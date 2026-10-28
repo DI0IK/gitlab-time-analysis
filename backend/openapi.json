@@ -356,36 +356,6 @@
         }
       }
     },
-    "/api/render/badge/{id}.svg": {
-      "get": {
-        "tags": [
-          "Render"
-        ],
-        "operationId": "render_badge",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "Badge ID (e.g. 'endurance_1')",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Rendered SVG badge image",
-            "content": {
-              "image/svg+xml": {}
-            }
-          },
-          "404": {
-            "description": "Badge not found"
-          }
-        }
-      }
-    },
     "/api/render/group/{slug}.svg": {
       "get": {
         "tags": [
@@ -2061,6 +2031,48 @@
           }
         }
       },
+      "CategorySprintShift": {
+        "type": "object",
+        "required": [
+          "sprint_number",
+          "pm_hours",
+          "re_hours",
+          "impl_hours",
+          "arch_hours",
+          "other_hours",
+          "total_hours"
+        ],
+        "properties": {
+          "arch_hours": {
+            "type": "number",
+            "format": "double"
+          },
+          "impl_hours": {
+            "type": "number",
+            "format": "double"
+          },
+          "other_hours": {
+            "type": "number",
+            "format": "double"
+          },
+          "pm_hours": {
+            "type": "number",
+            "format": "double"
+          },
+          "re_hours": {
+            "type": "number",
+            "format": "double"
+          },
+          "sprint_number": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "total_hours": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
       "ComparisonResponse": {
         "type": "object",
         "required": [
@@ -2135,6 +2147,43 @@
               "string",
               "null"
             ]
+          }
+        }
+      },
+      "DeadlineRushMetric": {
+        "type": "object",
+        "required": [
+          "overall_rush_hours",
+          "overall_total_hours",
+          "rush_percentage",
+          "rating",
+          "explanation",
+          "sprints"
+        ],
+        "properties": {
+          "explanation": {
+            "type": "string"
+          },
+          "overall_rush_hours": {
+            "type": "number",
+            "format": "double"
+          },
+          "overall_total_hours": {
+            "type": "number",
+            "format": "double"
+          },
+          "rating": {
+            "type": "string"
+          },
+          "rush_percentage": {
+            "type": "number",
+            "format": "double"
+          },
+          "sprints": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SprintDeadlineRush"
+            }
           }
         }
       },
@@ -2398,7 +2447,13 @@
           "categories",
           "sprints",
           "matrix",
-          "heatmap"
+          "heatmap",
+          "time_of_day",
+          "deadline_rush",
+          "category_shift",
+          "role_specializations",
+          "subgroups",
+          "peers"
         ],
         "properties": {
           "accuracy_ratio": {
@@ -2411,12 +2466,21 @@
               "$ref": "#/components/schemas/CategoryDistribution"
             }
           },
+          "category_shift": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CategorySprintShift"
+            }
+          },
           "current_sprint": {
             "type": [
               "integer",
               "null"
             ],
             "format": "int64"
+          },
+          "deadline_rush": {
+            "$ref": "#/components/schemas/DeadlineRushMetric"
           },
           "default_sprint": {
             "type": [
@@ -2458,11 +2522,32 @@
               "$ref": "#/components/schemas/MemberMetric"
             }
           },
+          "peers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GroupComparisonSummary"
+            }
+          },
+          "role_specializations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MemberRoleSpecialization"
+            }
+          },
           "sprints": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/SprintMetric"
             }
+          },
+          "subgroups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GroupComparisonSummary"
+            }
+          },
+          "time_of_day": {
+            "$ref": "#/components/schemas/TimeOfDayHeatmap"
           },
           "total_hours": {
             "type": "number",
@@ -2906,6 +2991,61 @@
           "work_items_count": {
             "type": "integer",
             "minimum": 0
+          }
+        }
+      },
+      "MemberRoleSpecialization": {
+        "type": "object",
+        "required": [
+          "username",
+          "name",
+          "pm_percentage",
+          "re_percentage",
+          "impl_percentage",
+          "arch_percentage",
+          "other_percentage",
+          "primary_role",
+          "total_hours"
+        ],
+        "properties": {
+          "arch_percentage": {
+            "type": "number",
+            "format": "double"
+          },
+          "avatar_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "impl_percentage": {
+            "type": "number",
+            "format": "double"
+          },
+          "name": {
+            "type": "string"
+          },
+          "other_percentage": {
+            "type": "number",
+            "format": "double"
+          },
+          "pm_percentage": {
+            "type": "number",
+            "format": "double"
+          },
+          "primary_role": {
+            "type": "string"
+          },
+          "re_percentage": {
+            "type": "number",
+            "format": "double"
+          },
+          "total_hours": {
+            "type": "number",
+            "format": "double"
+          },
+          "username": {
+            "type": "string"
           }
         }
       },
@@ -3430,6 +3570,33 @@
           }
         }
       },
+      "SprintDeadlineRush": {
+        "type": "object",
+        "required": [
+          "sprint_number",
+          "rush_hours",
+          "total_hours",
+          "rush_percentage"
+        ],
+        "properties": {
+          "rush_hours": {
+            "type": "number",
+            "format": "double"
+          },
+          "rush_percentage": {
+            "type": "number",
+            "format": "double"
+          },
+          "sprint_number": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "total_hours": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
       "SprintHourSummary": {
         "type": "object",
         "required": [
@@ -3591,6 +3758,125 @@
             "type": "integer",
             "format": "int32",
             "minimum": 0
+          }
+        }
+      },
+      "TimeBlockSummary": {
+        "type": "object",
+        "required": [
+          "name",
+          "hours",
+          "percentage"
+        ],
+        "properties": {
+          "hours": {
+            "type": "number",
+            "format": "double"
+          },
+          "name": {
+            "type": "string"
+          },
+          "percentage": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "TimeOfDayCell": {
+        "type": "object",
+        "required": [
+          "weekday",
+          "weekday_name",
+          "hour",
+          "total_seconds",
+          "total_hours",
+          "timelog_count"
+        ],
+        "properties": {
+          "hour": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "timelog_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "total_hours": {
+            "type": "number",
+            "format": "double"
+          },
+          "total_seconds": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "weekday": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "weekday_name": {
+            "type": "string"
+          }
+        }
+      },
+      "TimeOfDayHeatmap": {
+        "type": "object",
+        "required": [
+          "cells",
+          "max_hours",
+          "total_hours",
+          "peak_hour",
+          "peak_hour_hours",
+          "core_hours_pct",
+          "night_owl_pct",
+          "time_blocks",
+          "hourly_totals"
+        ],
+        "properties": {
+          "cells": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TimeOfDayCell"
+            }
+          },
+          "core_hours_pct": {
+            "type": "number",
+            "format": "double"
+          },
+          "hourly_totals": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "max_hours": {
+            "type": "number",
+            "format": "double"
+          },
+          "night_owl_pct": {
+            "type": "number",
+            "format": "double"
+          },
+          "peak_hour": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "peak_hour_hours": {
+            "type": "number",
+            "format": "double"
+          },
+          "time_blocks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TimeBlockSummary"
+            }
+          },
+          "total_hours": {
+            "type": "number",
+            "format": "double"
           }
         }
       },

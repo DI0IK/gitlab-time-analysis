@@ -180,22 +180,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/render/badge/{id}.svg": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["render_badge"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/render/group/{slug}.svg": {
         parameters: {
             query?: never;
@@ -704,6 +688,22 @@ export interface components {
             label: string;
             short_code: string;
         };
+        CategorySprintShift: {
+            /** Format: double */
+            arch_hours: number;
+            /** Format: double */
+            impl_hours: number;
+            /** Format: double */
+            other_hours: number;
+            /** Format: double */
+            pm_hours: number;
+            /** Format: double */
+            re_hours: number;
+            /** Format: int64 */
+            sprint_number: number;
+            /** Format: double */
+            total_hours: number;
+        };
         ComparisonResponse: {
             /** Format: double */
             average_group_hours: number;
@@ -726,6 +726,17 @@ export interface components {
             sprint_duration_weeks?: number;
             sprint_start_weekday?: string;
             token?: string | null;
+        };
+        DeadlineRushMetric: {
+            explanation: string;
+            /** Format: double */
+            overall_rush_hours: number;
+            /** Format: double */
+            overall_total_hours: number;
+            rating: string;
+            /** Format: double */
+            rush_percentage: number;
+            sprints: components["schemas"]["SprintDeadlineRush"][];
         };
         ErrorResponse: {
             details?: string | null;
@@ -796,8 +807,10 @@ export interface components {
             /** Format: double */
             accuracy_ratio: number;
             categories: components["schemas"]["CategoryDistribution"][];
+            category_shift: components["schemas"]["CategorySprintShift"][];
             /** Format: int64 */
             current_sprint?: number | null;
+            deadline_rush: components["schemas"]["DeadlineRushMetric"];
             /** Format: int64 */
             default_sprint?: number | null;
             /** Format: double */
@@ -811,7 +824,11 @@ export interface components {
             heatmap: components["schemas"]["WeekdaySprintHeatmap"];
             matrix: components["schemas"]["UserCategoryMatrixRow"][];
             members: components["schemas"]["MemberMetric"][];
+            peers: components["schemas"]["GroupComparisonSummary"][];
+            role_specializations: components["schemas"]["MemberRoleSpecialization"][];
             sprints: components["schemas"]["SprintMetric"][];
+            subgroups: components["schemas"]["GroupComparisonSummary"][];
+            time_of_day: components["schemas"]["TimeOfDayHeatmap"];
             /** Format: double */
             total_hours: number;
             /** Format: int64 */
@@ -929,6 +946,24 @@ export interface components {
             total_seconds: number;
             username: string;
             work_items_count: number;
+        };
+        MemberRoleSpecialization: {
+            /** Format: double */
+            arch_percentage: number;
+            avatar_url?: string | null;
+            /** Format: double */
+            impl_percentage: number;
+            name: string;
+            /** Format: double */
+            other_percentage: number;
+            /** Format: double */
+            pm_percentage: number;
+            primary_role: string;
+            /** Format: double */
+            re_percentage: number;
+            /** Format: double */
+            total_hours: number;
+            username: string;
         };
         MergeRequestRecord: {
             /** Format: int64 */
@@ -1065,6 +1100,16 @@ export interface components {
             sprint_duration_weeks: number;
             sprint_start_weekday: string;
         };
+        SprintDeadlineRush: {
+            /** Format: double */
+            rush_hours: number;
+            /** Format: double */
+            rush_percentage: number;
+            /** Format: int64 */
+            sprint_number: number;
+            /** Format: double */
+            total_hours: number;
+        };
         SprintHourSummary: {
             /** Format: double */
             hours: number;
@@ -1111,6 +1156,42 @@ export interface components {
             name: string;
             /** Format: int32 */
             xp_per_level: number;
+        };
+        TimeBlockSummary: {
+            /** Format: double */
+            hours: number;
+            name: string;
+            /** Format: double */
+            percentage: number;
+        };
+        TimeOfDayCell: {
+            /** Format: int32 */
+            hour: number;
+            timelog_count: number;
+            /** Format: double */
+            total_hours: number;
+            /** Format: int64 */
+            total_seconds: number;
+            /** Format: int32 */
+            weekday: number;
+            weekday_name: string;
+        };
+        TimeOfDayHeatmap: {
+            cells: components["schemas"]["TimeOfDayCell"][];
+            /** Format: double */
+            core_hours_pct: number;
+            hourly_totals: number[];
+            /** Format: double */
+            max_hours: number;
+            /** Format: double */
+            night_owl_pct: number;
+            /** Format: int32 */
+            peak_hour: number;
+            /** Format: double */
+            peak_hour_hours: number;
+            time_blocks: components["schemas"]["TimeBlockSummary"][];
+            /** Format: double */
+            total_hours: number;
         };
         UpdateProfileRequest: {
             custom_display_name?: string | null;
@@ -1692,36 +1773,6 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MetaResponse"];
                 };
-            };
-        };
-    };
-    render_badge: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Badge ID (e.g. 'endurance_1') */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Rendered SVG badge image */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "image/svg+xml": unknown;
-                };
-            };
-            /** @description Badge not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
         };
     };

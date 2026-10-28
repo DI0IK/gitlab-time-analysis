@@ -9,48 +9,12 @@ use crate::{
     db::{groups::get_group_by_slug, users::get_user_by_username},
     domain::{
         analytics::engine::{compute_group_dashboard, compute_group_dashboard_scoped},
-        gamification::{catalog::all_badges, evaluator::evaluate_user_gamification},
-        render::{
-            render_badge_svg, render_group_banner_svg, render_sprint_matrix_svg,
-            render_user_card_svg,
-        },
+        gamification::evaluator::evaluate_user_gamification,
+        render::{render_group_banner_svg, render_sprint_matrix_svg, render_user_card_svg},
     },
     error::AppError,
     state::AppState,
 };
-
-#[utoipa::path(
-    get,
-    path = "/api/render/badge/{id}.svg",
-    tag = "Render",
-    params(
-        ("id" = String, Path, description = "Badge ID (e.g. 'endurance_1')")
-    ),
-    responses(
-        (status = 200, description = "Rendered SVG badge image", content_type = "image/svg+xml"),
-        (status = 404, description = "Badge not found")
-    )
-)]
-pub async fn render_badge(Path(id): Path<String>) -> Result<Response, AppError> {
-    let clean_id = id.trim_end_matches(".svg");
-    let badge = all_badges()
-        .into_iter()
-        .find(|b| b.id == clean_id)
-        .ok_or_else(|| AppError::NotFound(format!("Badge '{clean_id}' not found")))?;
-
-    let svg = render_badge_svg(&badge);
-    let mut resp = (StatusCode::OK, svg).into_response();
-    let headers = resp.headers_mut();
-    headers.insert(
-        header::CONTENT_TYPE,
-        "image/svg+xml; charset=utf-8".parse().unwrap(),
-    );
-    headers.insert(
-        header::CACHE_CONTROL,
-        "public, max-age=3600".parse().unwrap(),
-    );
-    Ok(resp)
-}
 
 #[utoipa::path(
     get,

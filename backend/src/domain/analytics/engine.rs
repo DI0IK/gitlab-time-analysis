@@ -13,7 +13,9 @@ use crate::{
         comparison::{ComparisonResponse, GroupComparisonSummary},
         dashboard::GroupDashboardResponse,
         distribution::{
-            compute_categories, compute_matrix, compute_sprints, compute_weekday_heatmap,
+            compute_categories, compute_category_shift, compute_deadline_rush, compute_matrix,
+            compute_role_specializations, compute_sprints, compute_time_of_day_heatmap,
+            compute_weekday_heatmap,
         },
         metrics::{FairnessMetric, MemberMetric},
     },
@@ -209,6 +211,47 @@ pub async fn compute_group_dashboard_scoped(
         Some(now),
     );
 
+    // Direct child groups (subgroups)
+    let child_groups = sqlx::query_as::<_, GroupRecord>(
+        "SELECT id, full_path, name, parent_id, parent_name, level, web_url, synced_at FROM groups WHERE parent_id = ?1 ORDER BY level ASC, name ASC"
+    )
+    .bind(&group.id)
+    .fetch_all(pool)
+    .await
+    .unwrap_or_default();
+
+    let mut subgroups = Vec::new();
+    for cg in &child_groups {
+        if let Ok(summary) = compute_single_group_summary(pool, cg, managed_root).await {
+            subgroups.push(summary);
+        }
+    }
+
+    // Peers (sibling groups under the same parent if current group is a leaf)
+    let mut peers = Vec::new();
+    if subgroups.is_empty()
+        && let Some(ref pid) = group.parent_id
+    {
+        let sibling_groups = sqlx::query_as::<_, GroupRecord>(
+            "SELECT id, full_path, name, parent_id, parent_name, level, web_url, synced_at FROM groups WHERE parent_id = ?1 ORDER BY level ASC, name ASC",
+        )
+        .bind(pid)
+        .fetch_all(pool)
+        .await
+        .unwrap_or_default();
+
+        for sg in &sibling_groups {
+            if let Ok(summary) = compute_single_group_summary(pool, sg, managed_root).await {
+                peers.push(summary);
+            }
+        }
+    }
+
+    let time_of_day = compute_time_of_day_heatmap(&timelogs);
+    let deadline_rush = compute_deadline_rush(&timelogs, start_date, duration_weeks);
+    let category_shift = compute_category_shift(&work_items, &timelogs);
+    let role_specializations = compute_role_specializations(&matrix);
+
     Ok(GroupDashboardResponse {
         group: group.clone(),
         total_seconds,
@@ -223,8 +266,84 @@ pub async fn compute_group_dashboard_scoped(
         sprints,
         matrix,
         heatmap,
+        time_of_day,
+        deadline_rush,
+        category_shift,
+        role_specializations,
+        subgroups,
+        peers,
         current_sprint,
         default_sprint,
+    })
+}
+
+pub async fn compute_single_group_summary(
+    pool: &DbPool,
+    g: &GroupRecord,
+    managed_root: Option<&crate::db::managed_root_groups::ManagedRootGroupRecord>,
+) -> Result<GroupComparisonSummary, AppError> {
+    let raw_timelogs = get_timelogs_for_group(pool, &g.id).await?;
+    let timelogs: Vec<crate::db::timelogs::TimelogRecord> = if let Some(mr) = managed_root {
+        raw_timelogs
+            .into_iter()
+            .filter(|t| {
+                let d = t.spent_at.date_naive();
+                if d < mr.project_start_date {
+                    return false;
+                }
+                if mr.project_end_date.is_some_and(|end| d > end) {
+                    return false;
+                }
+                true
+            })
+            .collect()
+    } else {
+        raw_timelogs
+    };
+
+    let work_items = get_work_items_by_group(pool, &g.id).await?;
+    let mut all_members: std::collections::BTreeSet<String> = get_group_members(pool, &g.id)
+        .await?
+        .into_iter()
+        .map(|m| m.username)
+        .collect();
+    for t in &timelogs {
+        all_members.insert(t.username.clone());
+    }
+    let member_count = all_members.len();
+
+    let total_secs: i64 = timelogs.iter().map(|t| t.time_spent).sum();
+    let est_secs: i64 = work_items.iter().map(|w| w.time_estimate).sum();
+    let hours = (total_secs as f64 / 3600.0 * 10.0).round() / 10.0;
+    let est_hours = (est_secs as f64 / 3600.0 * 10.0).round() / 10.0;
+
+    let mut member_hours = HashMap::new();
+    for t in &timelogs {
+        *member_hours.entry(t.username.clone()).or_insert(0f64) += t.time_spent as f64 / 3600.0;
+    }
+    let member_hours_vec: Vec<f64> = member_hours.into_values().collect();
+    let fairness = FairnessMetric::calculate(&member_hours_vec);
+
+    let accuracy = if est_hours > 0.0 {
+        ((hours / est_hours) * 100.0).round() / 100.0
+    } else {
+        1.0
+    };
+
+    let categories = compute_categories(&work_items, &timelogs, total_secs);
+
+    Ok(GroupComparisonSummary {
+        group_id: g.id.clone(),
+        slug: g.full_path.replace('/', "-"),
+        name: g.name.clone(),
+        level: g.level,
+        member_count,
+        total_seconds: total_secs,
+        total_hours: hours,
+        estimated_hours: est_hours,
+        accuracy_ratio: accuracy,
+        fairness,
+        categories,
     })
 }
 
