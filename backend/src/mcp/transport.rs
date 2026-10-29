@@ -3,7 +3,7 @@ use std::{convert::Infallible, time::Duration};
 use axum::{
     Json,
     extract::{Query, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     response::{
         IntoResponse, Response,
         sse::{Event, KeepAlive, Sse},
@@ -98,16 +98,37 @@ pub async fn handle_sse(
 pub async fn handle_message(
     State(state): State<AppState>,
     auth: AuthUser,
+    headers: HeaderMap,
     Query(query): Query<MessageQuery>,
     Json(req): Json<JsonRpcRequest>,
 ) -> Result<Response, AppError> {
-    let session_id = query.session_id.unwrap_or_default();
+    let incoming_session_id = query.session_id.or_else(|| {
+        headers
+            .get("mcp-session-id")
+            .and_then(|h| h.to_str().ok())
+            .map(|s| s.to_string())
+    });
+
+    let session_id = incoming_session_id.unwrap_or_else(|| {
+        if req.method == "initialize" {
+            Uuid::new_v4().to_string()
+        } else {
+            String::new()
+        }
+    });
+
     let id_val = req.id.clone().unwrap_or(json!(null));
 
     // Notifications (no id) do not expect a JSON-RPC response
     if req.id.is_none() && req.method.starts_with("notifications/") {
         tracing::debug!(method = %req.method, "Received MCP notification");
-        return Ok(StatusCode::ACCEPTED.into_response());
+        let mut resp = StatusCode::ACCEPTED.into_response();
+        if !session_id.is_empty()
+            && let Ok(hdr) = session_id.parse()
+        {
+            resp.headers_mut().insert("mcp-session-id", hdr);
+        }
+        return Ok(resp);
     }
 
     let response = match req.method.as_str() {
@@ -192,5 +213,12 @@ pub async fn handle_message(
             .await;
     }
 
-    Ok((StatusCode::OK, Json(response)).into_response())
+    let mut resp = (StatusCode::OK, Json(response)).into_response();
+    if !session_id.is_empty()
+        && let Ok(hdr) = session_id.parse()
+    {
+        resp.headers_mut().insert("mcp-session-id", hdr);
+    }
+
+    Ok(resp)
 }

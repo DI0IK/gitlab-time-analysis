@@ -208,7 +208,7 @@ function ApiKeysSection() {
         {
           mcpServers: {
             'gitlab-platform': {
-              url: `${originUrl}/api/mcp/sse`,
+              serverUrl: `${originUrl}/api/mcp`,
               headers: {
                 Authorization: `Bearer ${revealedKey.key}`,
               },
@@ -229,7 +229,7 @@ function ApiKeysSection() {
             Personal API Keys & Web MCP Access
           </CardTitle>
           <CardDescription>
-            Generate API keys for external AI developer agents (such as Cursor, Antigravity, or remote LLMs) connecting to this platform via the Model Context Protocol (MCP) over HTTP/SSE.
+            Generate API keys for external AI developer agents (such as Antigravity, Cursor, or remote LLMs) connecting to this platform via the Model Context Protocol (MCP) using Streamable HTTP.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
