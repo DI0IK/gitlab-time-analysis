@@ -219,7 +219,8 @@ async fn test_api_key_auth_and_mcp_endpoints() {
     assert_eq!(res_resp.status(), StatusCode::OK);
 
     // 7. Seed Managed Root Group, GitLab Group, Work Item, and Timelog
-    let start_date = chrono::NaiveDate::from_ymd_opt(2025, 10, 1).unwrap();
+    let now = chrono::Utc::now();
+    let start_date = now.date_naive() - chrono::Duration::days(1);
     gitlab_platform::db::managed_root_groups::create_managed_root_group(
         &pool,
         "mrg_1",
@@ -244,7 +245,6 @@ async fn test_api_key_auth_and_mcp_endpoints() {
     .await
     .unwrap();
 
-    let now = chrono::Utc::now();
     let group = gitlab_platform::db::groups::upsert_group(
         &pool,
         "gid://gitlab/Group/10",
@@ -294,6 +294,23 @@ async fn test_api_key_auth_and_mcp_endpoints() {
         Some("Worked on parser fix"),
         &issue.web_url,
         Some(1),
+        now,
+    )
+    .await
+    .unwrap();
+
+    let sprint2_time = now + chrono::Duration::days(8);
+    gitlab_platform::db::timelogs::upsert_timelog(
+        &pool,
+        "tl-2",
+        Some(&issue.id),
+        None,
+        "testadmin",
+        sprint2_time,
+        1800,
+        Some("Refactored token scanner in sprint 2"),
+        &issue.web_url,
+        None, // DB column has None, will be dynamically calculated to Sprint 2!
         now,
     )
     .await
@@ -433,7 +450,7 @@ async fn test_api_key_auth_and_mcp_endpoints() {
     let leaf_text = leaf_json["result"]["content"][0]["text"].as_str().unwrap();
     assert!(leaf_text.contains("Implement word count CLI"));
 
-    // 9. Test query_timelogs tool
+    // 9. Test query_timelogs tool (all timelogs, dynamic sprint_number populated)
     let tl_rpc = Request::builder()
         .method("POST")
         .uri("/api/mcp/messages")
@@ -463,7 +480,107 @@ async fn test_api_key_auth_and_mcp_endpoints() {
     let tl_json: serde_json::Value = serde_json::from_slice(&tl_bytes).unwrap();
     let tl_text = tl_json["result"]["content"][0]["text"].as_str().unwrap();
     assert!(tl_text.contains("Worked on parser fix"));
-    assert!(tl_text.contains("3600"));
+    assert!(tl_text.contains("Refactored token scanner in sprint 2"));
+    assert!(tl_text.contains("\"sprint_number\": 1"));
+    assert!(tl_text.contains("\"sprint_number\": 2"));
+
+    // 9b. Test query_timelogs filtered by sprint_number: 1 (as integer)
+    let sp1_rpc = Request::builder()
+        .method("POST")
+        .uri("/api/mcp/messages")
+        .header(header::AUTHORIZATION, format!("Bearer {raw_token}"))
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(Body::from(
+            json!({
+                "jsonrpc": "2.0",
+                "id": 61,
+                "method": "tools/call",
+                "params": {
+                    "name": "query_timelogs",
+                    "arguments": {
+                        "root_slug": "tinf24",
+                        "sprint_number": 1
+                    }
+                }
+            })
+            .to_string(),
+        ))
+        .unwrap();
+
+    let sp1_res = app_router.clone().oneshot(sp1_rpc).await.unwrap();
+    assert_eq!(sp1_res.status(), StatusCode::OK);
+    let sp1_bytes = axum::body::to_bytes(sp1_res.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let sp1_json: serde_json::Value = serde_json::from_slice(&sp1_bytes).unwrap();
+    let sp1_text = sp1_json["result"]["content"][0]["text"].as_str().unwrap();
+    assert!(sp1_text.contains("Worked on parser fix"));
+    assert!(!sp1_text.contains("Refactored token scanner in sprint 2"));
+
+    // 9c. Test query_timelogs filtered by sprint_number: "2" (as string)
+    let sp2_rpc = Request::builder()
+        .method("POST")
+        .uri("/api/mcp/messages")
+        .header(header::AUTHORIZATION, format!("Bearer {raw_token}"))
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(Body::from(
+            json!({
+                "jsonrpc": "2.0",
+                "id": 62,
+                "method": "tools/call",
+                "params": {
+                    "name": "query_timelogs",
+                    "arguments": {
+                        "root_slug": "tinf24",
+                        "sprint_number": "2"
+                    }
+                }
+            })
+            .to_string(),
+        ))
+        .unwrap();
+
+    let sp2_res = app_router.clone().oneshot(sp2_rpc).await.unwrap();
+    assert_eq!(sp2_res.status(), StatusCode::OK);
+    let sp2_bytes = axum::body::to_bytes(sp2_res.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let sp2_json: serde_json::Value = serde_json::from_slice(&sp2_bytes).unwrap();
+    let sp2_text = sp2_json["result"]["content"][0]["text"].as_str().unwrap();
+    assert!(!sp2_text.contains("Worked on parser fix"));
+    assert!(sp2_text.contains("Refactored token scanner in sprint 2"));
+
+    // 9d. Test query_timelogs filtered by nonexistent sprint_number: 99
+    let sp99_rpc = Request::builder()
+        .method("POST")
+        .uri("/api/mcp/messages")
+        .header(header::AUTHORIZATION, format!("Bearer {raw_token}"))
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(Body::from(
+            json!({
+                "jsonrpc": "2.0",
+                "id": 63,
+                "method": "tools/call",
+                "params": {
+                    "name": "query_timelogs",
+                    "arguments": {
+                        "root_slug": "tinf24",
+                        "sprint_number": 99
+                    }
+                }
+            })
+            .to_string(),
+        ))
+        .unwrap();
+
+    let sp99_res = app_router.clone().oneshot(sp99_rpc).await.unwrap();
+    assert_eq!(sp99_res.status(), StatusCode::OK);
+    let sp99_bytes = axum::body::to_bytes(sp99_res.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let sp99_json: serde_json::Value = serde_json::from_slice(&sp99_bytes).unwrap();
+    let sp99_text = sp99_json["result"]["content"][0]["text"].as_str().unwrap();
+    assert_eq!(sp99_text.trim(), "[]");
 
     // 10. Test query_activity tool
     let act_rpc = Request::builder()

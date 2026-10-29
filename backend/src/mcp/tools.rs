@@ -496,7 +496,19 @@ pub async fn execute_tool(
             };
 
             let user_filter = args.get("username").and_then(|v| v.as_str());
-            let sprint_filter = args.get("sprint_number").and_then(|v| v.as_i64());
+            let sprint_filter = args
+                .get("sprint_number")
+                .or_else(|| args.get("sprint"))
+                .and_then(|v| {
+                    v.as_i64().or_else(|| {
+                        v.as_str().and_then(|s| {
+                            s.trim_start_matches("sprint-")
+                                .trim_start_matches('s')
+                                .parse()
+                                .ok()
+                        })
+                    })
+                });
             let limit = args
                 .get("limit")
                 .and_then(|v| v.as_i64())
@@ -508,11 +520,29 @@ pub async fn execute_tool(
                     let filtered: Vec<_> = logs
                         .into_iter()
                         .filter(|t| {
+                            let d = t.spent_at.date_naive();
+                            if d < root.project_start_date {
+                                return false;
+                            }
+                            if root.project_end_date.is_some_and(|end| d > end) {
+                                return false;
+                            }
                             if let Some(u) = user_filter
                                 && !t.username.eq_ignore_ascii_case(u)
                             {
                                 return false;
                             }
+                            true
+                        })
+                        .map(|mut t| {
+                            t.sprint_number = crate::ingest::calculate_sprint_dynamic(
+                                t.spent_at,
+                                root.project_start_date,
+                                root.sprint_duration_weeks,
+                            );
+                            t
+                        })
+                        .filter(|t| {
                             if let Some(s) = sprint_filter
                                 && t.sprint_number != Some(s)
                             {
@@ -603,7 +633,16 @@ pub async fn execute_tool(
                     .unwrap_or_default();
                 let user_logs: Vec<_> = logs
                     .into_iter()
-                    .filter(|t| t.username.eq_ignore_ascii_case(username))
+                    .filter(|t| {
+                        let d = t.spent_at.date_naive();
+                        if d < root.project_start_date {
+                            return false;
+                        }
+                        if root.project_end_date.is_some_and(|end| d > end) {
+                            return false;
+                        }
+                        t.username.eq_ignore_ascii_case(username)
+                    })
                     .collect();
                 let group_seconds: i64 = user_logs.iter().map(|t| t.time_spent).sum();
                 Some(json!({
