@@ -2,6 +2,7 @@ use serde_json::{Value, json};
 
 use crate::{
     api::{
+        activity::{ActivityFilterQuery, compute_group_activity_scoped},
         extractors::{AuthUser, verify_root_access},
         tenant::guard::resolve_group_under_root,
     },
@@ -36,13 +37,17 @@ pub fn list_tools() -> Vec<ToolDefinition> {
         },
         ToolDefinition {
             name: "get_group_metrics".to_string(),
-            description: "Get high-level sprint metrics, total time tracked, work item completion, and velocity for a root group.".to_string(),
+            description: "Get high-level sprint metrics, total time tracked, work item completion, and velocity for a root group or subgroup.".to_string(),
             input_schema: json!({
                 "type": "object",
                 "properties": {
                     "root_slug": {
                         "type": "string",
                         "description": "Slug of the root group (e.g. 'tinf24')"
+                    },
+                    "group_slug": {
+                        "type": "string",
+                        "description": "Optional subgroup or project slug to scope metrics (e.g. 'r1-wc', defaults to root group)"
                     }
                 },
                 "required": ["root_slug"],
@@ -137,7 +142,7 @@ pub fn list_tools() -> Vec<ToolDefinition> {
         },
         ToolDefinition {
             name: "get_user_analytics".to_string(),
-            description: "Get detailed analytics, gamification progress, badges, and contribution summary for a specific developer in a root group.".to_string(),
+            description: "Get detailed analytics, gamification progress, badges, and contribution summary for a specific developer in a root group or subgroup.".to_string(),
             input_schema: json!({
                 "type": "object",
                 "properties": {
@@ -148,6 +153,10 @@ pub fn list_tools() -> Vec<ToolDefinition> {
                     "username": {
                         "type": "string",
                         "description": "GitLab username of the developer"
+                    },
+                    "group_slug": {
+                        "type": "string",
+                        "description": "Optional subgroup slug to scope contributions (e.g. 'r1-wc')"
                     }
                 },
                 "required": ["root_slug", "username"],
@@ -200,12 +209,56 @@ pub fn list_tools() -> Vec<ToolDefinition> {
                         "type": "string",
                         "description": "Full path of the project (e.g. 'my-group/my-project')"
                     },
+                    "group_slug": {
+                        "type": "string",
+                        "description": "Optional alias for project_path (e.g. 'r1-wc/wiki')"
+                    },
                     "page_slug": {
                         "type": "string",
                         "description": "Slug of the wiki page (e.g. 'home' or 'architecture')"
                     }
                 },
-                "required": ["root_slug", "project_path", "page_slug"],
+                "required": ["root_slug", "page_slug"],
+                "additionalProperties": false
+            }),
+        },
+        ToolDefinition {
+            name: "query_activity".to_string(),
+            description: "Query aggregated chronological activity feed (commits/MR events, work item events, comments, and timelogs) for a root group or subgroup.".to_string(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "root_slug": {
+                        "type": "string",
+                        "description": "Slug of the root group"
+                    },
+                    "group_slug": {
+                        "type": "string",
+                        "description": "Optional subgroup or project slug to scope activity (e.g. 'r1-wc', defaults to root group)"
+                    },
+                    "author": {
+                        "type": "string",
+                        "description": "Optional filter by GitLab username"
+                    },
+                    "sprint_number": {
+                        "type": "integer",
+                        "description": "Optional filter by sprint number"
+                    },
+                    "activity_type": {
+                        "type": "string",
+                        "description": "Optional filter: 'comment', 'system_note', 'timelog', 'mr', 'work_item'",
+                        "enum": ["comment", "system_note", "timelog", "mr", "work_item"]
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum number of activity items to return (default 50, max 200)"
+                    },
+                    "offset": {
+                        "type": "integer",
+                        "description": "Offset for pagination (default 0)"
+                    }
+                },
+                "required": ["root_slug"],
                 "additionalProperties": false
             }),
         },
@@ -262,7 +315,13 @@ pub async fn execute_tool(
                 }
             };
 
-            let group = match resolve_group_under_root(&state.db, &root, root_slug).await {
+            let target_slug = args
+                .get("group_slug")
+                .or_else(|| args.get("subgroup_slug"))
+                .and_then(|v| v.as_str())
+                .unwrap_or(root_slug);
+
+            let group = match resolve_group_under_root(&state.db, &root, target_slug).await {
                 Ok(g) => g,
                 Err(e) => return ToolCallResult::error(format!("Failed to resolve group: {e}")),
             };
@@ -499,6 +558,22 @@ pub async fn execute_tool(
                 None => return ToolCallResult::error("Missing required parameter: username"),
             };
 
+            let target_slug = args
+                .get("group_slug")
+                .or_else(|| args.get("subgroup_slug"))
+                .and_then(|v| v.as_str());
+
+            let scoped_group = if let Some(ts) = target_slug {
+                match resolve_group_under_root(&state.db, &root, ts).await {
+                    Ok(g) => Some(g),
+                    Err(e) => {
+                        return ToolCallResult::error(format!("Failed to resolve group: {e}"));
+                    }
+                }
+            } else {
+                None
+            };
+
             let (stats, _timelogs) = match fetch_user_contribution_stats_scoped(
                 &state.db,
                 username,
@@ -522,11 +597,31 @@ pub async fn execute_tool(
                     }
                 };
 
+            let group_scoped_stats = if let Some(ref g) = scoped_group {
+                let logs = get_timelogs_for_group(&state.db, &g.id)
+                    .await
+                    .unwrap_or_default();
+                let user_logs: Vec<_> = logs
+                    .into_iter()
+                    .filter(|t| t.username.eq_ignore_ascii_case(username))
+                    .collect();
+                let group_seconds: i64 = user_logs.iter().map(|t| t.time_spent).sum();
+                Some(json!({
+                    "group_full_path": g.full_path,
+                    "timelogs_count": user_logs.len(),
+                    "total_seconds": group_seconds,
+                    "total_hours": (group_seconds as f64 / 3600.0 * 10.0).round() / 10.0,
+                }))
+            } else {
+                None
+            };
+
             let result = json!({
                 "username": username,
                 "root_slug": root_slug,
                 "stats": stats,
                 "gamification": gamification,
+                "group_scoped_stats": group_scoped_stats,
             });
             ToolCallResult::text(serde_json::to_string_pretty(&result).unwrap_or_default())
         }
@@ -621,9 +716,17 @@ pub async fn execute_tool(
                 return ToolCallResult::error(format!("Access denied: {e}"));
             }
 
-            let project_path = match args.get("project_path").and_then(|v| v.as_str()) {
+            let project_path = match args
+                .get("project_path")
+                .or_else(|| args.get("group_slug"))
+                .and_then(|v| v.as_str())
+            {
                 Some(p) => p,
-                None => return ToolCallResult::error("Missing required parameter: project_path"),
+                None => {
+                    return ToolCallResult::error(
+                        "Missing required parameter: project_path (or group_slug)",
+                    );
+                }
             };
 
             let page_slug = match args.get("page_slug").and_then(|v| v.as_str()) {
@@ -639,6 +742,57 @@ pub async fn execute_tool(
                 Err(e) => ToolCallResult::error(format!(
                     "Wiki page '{page_slug}' not found or error reading: {e}"
                 )),
+            }
+        }
+        "query_activity" => {
+            let root_slug = match args.get("root_slug").and_then(|v| v.as_str()) {
+                Some(s) => s,
+                None => return ToolCallResult::error("Missing required parameter: root_slug"),
+            };
+
+            let root = match verify_root_access(&state.db, &auth.user, root_slug).await {
+                Ok(r) => r,
+                Err(e) => return ToolCallResult::error(format!("Access denied: {e}")),
+            };
+
+            let target_slug = args
+                .get("group_slug")
+                .or_else(|| args.get("subgroup_slug"))
+                .and_then(|v| v.as_str())
+                .unwrap_or(root_slug);
+
+            let group = match resolve_group_under_root(&state.db, &root, target_slug).await {
+                Ok(g) => g,
+                Err(e) => return ToolCallResult::error(format!("Failed to resolve group: {e}")),
+            };
+
+            let query = ActivityFilterQuery {
+                author: args
+                    .get("author")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string()),
+                sprint: args.get("sprint_number").and_then(|v| v.as_i64()),
+                activity_type: args
+                    .get("activity_type")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string()),
+                limit: args
+                    .get("limit")
+                    .and_then(|v| v.as_i64())
+                    .map(|l| l as usize),
+                offset: args
+                    .get("offset")
+                    .and_then(|v| v.as_i64())
+                    .map(|o| o as usize),
+            };
+
+            match compute_group_activity_scoped(state.clone(), group.full_path, query, Some(&root))
+                .await
+            {
+                Ok(axum::Json(feed)) => {
+                    ToolCallResult::text(serde_json::to_string_pretty(&feed).unwrap_or_default())
+                }
+                Err(e) => ToolCallResult::error(format!("Failed to query activity: {e}")),
             }
         }
         unknown => ToolCallResult::error(format!("Unknown tool: {unknown}")),

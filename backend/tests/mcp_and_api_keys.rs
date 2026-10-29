@@ -171,6 +171,7 @@ async fn test_api_key_auth_and_mcp_endpoints() {
     assert!(tool_names.contains(&"get_user_analytics"));
     assert!(tool_names.contains(&"query_merge_requests"));
     assert!(tool_names.contains(&"get_wiki_page"));
+    assert!(tool_names.contains(&"query_activity"));
     // Ensure trigger_sync was NOT implemented per user request
     assert!(!tool_names.contains(&"trigger_sync"));
 
@@ -360,4 +361,36 @@ async fn test_api_key_auth_and_mcp_endpoints() {
     let tl_text = tl_json["result"]["content"][0]["text"].as_str().unwrap();
     assert!(tl_text.contains("Worked on parser fix"));
     assert!(tl_text.contains("3600"));
+
+    // 10. Test query_activity tool
+    let act_rpc = Request::builder()
+        .method("POST")
+        .uri("/api/mcp/messages")
+        .header(header::AUTHORIZATION, format!("Bearer {raw_token}"))
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(Body::from(
+            json!({
+                "jsonrpc": "2.0",
+                "id": 7,
+                "method": "tools/call",
+                "params": {
+                    "name": "query_activity",
+                    "arguments": {
+                        "root_slug": "tinf24",
+                        "group_slug": "dhbw/tinf24"
+                    }
+                }
+            })
+            .to_string(),
+        ))
+        .unwrap();
+
+    let act_res = app_router.clone().oneshot(act_rpc).await.unwrap();
+    assert_eq!(act_res.status(), StatusCode::OK);
+    let act_bytes = axum::body::to_bytes(act_res.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let act_json: serde_json::Value = serde_json::from_slice(&act_bytes).unwrap();
+    let act_text = act_json["result"]["content"][0]["text"].as_str().unwrap();
+    assert!(act_text.contains("dhbw/tinf24"));
 }
