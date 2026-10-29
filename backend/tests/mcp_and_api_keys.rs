@@ -60,7 +60,7 @@ async fn test_api_key_generation_and_db_flow() {
 #[tokio::test]
 async fn test_api_key_auth_and_mcp_endpoints() {
     let (state, pool) = common::setup_test_state().await;
-    let (_user, cookie) = common::create_test_session(&state, &pool).await;
+    let (user, cookie) = common::create_test_session(&state, &pool).await;
     let app_router = app(state.clone());
 
     // 1. Generate an API Key via HTTP POST /api/user/api-keys using session cookie
@@ -216,4 +216,148 @@ async fn test_api_key_auth_and_mcp_endpoints() {
 
     let res_resp = app_router.clone().oneshot(res_rpc).await.unwrap();
     assert_eq!(res_resp.status(), StatusCode::OK);
+
+    // 7. Seed Managed Root Group, GitLab Group, Work Item, and Timelog
+    let start_date = chrono::NaiveDate::from_ymd_opt(2025, 10, 1).unwrap();
+    gitlab_platform::db::managed_root_groups::create_managed_root_group(
+        &pool,
+        "mrg_1",
+        "tinf24",
+        "DHBW TINF24",
+        "dhbw/tinf24",
+        None,
+        start_date,
+        None,
+        "Monday",
+        1,
+    )
+    .await
+    .unwrap();
+
+    gitlab_platform::db::permissions::upsert_user_permission(
+        &pool,
+        &user.gitlab_id,
+        "mrg_1",
+        "manual",
+    )
+    .await
+    .unwrap();
+
+    let now = chrono::Utc::now();
+    let group = gitlab_platform::db::groups::upsert_group(
+        &pool,
+        "gid://gitlab/Group/10",
+        "dhbw/tinf24",
+        "DHBW TINF24",
+        None,
+        None,
+        0,
+        "https://gitlab.com/dhbw/tinf24",
+        now,
+    )
+    .await
+    .unwrap();
+
+    let issue = gitlab_platform::db::work_items::upsert_work_item(
+        &pool,
+        "wi-1",
+        Some(&group.id),
+        None,
+        1,
+        "issue",
+        None,
+        "Fix bug in parser",
+        Some("Detailed bug report"),
+        "opened",
+        3600,
+        3600,
+        "https://gitlab.com/dhbw/tinf24/-/work_items/1",
+        "[]",
+        None,
+        None,
+        now,
+        None,
+        now,
+    )
+    .await
+    .unwrap();
+
+    gitlab_platform::db::timelogs::upsert_timelog(
+        &pool,
+        "tl-1",
+        Some(&issue.id),
+        None,
+        "testadmin",
+        now,
+        3600,
+        Some("Worked on parser fix"),
+        &issue.web_url,
+        Some(1),
+        now,
+    )
+    .await
+    .unwrap();
+
+    // 8. Test query_work_items tool
+    let wi_rpc = Request::builder()
+        .method("POST")
+        .uri("/api/mcp/messages")
+        .header(header::AUTHORIZATION, format!("Bearer {raw_token}"))
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(Body::from(
+            json!({
+                "jsonrpc": "2.0",
+                "id": 5,
+                "method": "tools/call",
+                "params": {
+                    "name": "query_work_items",
+                    "arguments": {
+                        "root_slug": "tinf24"
+                    }
+                }
+            })
+            .to_string(),
+        ))
+        .unwrap();
+
+    let wi_res = app_router.clone().oneshot(wi_rpc).await.unwrap();
+    assert_eq!(wi_res.status(), StatusCode::OK);
+    let wi_bytes = axum::body::to_bytes(wi_res.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let wi_json: serde_json::Value = serde_json::from_slice(&wi_bytes).unwrap();
+    let wi_text = wi_json["result"]["content"][0]["text"].as_str().unwrap();
+    assert!(wi_text.contains("Fix bug in parser"));
+
+    // 9. Test query_timelogs tool
+    let tl_rpc = Request::builder()
+        .method("POST")
+        .uri("/api/mcp/messages")
+        .header(header::AUTHORIZATION, format!("Bearer {raw_token}"))
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(Body::from(
+            json!({
+                "jsonrpc": "2.0",
+                "id": 6,
+                "method": "tools/call",
+                "params": {
+                    "name": "query_timelogs",
+                    "arguments": {
+                        "root_slug": "tinf24"
+                    }
+                }
+            })
+            .to_string(),
+        ))
+        .unwrap();
+
+    let tl_res = app_router.clone().oneshot(tl_rpc).await.unwrap();
+    assert_eq!(tl_res.status(), StatusCode::OK);
+    let tl_bytes = axum::body::to_bytes(tl_res.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let tl_json: serde_json::Value = serde_json::from_slice(&tl_bytes).unwrap();
+    let tl_text = tl_json["result"]["content"][0]["text"].as_str().unwrap();
+    assert!(tl_text.contains("Worked on parser fix"));
+    assert!(tl_text.contains("3600"));
 }

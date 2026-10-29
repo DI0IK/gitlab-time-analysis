@@ -51,13 +51,17 @@ pub fn list_tools() -> Vec<ToolDefinition> {
         },
         ToolDefinition {
             name: "query_work_items".to_string(),
-            description: "Search and list work items (issues, tasks, epics) in a root group, with optional filtering by state, type, or search term.".to_string(),
+            description: "Search and list work items (issues, tasks, epics) in a root group or subgroup, with optional filtering by state, type, or search term.".to_string(),
             input_schema: json!({
                 "type": "object",
                 "properties": {
                     "root_slug": {
                         "type": "string",
                         "description": "Slug of the root group"
+                    },
+                    "group_slug": {
+                        "type": "string",
+                        "description": "Optional subgroup or project slug to scope search (e.g. 'r1-wc')"
                     },
                     "state": {
                         "type": "string",
@@ -102,13 +106,17 @@ pub fn list_tools() -> Vec<ToolDefinition> {
         },
         ToolDefinition {
             name: "query_timelogs".to_string(),
-            description: "Query timelog entries recorded on work items and merge requests within a root group.".to_string(),
+            description: "Query timelog entries recorded on work items and merge requests within a root group or subgroup.".to_string(),
             input_schema: json!({
                 "type": "object",
                 "properties": {
                     "root_slug": {
                         "type": "string",
                         "description": "Slug of the root group"
+                    },
+                    "group_slug": {
+                        "type": "string",
+                        "description": "Optional subgroup or project slug to scope timelogs (e.g. 'r1-wc')"
                     },
                     "username": {
                         "type": "string",
@@ -148,13 +156,17 @@ pub fn list_tools() -> Vec<ToolDefinition> {
         },
         ToolDefinition {
             name: "query_merge_requests".to_string(),
-            description: "List merge requests in a root group with status, branches, review discussion counts, and author information.".to_string(),
+            description: "List merge requests in a root group or subgroup with status, branches, review discussion counts, and author information.".to_string(),
             input_schema: json!({
                 "type": "object",
                 "properties": {
                     "root_slug": {
                         "type": "string",
                         "description": "Slug of the root group"
+                    },
+                    "group_slug": {
+                        "type": "string",
+                        "description": "Optional subgroup or project slug to scope merge requests (e.g. 'r1-wc')"
                     },
                     "state": {
                         "type": "string",
@@ -280,6 +292,17 @@ pub async fn execute_tool(
                 Err(e) => return ToolCallResult::error(format!("Access denied: {e}")),
             };
 
+            let target_slug = args
+                .get("group_slug")
+                .or_else(|| args.get("subgroup_slug"))
+                .and_then(|v| v.as_str())
+                .unwrap_or(root_slug);
+
+            let group = match resolve_group_under_root(&state.db, &root, target_slug).await {
+                Ok(g) => g,
+                Err(e) => return ToolCallResult::error(format!("Failed to resolve group: {e}")),
+            };
+
             let state_filter = args.get("state").and_then(|v| v.as_str()).unwrap_or("ALL");
             let type_filter = args.get("work_item_type").and_then(|v| v.as_str());
             let search = args
@@ -292,7 +315,7 @@ pub async fn execute_tool(
                 .unwrap_or(50)
                 .clamp(1, 100) as usize;
 
-            match get_work_items_by_group(&state.db, &root.id).await {
+            match get_work_items_by_group(&state.db, &group.id).await {
                 Ok(items) => {
                     let filtered: Vec<_> = items
                         .into_iter()
@@ -402,6 +425,17 @@ pub async fn execute_tool(
                 Err(e) => return ToolCallResult::error(format!("Access denied: {e}")),
             };
 
+            let target_slug = args
+                .get("group_slug")
+                .or_else(|| args.get("subgroup_slug"))
+                .and_then(|v| v.as_str())
+                .unwrap_or(root_slug);
+
+            let group = match resolve_group_under_root(&state.db, &root, target_slug).await {
+                Ok(g) => g,
+                Err(e) => return ToolCallResult::error(format!("Failed to resolve group: {e}")),
+            };
+
             let user_filter = args.get("username").and_then(|v| v.as_str());
             let sprint_filter = args.get("sprint_number").and_then(|v| v.as_i64());
             let limit = args
@@ -410,7 +444,7 @@ pub async fn execute_tool(
                 .unwrap_or(50)
                 .clamp(1, 100) as usize;
 
-            match get_timelogs_for_group(&state.db, &root.id).await {
+            match get_timelogs_for_group(&state.db, &group.id).await {
                 Ok(logs) => {
                     let filtered: Vec<_> = logs
                         .into_iter()
@@ -515,13 +549,25 @@ pub async fn execute_tool(
                 .unwrap_or(50)
                 .clamp(1, 100) as usize;
 
-            let group_path = if !root.gitlab_group_path.is_empty() {
-                root.gitlab_group_path.as_str()
+            let target_slug = args
+                .get("group_slug")
+                .or_else(|| args.get("subgroup_slug"))
+                .and_then(|v| v.as_str());
+
+            let group_path = if let Some(ts) = target_slug {
+                match resolve_group_under_root(&state.db, &root, ts).await {
+                    Ok(g) => g.full_path,
+                    Err(e) => {
+                        return ToolCallResult::error(format!("Failed to resolve group: {e}"));
+                    }
+                }
+            } else if !root.gitlab_group_path.is_empty() {
+                root.gitlab_group_path.clone()
             } else {
-                root.slug.as_str()
+                root.slug.clone()
             };
 
-            match get_merge_requests_by_group(&state.db, group_path).await {
+            match get_merge_requests_by_group(&state.db, &group_path).await {
                 Ok(mrs) => {
                     let filtered: Vec<_> = mrs
                         .into_iter()
