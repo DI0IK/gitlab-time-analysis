@@ -4,7 +4,7 @@ use crate::{
     api::{
         activity::{ActivityFilterQuery, compute_group_activity_scoped},
         extractors::{AuthUser, verify_root_access},
-        tenant::guard::resolve_group_under_root,
+        tenant::guard::{resolve_group_under_root, resolve_project_under_root},
     },
     db::{
         merge_requests::get_merge_requests_by_group,
@@ -712,11 +712,12 @@ pub async fn execute_tool(
                 None => return ToolCallResult::error("Missing required parameter: root_slug"),
             };
 
-            if let Err(e) = verify_root_access(&state.db, &auth.user, root_slug).await {
-                return ToolCallResult::error(format!("Access denied: {e}"));
-            }
+            let root = match verify_root_access(&state.db, &auth.user, root_slug).await {
+                Ok(r) => r,
+                Err(e) => return ToolCallResult::error(format!("Access denied: {e}")),
+            };
 
-            let project_path = match args
+            let raw_project_path = match args
                 .get("project_path")
                 .or_else(|| args.get("group_slug"))
                 .and_then(|v| v.as_str())
@@ -729,12 +730,17 @@ pub async fn execute_tool(
                 }
             };
 
+            let project_path = match resolve_project_under_root(&root, raw_project_path) {
+                Ok(p) => p,
+                Err(e) => return ToolCallResult::error(format!("Access denied: {e}")),
+            };
+
             let page_slug = match args.get("page_slug").and_then(|v| v.as_str()) {
                 Some(s) => s,
                 None => return ToolCallResult::error("Missing required parameter: page_slug"),
             };
 
-            let git_dir = get_repo_dir(&state.config.repos_dir, project_path, true);
+            let git_dir = get_repo_dir(&state.config.repos_dir, &project_path, true);
             match get_local_wiki_page(&git_dir, page_slug, None).await {
                 Ok(page) => {
                     ToolCallResult::text(serde_json::to_string_pretty(&page).unwrap_or_default())

@@ -321,6 +321,44 @@ async fn test_api_key_auth_and_mcp_endpoints() {
         ))
         .unwrap();
 
+    let subgroup = gitlab_platform::db::groups::upsert_group(
+        &pool,
+        "gid://gitlab/Group/20",
+        "dhbw/tinf24/g3-rust/r1-wc",
+        "R1-WC",
+        Some(&group.id),
+        Some("DHBW TINF24"),
+        1,
+        "https://gitlab.com/dhbw/tinf24/g3-rust/r1-wc",
+        now,
+    )
+    .await
+    .unwrap();
+
+    let _sub_issue = gitlab_platform::db::work_items::upsert_work_item(
+        &pool,
+        "wi-2",
+        Some(&subgroup.id),
+        None,
+        2,
+        "issue",
+        None,
+        "Implement word count CLI",
+        Some("CLI feature description"),
+        "opened",
+        1800,
+        1800,
+        "https://gitlab.com/dhbw/tinf24/g3-rust/r1-wc/-/work_items/2",
+        "[]",
+        None,
+        None,
+        now,
+        None,
+        now,
+    )
+    .await
+    .unwrap();
+
     let wi_res = app_router.clone().oneshot(wi_rpc).await.unwrap();
     assert_eq!(wi_res.status(), StatusCode::OK);
     let wi_bytes = axum::body::to_bytes(wi_res.into_body(), 1024 * 1024)
@@ -329,6 +367,71 @@ async fn test_api_key_auth_and_mcp_endpoints() {
     let wi_json: serde_json::Value = serde_json::from_slice(&wi_bytes).unwrap();
     let wi_text = wi_json["result"]["content"][0]["text"].as_str().unwrap();
     assert!(wi_text.contains("Fix bug in parser"));
+
+    // 8b. Test query_work_items scoped by relative group_slug "g3-rust/r1-wc"
+    let rel_rpc = Request::builder()
+        .method("POST")
+        .uri("/api/mcp/messages")
+        .header(header::AUTHORIZATION, format!("Bearer {raw_token}"))
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(Body::from(
+            json!({
+                "jsonrpc": "2.0",
+                "id": 51,
+                "method": "tools/call",
+                "params": {
+                    "name": "query_work_items",
+                    "arguments": {
+                        "root_slug": "tinf24",
+                        "group_slug": "g3-rust/r1-wc"
+                    }
+                }
+            })
+            .to_string(),
+        ))
+        .unwrap();
+
+    let rel_res = app_router.clone().oneshot(rel_rpc).await.unwrap();
+    assert_eq!(rel_res.status(), StatusCode::OK);
+    let rel_bytes = axum::body::to_bytes(rel_res.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let rel_json: serde_json::Value = serde_json::from_slice(&rel_bytes).unwrap();
+    let rel_text = rel_json["result"]["content"][0]["text"].as_str().unwrap();
+    assert!(rel_text.contains("Implement word count CLI"));
+    assert!(!rel_text.contains("Fix bug in parser"));
+
+    // 8c. Test query_work_items scoped by leaf group_slug "r1-wc"
+    let leaf_rpc = Request::builder()
+        .method("POST")
+        .uri("/api/mcp/messages")
+        .header(header::AUTHORIZATION, format!("Bearer {raw_token}"))
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(Body::from(
+            json!({
+                "jsonrpc": "2.0",
+                "id": 52,
+                "method": "tools/call",
+                "params": {
+                    "name": "query_work_items",
+                    "arguments": {
+                        "root_slug": "tinf24",
+                        "group_slug": "r1-wc"
+                    }
+                }
+            })
+            .to_string(),
+        ))
+        .unwrap();
+
+    let leaf_res = app_router.clone().oneshot(leaf_rpc).await.unwrap();
+    assert_eq!(leaf_res.status(), StatusCode::OK);
+    let leaf_bytes = axum::body::to_bytes(leaf_res.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let leaf_json: serde_json::Value = serde_json::from_slice(&leaf_bytes).unwrap();
+    let leaf_text = leaf_json["result"]["content"][0]["text"].as_str().unwrap();
+    assert!(leaf_text.contains("Implement word count CLI"));
 
     // 9. Test query_timelogs tool
     let tl_rpc = Request::builder()
