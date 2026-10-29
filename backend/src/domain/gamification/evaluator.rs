@@ -63,7 +63,7 @@ pub struct BadgeProgressItem {
     pub icon: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserContributionStats {
     pub total_hours: f64,
     pub total_seconds: i64,

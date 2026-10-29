@@ -1,11 +1,15 @@
 use axum::{async_trait, extract::FromRequestParts, http::request::Parts};
 
 use crate::{
-    db::{sessions::get_session_with_user, users::UserRecord},
+    db::{
+        api_keys::{get_api_key_with_user, touch_api_key_last_used},
+        sessions::get_session_with_user,
+        users::UserRecord,
+    },
     error::AppError,
     session::{
         SESSION_COOKIE_NAME,
-        crypto::{decrypt, derive_key},
+        crypto::{decrypt, derive_key, hash_api_key},
         extract_cookie,
     },
     state::AppState,
@@ -26,6 +30,27 @@ impl FromRequestParts<AppState> for AuthUser {
         parts: &mut Parts,
         state: &AppState,
     ) -> Result<Self, Self::Rejection> {
+        if let Some(raw_key) = extract_bearer_or_api_key(&parts.headers) {
+            let key_hash = hash_api_key(&raw_key);
+            if let Some((api_key, user)) = get_api_key_with_user(&state.db, &key_hash).await? {
+                let db_clone = state.db.clone();
+                let key_id = api_key.id.clone();
+                tokio::spawn(async move {
+                    let _ = touch_api_key_last_used(&db_clone, &key_id).await;
+                });
+
+                return Ok(AuthUser {
+                    user,
+                    session_token: format!("apikey:{}", api_key.id),
+                    access_token: String::new(),
+                });
+            } else {
+                return Err(AppError::Unauthorized(
+                    "Invalid or expired API key".to_string(),
+                ));
+            }
+        }
+
         let token = extract_cookie(&parts.headers, SESSION_COOKIE_NAME)
             .ok_or_else(|| AppError::Unauthorized("Authentication required".to_string()))?;
 
@@ -43,6 +68,23 @@ impl FromRequestParts<AppState> for AuthUser {
             access_token,
         })
     }
+}
+
+pub fn extract_bearer_or_api_key(headers: &axum::http::HeaderMap) -> Option<String> {
+    if let Some(auth_val) = headers.get(axum::http::header::AUTHORIZATION)
+        && let Ok(auth_str) = auth_val.to_str()
+        && let Some(token) = auth_str.strip_prefix("Bearer ")
+    {
+        return Some(token.trim().to_string());
+    }
+
+    if let Some(key_val) = headers.get("x-api-key")
+        && let Ok(key_str) = key_val.to_str()
+    {
+        return Some(key_str.trim().to_string());
+    }
+
+    None
 }
 
 #[derive(Debug, Clone)]

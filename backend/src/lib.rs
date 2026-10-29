@@ -14,6 +14,7 @@ pub mod error;
 pub mod git;
 pub mod gitlab;
 pub mod ingest;
+pub mod mcp;
 pub mod session;
 pub mod state;
 pub mod telemetry;
@@ -29,11 +30,13 @@ pub fn app(state: AppState) -> Router {
         .allow_methods(Any)
         .allow_headers(Any);
 
-    let api_router = api::router(state);
+    let api_router = api::router(state.clone());
+    let mcp_router = mcp::router(state);
     let spa_router = web::spa_router(&frontend_dist);
 
     Router::new()
         .merge(api_router)
+        .nest("/api", mcp_router)
         .merge(spa_router)
         .layer(cors)
         .layer(CompressionLayer::new())

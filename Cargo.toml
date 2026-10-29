@@ -9,6 +9,7 @@ license = "GPL-3.0-or-later"
 
 [workspace.dependencies]
 tokio = { version = "1", features = ["full"] }
+tokio-stream = { version = "0.1", features = ["sync"] }
 axum = { version = "0.7", features = ["macros"] }
 tower = { version = "0.5", features = ["util", "timeout"] }
 tower-http = { version = "0.6", features = ["fs", "trace", "cors", "compression-gzip", "set-header"] }

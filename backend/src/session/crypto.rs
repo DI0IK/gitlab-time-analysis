@@ -68,6 +68,20 @@ pub fn decrypt(encoded: &str, key: &[u8; 32]) -> Result<String, AppError> {
         .map_err(|e| AppError::Internal(format!("UTF-8 decoding error: {e}")))
 }
 
+pub fn hash_api_key(raw_key: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(raw_key.as_bytes());
+    let result = hasher.finalize();
+    format!("{result:x}")
+}
+
+pub fn generate_api_key() -> (String, String, String) {
+    let raw = format!("glta_{}", generate_token(32));
+    let prefix = raw[..10].to_string();
+    let hash = hash_api_key(&raw);
+    (raw, prefix, hash)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

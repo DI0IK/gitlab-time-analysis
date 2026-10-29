@@ -11,6 +11,7 @@ use crate::{api::openapi::ApiDoc, state::AppState};
 pub mod activity;
 pub mod admin;
 pub mod analytics;
+pub mod api_keys;
 pub mod auth;
 pub mod extractors;
 pub mod groups;
@@ -53,6 +54,14 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/user/profile",
             get(profile::get_profile).patch(profile::update_profile),
+        )
+        .route(
+            "/user/api-keys",
+            get(api_keys::list_user_api_keys).post(api_keys::create_user_api_key),
+        )
+        .route(
+            "/user/api-keys/:id",
+            axum::routing::delete(api_keys::revoke_user_api_key),
         )
         // Platform Administration
         .route(

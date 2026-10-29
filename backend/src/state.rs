@@ -8,6 +8,7 @@ pub struct AppState {
     pub db: DbPool,
     pub cache: ResponseCache,
     pub http: reqwest::Client,
+    pub mcp_sessions: crate::mcp::session::McpSessionRegistry,
 }
 
 impl AppState {
@@ -23,6 +24,7 @@ impl AppState {
             db,
             cache: ResponseCache::default(),
             http,
+            mcp_sessions: crate::mcp::session::McpSessionRegistry::new(),
         }
     }
 

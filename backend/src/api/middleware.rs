@@ -6,9 +6,10 @@ use axum::{
 };
 
 use crate::{
-    db::sessions::get_session_with_user,
+    api::extractors::extract_bearer_or_api_key,
+    db::{api_keys::get_api_key_with_user, sessions::get_session_with_user},
     error::AppError,
-    session::{SESSION_COOKIE_NAME, extract_cookie},
+    session::{SESSION_COOKIE_NAME, crypto::hash_api_key, extract_cookie},
     state::AppState,
 };
 
@@ -17,6 +18,17 @@ pub async fn require_auth(
     req: Request,
     next: Next,
 ) -> Result<Response, AppError> {
+    if let Some(raw_key) = extract_bearer_or_api_key(req.headers()) {
+        let key_hash = hash_api_key(&raw_key);
+        if get_api_key_with_user(&state.db, &key_hash).await?.is_some() {
+            return Ok(next.run(req).await);
+        } else {
+            return Err(AppError::Unauthorized(
+                "Invalid or expired API key".to_string(),
+            ));
+        }
+    }
+
     let token = extract_cookie(req.headers(), SESSION_COOKIE_NAME)
         .ok_or_else(|| AppError::Unauthorized("Authentication required".to_string()))?;
 

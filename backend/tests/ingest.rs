@@ -29,6 +29,7 @@ async fn setup_test_app() -> (axum::Router, SqlitePool, AppState) {
         db: pool.clone(),
         cache: gitlab_platform::cache::ResponseCache::default(),
         http: reqwest::Client::new(),
+        mcp_sessions: gitlab_platform::mcp::session::McpSessionRegistry::new(),
     };
 
     let router = api::router(state.clone());

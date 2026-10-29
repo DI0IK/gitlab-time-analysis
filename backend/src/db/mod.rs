@@ -9,6 +9,7 @@ use std::time::Duration;
 use crate::error::AppError;
 
 pub mod activity;
+pub mod api_keys;
 pub mod groups;
 pub mod managed_root_groups;
 pub mod merge_requests;

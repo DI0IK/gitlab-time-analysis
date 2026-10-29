@@ -6,6 +6,7 @@ export const apiKeys = {
   adminUsers: ['admin', 'users'] as const,
   authMe: ['auth', 'me'] as const,
   userProfile: ['user', 'profile'] as const,
+  userApiKeys: ['user', 'api-keys'] as const,
 
   // Tenant-Scoped Query Keys
   rootGroups: (rootSlug: string) => ['root', rootSlug, 'groups'] as const,
