@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Calendar } from 'lucide-react'
 import { getAvatarUrl } from '@/lib/avatar'
 import { UserProfileModal } from '@/features/profile/user-profile-modal'
+import { CATEGORY_COLORS } from '@/lib/categories'
 
 import { SprintSelector, resolveInitialSprint } from './sprint-selector'
 
@@ -94,11 +95,36 @@ export function SprintMatrixTable({
           <thead className="bg-muted/40 border-y border-border/60 font-mono uppercase text-muted-foreground">
             <tr>
               <th className="py-2.5 px-4 font-medium">Engineer</th>
-              <th className="py-2.5 px-3 text-right font-medium">PM</th>
-              <th className="py-2.5 px-3 text-right font-medium">Req Eng</th>
-              <th className="py-2.5 px-3 text-right font-medium">Architecture</th>
-              <th className="py-2.5 px-3 text-right font-medium">Implementation</th>
-              <th className="py-2.5 px-3 text-right font-medium">Other</th>
+              <th className="py-2.5 px-3 text-right font-medium">
+                <span className="inline-flex items-center gap-1.5 justify-end">
+                  <span className="h-2 w-2 rounded-full inline-block" style={{ backgroundColor: CATEGORY_COLORS.pm }} />
+                  PM
+                </span>
+              </th>
+              <th className="py-2.5 px-3 text-right font-medium">
+                <span className="inline-flex items-center gap-1.5 justify-end">
+                  <span className="h-2 w-2 rounded-full inline-block" style={{ backgroundColor: CATEGORY_COLORS.re }} />
+                  Req Eng
+                </span>
+              </th>
+              <th className="py-2.5 px-3 text-right font-medium">
+                <span className="inline-flex items-center gap-1.5 justify-end">
+                  <span className="h-2 w-2 rounded-full inline-block" style={{ backgroundColor: CATEGORY_COLORS.arch }} />
+                  Architecture
+                </span>
+              </th>
+              <th className="py-2.5 px-3 text-right font-medium">
+                <span className="inline-flex items-center gap-1.5 justify-end">
+                  <span className="h-2 w-2 rounded-full inline-block" style={{ backgroundColor: CATEGORY_COLORS.impl }} />
+                  Implementation
+                </span>
+              </th>
+              <th className="py-2.5 px-3 text-right font-medium">
+                <span className="inline-flex items-center gap-1.5 justify-end">
+                  <span className="h-2 w-2 rounded-full inline-block" style={{ backgroundColor: CATEGORY_COLORS.other }} />
+                  Other
+                </span>
+              </th>
               <th className="py-2.5 px-4 text-right font-bold text-foreground">Total</th>
             </tr>
           </thead>

@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api/client'
 import { GroupKpiCards } from './group-kpi-cards'
@@ -73,6 +73,8 @@ export function KioskPresentationView({
     refetchInterval: 60 * 1000,
   })
 
+  const navigate = useNavigate()
+
   React.useEffect(() => {
     if (isPaused) return
     const timer = setInterval(() => {
@@ -80,6 +82,28 @@ export function KioskPresentationView({
     }, 12000)
     return () => clearInterval(timer)
   }, [isPaused, totalSlides])
+
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight' || e.key === ' ') {
+        e.preventDefault()
+        setSlide((prev) => (prev + 1) % totalSlides)
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault()
+        setSlide((prev) => (prev - 1 + totalSlides) % totalSlides)
+      } else if (e.key === 'Escape') {
+        e.preventDefault()
+        if (effectiveRootSlug && effectiveGroupSlug) {
+          navigate({
+            to: '/$rootSlug/$groupSlug',
+            params: { rootSlug: effectiveRootSlug, groupSlug: effectiveGroupSlug },
+          })
+        }
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [totalSlides, effectiveRootSlug, effectiveGroupSlug, navigate])
 
   const dash = dashboardQuery.data
 
@@ -89,7 +113,7 @@ export function KioskPresentationView({
       <div className="flex items-center justify-between pb-6 border-b border-border/40">
         <div>
           <span className="text-xs uppercase font-mono tracking-widest text-primary font-bold">Kiosk Presentation Mode</span>
-          <h1 className="text-3xl font-black font-display tracking-tight text-foreground">{dash?.group.name || slug}</h1>
+          <h1 className="text-3xl font-black font-display tracking-tight text-foreground">{dash?.group.name || effectiveGroupSlug}</h1>
         </div>
 
         <div className="flex items-center gap-3">
@@ -185,7 +209,17 @@ export function KioskPresentationView({
               <h2 className="text-2xl font-bold font-display">Contributor Standings & XP Champions</h2>
               <p className="text-xs text-muted-foreground mt-1">Live ranking across effort logs and achievements</p>
             </div>
-            <LeaderboardPodium topThree={(leaderboardQuery.data || []).slice(0, 3)} />
+            {leaderboardQuery.isLoading ? (
+              <div className="text-center font-mono text-muted-foreground animate-pulse py-8">
+                Loading standings...
+              </div>
+            ) : (leaderboardQuery.data || []).length === 0 ? (
+              <div className="text-center font-mono text-muted-foreground py-12 rounded-xl border border-dashed border-border/60 bg-muted/10">
+                No XP or contributor logs recorded yet for this group.
+              </div>
+            ) : (
+              <LeaderboardPodium topThree={(leaderboardQuery.data || []).slice(0, 3)} />
+            )}
           </div>
         )}
       </div>

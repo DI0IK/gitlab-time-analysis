@@ -9,7 +9,8 @@ import { Loader2 } from 'lucide-react'
 export function Shell({ children }: { children: React.ReactNode }) {
   const routerState = useRouterState()
   const { isAuthenticated, isLoading } = useAuth()
-  const isKiosk = routerState.location.pathname.startsWith('/present')
+  const pathname = routerState.location.pathname
+  const isKiosk = pathname.endsWith('/present') || pathname.startsWith('/present')
 
   // Show a smooth splash screen while initial session status is loading
   if (isLoading) {

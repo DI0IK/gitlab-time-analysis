@@ -1,20 +1,13 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { TrendingUp } from 'lucide-react'
 import type { components } from '@/lib/api/schema'
+import { CATEGORY_SHIFT_CONFIG, CATEGORY_COLORS } from '@/lib/categories'
 
 type CategorySprintShift = components['schemas']['CategorySprintShift']
 
 interface CategoryShiftChartProps {
   shifts?: CategorySprintShift[]
 }
-
-const CATEGORY_COLORS = [
-  { key: 'pm_hours', label: 'PM', color: '#c084fc', bgClass: 'bg-purple-500' },
-  { key: 're_hours', label: 'Req Eng', color: '#60a5fa', bgClass: 'bg-blue-500' },
-  { key: 'impl_hours', label: 'Impl', color: '#34d399', bgClass: 'bg-emerald-500' },
-  { key: 'arch_hours', label: 'Arch', color: '#fbbf24', bgClass: 'bg-amber-500' },
-  { key: 'other_hours', label: 'Other', color: '#94a3b8', bgClass: 'bg-slate-400' },
-] as const
 
 export function CategoryShiftChart({ shifts = [] }: CategoryShiftChartProps) {
   if (shifts.length === 0) {
@@ -36,7 +29,7 @@ export function CategoryShiftChart({ shifts = [] }: CategoryShiftChartProps) {
           </div>
 
           <div className="flex items-center gap-3 text-xs font-mono">
-            {CATEGORY_COLORS.map((c) => (
+            {CATEGORY_SHIFT_CONFIG.map((c) => (
               <div key={c.key} className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-xs" style={{ backgroundColor: c.color }} />
                 <span className="text-muted-foreground">{c.label}</span>
@@ -67,31 +60,31 @@ export function CategoryShiftChart({ shifts = [] }: CategoryShiftChartProps) {
                 <div className="w-full bg-muted/40 h-3 rounded-xs overflow-hidden flex">
                   {s.pm_hours > 0 && (
                     <div
-                      style={{ width: `${pmPct}%`, backgroundColor: '#c084fc' }}
+                      style={{ width: `${pmPct}%`, backgroundColor: CATEGORY_COLORS.pm }}
                       title={`PM: ${s.pm_hours}h (${pmPct.toFixed(0)}%)`}
                     />
                   )}
                   {s.re_hours > 0 && (
                     <div
-                      style={{ width: `${rePct}%`, backgroundColor: '#60a5fa' }}
+                      style={{ width: `${rePct}%`, backgroundColor: CATEGORY_COLORS.re }}
                       title={`RE: ${s.re_hours}h (${rePct.toFixed(0)}%)`}
                     />
                   )}
                   {s.impl_hours > 0 && (
                     <div
-                      style={{ width: `${implPct}%`, backgroundColor: '#34d399' }}
+                      style={{ width: `${implPct}%`, backgroundColor: CATEGORY_COLORS.impl }}
                       title={`Impl: ${s.impl_hours}h (${implPct.toFixed(0)}%)`}
                     />
                   )}
                   {s.arch_hours > 0 && (
                     <div
-                      style={{ width: `${archPct}%`, backgroundColor: '#fbbf24' }}
+                      style={{ width: `${archPct}%`, backgroundColor: CATEGORY_COLORS.arch }}
                       title={`Arch: ${s.arch_hours}h (${archPct.toFixed(0)}%)`}
                     />
                   )}
                   {s.other_hours > 0 && (
                     <div
-                      style={{ width: `${otherPct}%`, backgroundColor: '#94a3b8' }}
+                      style={{ width: `${otherPct}%`, backgroundColor: CATEGORY_COLORS.other }}
                       title={`Other: ${s.other_hours}h (${otherPct.toFixed(0)}%)`}
                     />
                   )}

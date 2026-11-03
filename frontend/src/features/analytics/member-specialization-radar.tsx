@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge'
 import { Compass } from 'lucide-react'
 import { getAvatarUrl } from '@/lib/avatar'
 import type { components } from '@/lib/api/schema'
+import { CATEGORY_COLORS } from '@/lib/categories'
 
 type MemberRoleSpecialization = components['schemas']['MemberRoleSpecialization']
 
@@ -74,31 +75,31 @@ export function MemberSpecializationRadar({
                   <div className="w-full bg-muted/50 h-2 rounded-xs overflow-hidden flex">
                     {m.impl_percentage > 0 && (
                       <div
-                        style={{ width: `${m.impl_percentage}%`, backgroundColor: '#34d399' }}
+                        style={{ width: `${m.impl_percentage}%`, backgroundColor: CATEGORY_COLORS.impl }}
                         title={`Impl: ${m.impl_percentage}%`}
                       />
                     )}
                     {m.re_percentage > 0 && (
                       <div
-                        style={{ width: `${m.re_percentage}%`, backgroundColor: '#60a5fa' }}
+                        style={{ width: `${m.re_percentage}%`, backgroundColor: CATEGORY_COLORS.re }}
                         title={`RE: ${m.re_percentage}%`}
                       />
                     )}
                     {m.arch_percentage > 0 && (
                       <div
-                        style={{ width: `${m.arch_percentage}%`, backgroundColor: '#fbbf24' }}
+                        style={{ width: `${m.arch_percentage}%`, backgroundColor: CATEGORY_COLORS.arch }}
                         title={`Arch: ${m.arch_percentage}%`}
                       />
                     )}
                     {m.pm_percentage > 0 && (
                       <div
-                        style={{ width: `${m.pm_percentage}%`, backgroundColor: '#c084fc' }}
+                        style={{ width: `${m.pm_percentage}%`, backgroundColor: CATEGORY_COLORS.pm }}
                         title={`PM: ${m.pm_percentage}%`}
                       />
                     )}
                     {m.other_percentage > 0 && (
                       <div
-                        style={{ width: `${m.other_percentage}%`, backgroundColor: '#94a3b8' }}
+                        style={{ width: `${m.other_percentage}%`, backgroundColor: CATEGORY_COLORS.other }}
                         title={`Other: ${m.other_percentage}%`}
                       />
                     )}

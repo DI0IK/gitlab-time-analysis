@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { CATEGORY_COLORS } from '@/lib/categories'
 
 export interface ScopedBadgeProps extends Omit<React.HTMLAttributes<HTMLSpanElement>, 'color'> {
   label: string
@@ -45,10 +46,10 @@ export function parseScopedLabel(labelStr: string): {
  */
 function getHarmoniousColor(scopeOrTitle: string): string {
   const lower = scopeOrTitle.toLowerCase()
-  if (lower.includes('pm') || lower.includes('project')) return '#ff7300'
-  if (lower.includes('req') || lower.includes('re')) return '#8884d8'
-  if (lower.includes('impl') || lower.includes('dev')) return '#10b981'
-  if (lower.includes('arch') || lower.includes('design')) return '#f59e0b'
+  if (lower.includes('pm') || lower.includes('project')) return CATEGORY_COLORS.pm
+  if (lower.includes('req') || lower.includes('re')) return CATEGORY_COLORS.re
+  if (lower.includes('impl') || lower.includes('dev')) return CATEGORY_COLORS.impl
+  if (lower.includes('arch') || lower.includes('design')) return CATEGORY_COLORS.arch
   if (lower.includes('bug') || lower.includes('fix') || lower.includes('critical')) return '#ef4444'
   if (lower.includes('doc') || lower.includes('spec')) return '#06b6d4'
   if (lower.includes('test') || lower.includes('qa')) return '#8b5cf6'

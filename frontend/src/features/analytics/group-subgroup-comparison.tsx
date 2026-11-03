@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import type { components } from '@/lib/api/schema'
 import { useTenant } from '@/features/tenant/tenant-context'
+import { DEFAULT_CATEGORY_METAS } from '@/lib/categories'
 
 type GroupComparisonSummary = components['schemas']['GroupComparisonSummary']
 
@@ -24,14 +25,6 @@ interface GroupSubgroupComparisonProps {
 }
 
 type SortField = 'hours' | 'accuracy' | 'members' | 'name'
-
-const DEFAULT_CATEGORY_COLORS: Record<string, { label: string; color: string }> = {
-  'project-management': { label: 'PM', color: '#c084fc' },
-  'requirements-engineering': { label: 'RE', color: '#60a5fa' },
-  implementation: { label: 'Impl', color: '#34d399' },
-  architecture: { label: 'Arch', color: '#fbbf24' },
-  other: { label: 'Other', color: '#94a3b8' },
-}
 
 export function GroupSubgroupComparison({
   subgroups = [],
@@ -117,7 +110,7 @@ export function GroupSubgroupComparison({
           <div className="flex flex-wrap items-center gap-3">
             {/* Category Color Legend */}
             <div className="hidden lg:flex items-center gap-2.5 text-[11px] font-mono">
-              {Object.entries(DEFAULT_CATEGORY_COLORS).map(([id, cat]) => (
+              {Object.entries(DEFAULT_CATEGORY_METAS).map(([id, cat]) => (
                 <div key={id} className="flex items-center gap-1">
                   <span className="w-2 h-2 rounded-xs" style={{ backgroundColor: cat.color }} />
                   <span className="text-muted-foreground">{cat.label}</span>
@@ -197,7 +190,7 @@ export function GroupSubgroupComparison({
                             if (cat.percentage <= 0) return null
                             const col =
                               cat.color ||
-                              DEFAULT_CATEGORY_COLORS[cat.category_id]?.color ||
+                              DEFAULT_CATEGORY_METAS[cat.category_id]?.color ||
                               '#94a3b8'
                             return (
                               <div
